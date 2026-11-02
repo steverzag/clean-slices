@@ -1,0 +1,10 @@
+<Project>
+  <!-- Separate from the template's Directory.Packages.props so CLI dependencies never leak into generated solutions. -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="Spectre.Console" Version="0.57.2" />
+    <PackageVersion Include="Spectre.Console.Cli" Version="0.57.2" />
+  </ItemGroup>
+</Project>

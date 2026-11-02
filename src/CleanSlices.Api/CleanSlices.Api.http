@@ -1,0 +1,34 @@
+@CleanSlices.Api_HostAddress = http://localhost:5221
+
+# #if (samples)
+GET {{CleanSlices.Api_HostAddress}}/tasks
+Accept: application/json
+
+###
+
+GET {{CleanSlices.Api_HostAddress}}/users
+Accept: application/json
+
+###
+
+# Replace the IDs with ones returned by the GET requests above
+DELETE {{CleanSlices.Api_HostAddress}}/tasks/00000000-0000-0000-0000-000000000000
+
+###
+
+DELETE {{CleanSlices.Api_HostAddress}}/users/00000000-0000-0000-0000-000000000000
+
+###
+
+POST {{CleanSlices.Api_HostAddress}}/tasks/00000000-0000-0000-0000-000000000000/users/00000000-0000-0000-0000-000000000000
+
+###
+
+DELETE {{CleanSlices.Api_HostAddress}}/tasks/00000000-0000-0000-0000-000000000000/users/00000000-0000-0000-0000-000000000000
+
+###
+# #else
+GET {{CleanSlices.Api_HostAddress}}/health
+
+###
+# #endif

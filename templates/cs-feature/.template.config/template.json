@@ -1,0 +1,66 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "Steve",
+  "classifications": [ "Clean Slices", "Feature", "Vertical Slice" ],
+  "identity": "Steve.CleanSlices.Feature",
+  "name": "Clean Slices Feature",
+  "description": "Adds a vertical slice to a Clean Slices solution: entity + errors + events (Core), EF configuration + event handlers (Infrastructure), CRUD endpoints (Api). Run from the solution root.",
+  "shortName": "cs-feature",
+  "sourceName": "Widget",
+  "preferNameDirectory": false,
+  "tags": {
+    "language": "C#",
+    "type": "item"
+  },
+  "forms": {
+    "appendS": { "identifier": "replace", "pattern": "$", "replacement": "s" },
+    "kebab": { "identifier": "kebabCase" }
+  },
+  "symbols": {
+    "app": {
+      "type": "parameter",
+      "datatype": "text",
+      "isRequired": true,
+      "replaces": "CleanSlices",
+      "fileRename": "CleanSlices",
+      "description": "Root name of the solution the feature is added to (e.g. Acme.Orders)."
+    },
+    "plural": {
+      "type": "parameter",
+      "datatype": "text",
+      "defaultValue": "",
+      "description": "Plural form of the entity name, used for folders, namespaces, table and route (default: name + 's')."
+    },
+    "pluralDefault": {
+      "type": "derived",
+      "valueSource": "name",
+      "valueTransform": "appendS"
+    },
+    "pluralName": {
+      "type": "generated",
+      "generator": "coalesce",
+      "parameters": {
+        "sourceVariableName": "plural",
+        "fallbackVariableName": "pluralDefault"
+      },
+      "replaces": "Widgets",
+      "fileRename": "Widgets"
+    },
+    "route": {
+      "type": "derived",
+      "valueSource": "pluralName",
+      "valueTransform": "kebab",
+      "replaces": "widgets"
+    }
+  },
+  "postActions": [
+    {
+      "description": "Next steps",
+      "manualInstructions": [
+        { "text": "Feature added. Create a migration for the new table: dotnet ef migrations add Add<Entity> --project src/<App>.Infrastructure" }
+      ],
+      "actionId": "AC1156F7-BB77-4DB8-B28F-24EEBCCA1E5C",
+      "continueOnError": true
+    }
+  ]
+}

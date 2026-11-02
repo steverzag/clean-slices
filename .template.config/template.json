@@ -1,0 +1,100 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "Steve",
+  "classifications": [ "Web", "API", "Aspire", "Clean Architecture", "Vertical Slices" ],
+  "identity": "Steve.CleanSlices.Template",
+  "name": "Clean Slices API",
+  "description": "ASP.NET Core API with Clean Architecture + Vertical Slices, orchestrated with .NET Aspire.",
+  "shortName": "cleanslices",
+  "sourceName": "CleanSlices",
+  "preferNameDirectory": true,
+  "tags": {
+    "language": "C#",
+    "type": "solution"
+  },
+  "guids": [
+    "385d530b-f969-4765-ac73-a898903aa161",
+    "b5c156b9-1708-4850-b78a-797a5c345e4f"
+  ],
+  "forms": {
+    "dotToUnderscore": { "identifier": "replace", "pattern": "\\.", "replacement": "_" },
+    "appendUnderscore": { "identifier": "replace", "pattern": "$", "replacement": "_" },
+    "dotToHyphen": { "identifier": "replace", "pattern": "\\.", "replacement": "-" },
+    "appendHyphen": { "identifier": "replace", "pattern": "$", "replacement": "-" },
+    "lower": { "identifier": "lowerCase" },
+    "aspireProjectsPrefix": { "identifier": "chain", "steps": [ "dotToUnderscore", "appendUnderscore" ] },
+    "aspireResourcePrefix": { "identifier": "chain", "steps": [ "lower", "dotToHyphen", "appendHyphen" ] }
+  },
+  "symbols": {
+    "samples": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "Include the sample Tasks/Users features (domain, endpoints, EF configuration, event handlers)."
+    },
+    "aspireProjectsPrefix": {
+      "type": "derived",
+      "valueSource": "name",
+      "valueTransform": "aspireProjectsPrefix",
+      "replaces": "CleanSlices_",
+      "description": "Aspire generated Projects.* class prefix (dots -> underscores)."
+    },
+    "aspireResourcePrefix": {
+      "type": "derived",
+      "valueSource": "name",
+      "valueTransform": "aspireResourcePrefix",
+      "replaces": "cleanslices-",
+      "description": "Aspire resource name prefix (lowercase, dots -> hyphens)."
+    }
+  },
+  "sources": [
+    {
+      "modifiers": [
+        {
+          "exclude": [
+            ".vs/**",
+            "**/bin/**",
+            "**/obj/**",
+            "**/*.user",
+            ".git/**",
+            ".template.config/**",
+            "templates/**",
+            "cli/**",
+            "src/CleanSlices.Infrastructure/Migrations/**"
+          ]
+        },
+        {
+          "condition": "(!samples)",
+          "exclude": [
+            "src/CleanSlices.Api/Features/Tasks/**",
+            "src/CleanSlices.Api/Features/Users/**",
+            "src/CleanSlices.Core/Domain/Tasks/**",
+            "src/CleanSlices.Core/Domain/Users/**",
+            "src/CleanSlices.Infrastructure/EventHandlers/TaskItems/**",
+            "src/CleanSlices.Infrastructure/EventHandlers/Users/**",
+            "src/CleanSlices.Infrastructure/Persistence/Configuration/TaskItemTypeConfiguration.cs",
+            "src/CleanSlices.Infrastructure/Persistence/Configuration/TaskItemUserAssignmentTypeConfiguration.cs",
+            "src/CleanSlices.Infrastructure/Persistence/Configuration/UserTypeConfiguration.cs"
+          ]
+        }
+      ]
+    }
+  ],
+  "SpecialCustomOperations": {
+    "**/*.http": {
+      "operations": [
+        {
+          "type": "conditional",
+          "configuration": {
+            "if": [ "# #if" ],
+            "else": [ "# #else" ],
+            "elseif": [ "# #elseif" ],
+            "endif": [ "# #endif" ],
+            "trim": true,
+            "wholeLine": true
+          }
+        }
+      ]
+    }
+  }
+}
