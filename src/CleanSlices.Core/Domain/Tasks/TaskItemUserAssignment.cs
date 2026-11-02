@@ -17,24 +17,12 @@ public class TaskItemUserAssignment
 		AssignedOn = DateTimeOffset.UtcNow;
 	}
 
-	public static Result<TaskItemUserAssignment> Create(Guid taskItemId, Guid userId)
+	public static TaskItemUserAssignment Create(Guid taskItemId, Guid userId)
 	{
-		var errors = new List<Error>();
-		if (taskItemId == Guid.Empty)
-		{
-			errors.Add(TaskItemUserAssignmentErrors.EmptyTaskItemId);
-		}
-		if (userId == Guid.Empty)
-		{
-			errors.Add(TaskItemUserAssignmentErrors.EmptyUserId);
-		}
+		DomainValidationException.ThrowIfAny(
+			taskItemId == Guid.Empty ? TaskItemUserAssignmentErrors.EmptyTaskItemId : null,
+			userId == Guid.Empty ? TaskItemUserAssignmentErrors.EmptyUserId : null);
 
-		if(errors.TryGetValidationError(out var validationError))
-		{
-			return Result.Failure<TaskItemUserAssignment>(validationError!);
-		}
-
-		var assignment = new TaskItemUserAssignment(taskItemId, userId);
-		return Result.Success(assignment);
+		return new TaskItemUserAssignment(taskItemId, userId);
 	}
 }

@@ -1,4 +1,5 @@
 ﻿using CleanSlices.Api.Configuration;
+using CleanSlices.Core.Shared;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 
@@ -8,6 +9,15 @@ public class ExceptionHandler(ILogger<ExceptionHandler> logger, IProblemDetailsS
 {
 	public async ValueTask<bool> TryHandleAsync(HttpContext httpContext, Exception exception, CancellationToken cancellationToken)
 	{
+		if (exception is DomainException domainException)
+		{
+			// Expected failures (validation, not found, conflict...): not an error from the server's point of view.
+			logger.LogInformation("{ExceptionType} for {Method} {Path}: {Message}",
+				domainException.GetType().Name, httpContext.Request.Method, httpContext.Request.Path, domainException.Message);
+
+			return await WriteAsync(httpContext, exception, ToProblemDetails(domainException));
+		}
+
 		if (exception is BadHttpRequestException badHttpRequestException)
 		{
 			logger.LogWarning(exception, "Malformed request for {Method} {Path}",
@@ -32,6 +42,32 @@ public class ExceptionHandler(ILogger<ExceptionHandler> logger, IProblemDetailsS
 			Detail = ProblemDetailsDefaults.RFC500Details,
 			Type = ProblemDetailsDefaults.RFC500Type
 		});
+	}
+
+	private static ProblemDetails ToProblemDetails(DomainException exception)
+	{
+		var (status, type) = exception switch
+		{
+			NotFoundException => (StatusCodes.Status404NotFound, ProblemDetailsDefaults.RFC404Type),
+			ConflictException => (StatusCodes.Status409Conflict, ProblemDetailsDefaults.RFC409Type),
+			DomainValidationException or BusinessRuleException => (StatusCodes.Status400BadRequest, ProblemDetailsDefaults.RFC400Type),
+			_ => (StatusCodes.Status400BadRequest, ProblemDetailsDefaults.RFC400Type),
+		};
+
+		var problemDetails = new ProblemDetails
+		{
+			Status = status,
+			Title = exception.Code,
+			Detail = exception.Message,
+			Type = type
+		};
+
+		if (exception is DomainValidationException validation)
+		{
+			problemDetails.Extensions["errors"] = validation.Errors;
+		}
+
+		return problemDetails;
 	}
 
 	private ValueTask<bool> WriteAsync(HttpContext httpContext, Exception exception, ProblemDetails problemDetails)

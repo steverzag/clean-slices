@@ -1,7 +1,5 @@
 using CleanSlices.Api.Configuration.Endpoints;
-using CleanSlices.Api.Extensions;
 using CleanSlices.Core.Domain.Widgets;
-using CleanSlices.Core.Shared;
 using CleanSlices.Infrastructure.Persistence;
 
 namespace CleanSlices.Api.Features.Widgets;
@@ -13,13 +11,12 @@ public class CreateWidget : IEndpoint
 
 	public async Task<IResult> Handler(AppDbContext context, CreateWidgetRequest request, CancellationToken cancellationToken)
 	{
-		var result = await Widget.Create(request.Name)
-			.Tap(e => context.Set<Widget>().Add(e))
-			.TapAsync(async _ => await context.SaveChangesAsync(cancellationToken));
+		var entity = Widget.Create(request.Name);
+		context.Set<Widget>().Add(entity);
+		await context.SaveChangesAsync(cancellationToken);
 
-		return result
-			.Map(e => new CreateWidgetResponse(e.Id, e.Name))
-			.ToCreatedAtRouteOrProblem(nameof(GetWidgetById), r => new { id = r.Id });
+		var response = new CreateWidgetResponse(entity.Id, entity.Name);
+		return Results.CreatedAtRoute(nameof(GetWidgetById), new { id = response.Id }, response);
 	}
 
 	public void Register(IEndpointRouteBuilder app)

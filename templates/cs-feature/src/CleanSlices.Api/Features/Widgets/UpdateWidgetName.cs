@@ -1,7 +1,5 @@
 using CleanSlices.Api.Configuration.Endpoints;
-using CleanSlices.Api.Extensions;
 using CleanSlices.Core.Domain.Widgets;
-using CleanSlices.Core.Shared;
 using CleanSlices.Infrastructure.Persistence;
 
 namespace CleanSlices.Api.Features.Widgets;
@@ -15,13 +13,13 @@ public class UpdateWidgetName : IEndpoint
 		var entity = await context.Set<Widget>().FindAsync([id], cancellationToken);
 		if (entity is null)
 		{
-			return WidgetErrors.NotFound(id).ToProblem();
+			throw WidgetErrors.NotFound(id);
 		}
 
-		var result = await entity.UpdateName(request.Name)
-			.TapAsync(async () => await context.SaveChangesAsync(cancellationToken));
+		entity.UpdateName(request.Name);
+		await context.SaveChangesAsync(cancellationToken);
 
-		return result.ToNoContentOrProblem();
+		return Results.NoContent();
 	}
 
 	public void Register(IEndpointRouteBuilder app)

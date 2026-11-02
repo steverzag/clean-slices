@@ -18,42 +18,25 @@ public class User : Entity
 		Email = email;
 	}
 
-	public static Result<User> Create(string name, string email)
+	public static User Create(string name, string email)
 	{
-		var errors = new[] { ValidateName(name), ValidateEmail(email) }
-			.OfType<Error>()
-			.ToList();
-
-		if (errors.TryGetValidationError(out var validationError))
-		{
-			return Result.Failure<User>(validationError!);
-		}
+		DomainValidationException.ThrowIfAny(ValidateName(name), ValidateEmail(email));
 
 		var user = new User(name, email);
 		user.Raise(new UserCreatedDomainEvent(user.Id));
 		return user;
 	}
 
-	public Result UpdateName(string name)
+	public void UpdateName(string name)
 	{
-		if (ValidateName(name) is { } error)
-		{
-			return Result.Failure(error);
-		}
-
+		DomainValidationException.ThrowIfAny(ValidateName(name));
 		Name = name;
-		return Result.Success();
 	}
 
-	public Result UpdateEmail(string email)
+	public void UpdateEmail(string email)
 	{
-		if (ValidateEmail(email) is { } error)
-		{
-			return Result.Failure(error);
-		}
-
+		DomainValidationException.ThrowIfAny(ValidateEmail(email));
 		Email = email;
-		return Result.Success();
 	}
 
 	public void Delete()
@@ -61,12 +44,12 @@ public class User : Entity
 		Raise(new UserDeletedDomainEvent(Id));
 	}
 
-	private static Error? ValidateName(string name) =>
+	private static DomainError? ValidateName(string name) =>
 		string.IsNullOrWhiteSpace(name) ? UserErrors.EmptyName
 		: name.Length > NameMaxLength ? UserErrors.NameTooLong
 		: null;
 
-	private static Error? ValidateEmail(string email) =>
+	private static DomainError? ValidateEmail(string email) =>
 		string.IsNullOrWhiteSpace(email) ? UserErrors.EmptyEmail
 		: email.Length > EmailMaxLength ? UserErrors.EmailTooLong
 		: null;

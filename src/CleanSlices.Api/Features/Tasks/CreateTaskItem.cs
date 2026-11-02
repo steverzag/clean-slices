@@ -1,7 +1,5 @@
 ﻿using CleanSlices.Api.Configuration.Endpoints;
-using CleanSlices.Api.Extensions;
 using CleanSlices.Core.Domain.Tasks;
-using CleanSlices.Core.Shared;
 using CleanSlices.Infrastructure.Persistence;
 
 namespace CleanSlices.Api.Features.Tasks;
@@ -13,13 +11,12 @@ public class CreateTaskItem : IEndpoint
 
 	public async Task<IResult> Handler(AppDbContext context, CreateTaskItemRequest request, CancellationToken cancellationToken)
 	{
-		var result = await TaskItem.Create(request.Title, request.Description)
-			.Tap(t => context.Tasks.Add(t))
-			.TapAsync(async _ => await context.SaveChangesAsync(cancellationToken));
+		var task = TaskItem.Create(request.Title, request.Description);
+		context.Tasks.Add(task);
+		await context.SaveChangesAsync(cancellationToken);
 
-		return result
-			.Map(t => new CreateTaskItemResponse(t.Id, t.Title, t.Description, t.Status, t.CreatedAt))
-			.ToCreatedAtRouteOrProblem(nameof(GetTaskItemById), r => new { id = r.Id });
+		var response = new CreateTaskItemResponse(task.Id, task.Title, task.Description, task.Status, task.CreatedAt);
+		return Results.CreatedAtRoute(nameof(GetTaskItemById), new { id = response.Id }, response);
 	}
 
 	public void Register(IEndpointRouteBuilder app)

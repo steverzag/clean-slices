@@ -1,6 +1,4 @@
 ﻿using CleanSlices.Api.Configuration.Endpoints;
-using CleanSlices.Api.Extensions;
-using CleanSlices.Core.Shared;
 using CleanSlices.Infrastructure.Persistence;
 
 namespace CleanSlices.Api.Features.Tasks;
@@ -14,13 +12,13 @@ public class UpdateTitle : IEndpoint
 		var task = await context.Tasks.FindAsync([id], cancellationToken);
 		if (task is null)
 		{
-			return TaskItemErrors.NotFound(id).ToProblem();
+			throw TaskItemErrors.NotFound(id);
 		}
 
-		var result = await task.UpdateTitle(request.Title)
-			.TapAsync(async () => await context.SaveChangesAsync(cancellationToken));
+		task.UpdateTitle(request.Title);
+		await context.SaveChangesAsync(cancellationToken);
 
-		return result.ToNoContentOrProblem();
+		return Results.NoContent();
 	}
 
 	public void Register(IEndpointRouteBuilder app)

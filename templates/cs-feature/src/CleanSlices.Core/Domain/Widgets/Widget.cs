@@ -15,27 +15,19 @@ public class Widget : Entity
 		Name = name;
 	}
 
-	public static Result<Widget> Create(string name)
+	public static Widget Create(string name)
 	{
-		if (ValidateName(name) is { } error)
-		{
-			return Result.Failure<Widget>(error);
-		}
+		DomainValidationException.ThrowIfAny(ValidateName(name));
 
 		var entity = new Widget(name);
 		entity.Raise(new WidgetCreatedDomainEvent(entity.Id));
 		return entity;
 	}
 
-	public Result UpdateName(string name)
+	public void UpdateName(string name)
 	{
-		if (ValidateName(name) is { } error)
-		{
-			return Result.Failure(error);
-		}
-
+		DomainValidationException.ThrowIfAny(ValidateName(name));
 		Name = name;
-		return Result.Success();
 	}
 
 	public void Delete()
@@ -43,7 +35,7 @@ public class Widget : Entity
 		Raise(new WidgetDeletedDomainEvent(Id));
 	}
 
-	private static Error? ValidateName(string name) =>
+	private static DomainError? ValidateName(string name) =>
 		string.IsNullOrWhiteSpace(name) ? WidgetErrors.EmptyName
 		: name.Length > NameMaxLength ? WidgetErrors.NameTooLong
 		: null;

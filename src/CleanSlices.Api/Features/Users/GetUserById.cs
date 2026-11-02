@@ -1,5 +1,4 @@
 ﻿using CleanSlices.Api.Configuration.Endpoints;
-using CleanSlices.Api.Extensions;
 using CleanSlices.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -18,7 +17,7 @@ public class GetUserById : IEndpoint
 			.FirstOrDefaultAsync(cancellationToken);
 
 		return user is null
-			? UserErrors.NotFound(id).ToProblem()
+			? throw UserErrors.NotFound(id)
 			: Results.Ok(user);
 	}
 

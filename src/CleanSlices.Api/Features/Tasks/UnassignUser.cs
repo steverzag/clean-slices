@@ -1,6 +1,4 @@
 using CleanSlices.Api.Configuration.Endpoints;
-using CleanSlices.Api.Extensions;
-using CleanSlices.Core.Shared;
 using CleanSlices.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,13 +13,13 @@ public class UnassignUser : IEndpoint
 			.FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
 		if (task is null)
 		{
-			return TaskItemErrors.NotFound(id).ToProblem();
+			throw TaskItemErrors.NotFound(id);
 		}
 
-		var result = await task.UnassignUser(userId)
-			.TapAsync(async () => await context.SaveChangesAsync(cancellationToken));
+		task.UnassignUser(userId);
+		await context.SaveChangesAsync(cancellationToken);
 
-		return result.ToNoContentOrProblem();
+		return Results.NoContent();
 	}
 
 	public void Register(IEndpointRouteBuilder app)

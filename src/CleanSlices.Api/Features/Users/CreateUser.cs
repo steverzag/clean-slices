@@ -1,7 +1,5 @@
 ﻿using CleanSlices.Api.Configuration.Endpoints;
-using CleanSlices.Api.Extensions;
 using CleanSlices.Core.Domain.Users;
-using CleanSlices.Core.Shared;
 using CleanSlices.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -16,16 +14,15 @@ public class CreateUser : IEndpoint
 	{
 		if (await context.Users.AnyAsync(u => u.Email == request.Email, cancellationToken))
 		{
-			return UserErrors.EmailInUse(request.Email).ToProblem();
+			throw UserErrors.EmailInUse(request.Email);
 		}
 
-		var result = await User.Create(request.Name, request.Email)
-			.Tap(u => context.Users.Add(u))
-			.TapAsync(async _ => await context.SaveChangesAsync(cancellationToken));
+		var user = User.Create(request.Name, request.Email);
+		context.Users.Add(user);
+		await context.SaveChangesAsync(cancellationToken);
 
-		return result
-			.Map(u => new CreateUserResponse(u.Id, u.Name, u.Email))
-			.ToCreatedAtRouteOrProblem(nameof(GetUserById), r => new { id = r.Id });
+		var response = new CreateUserResponse(user.Id, user.Name, user.Email);
+		return Results.CreatedAtRoute(nameof(GetUserById), new { id = response.Id }, response);
 	}
 
 	public void Register(IEndpointRouteBuilder app)

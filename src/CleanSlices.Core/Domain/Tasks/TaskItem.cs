@@ -30,40 +30,25 @@ public class TaskItem : Entity
 		Description = description;
 	}
 
-	public static Result<TaskItem> Create(string title, string description)
+	public static TaskItem Create(string title, string description)
 	{
-		var errors = new[] { ValidateTitle(title), ValidateDescription(description) }
-			.OfType<Error>()
-			.ToList();
-
-		if (errors.TryGetValidationError(out var validationError))
-		{
-			return Result.Failure<TaskItem>(validationError!);
-		}
+		DomainValidationException.ThrowIfAny(ValidateTitle(title), ValidateDescription(description));
 
 		var task = new TaskItem(title, description);
 		task.Raise(new TaskItemCreatedDomainEvent(task.Id));
-		return Result.Success(task);
+		return task;
 	}
 
-	public Result UpdateTitle(string title)
+	public void UpdateTitle(string title)
 	{
-		if (ValidateTitle(title) is { } error)
-		{
-			return Result.Failure(error);
-		}
+		DomainValidationException.ThrowIfAny(ValidateTitle(title));
 		Title = title;
-		return Result.Success();
 	}
 
-	public Result UpdateDescription(string description)
+	public void UpdateDescription(string description)
 	{
-		if (ValidateDescription(description) is { } error)
-		{
-			return Result.Failure(error);
-		}
+		DomainValidationException.ThrowIfAny(ValidateDescription(description));
 		Description = description;
-		return Result.Success();
 	}
 
 	public void MakeNotStarted()
@@ -95,51 +80,44 @@ public class TaskItem : Entity
 		Raise(new TaskItemDeletedDomainEvent(Id));
 	}
 
-	public Result AssignUser(Guid userId)
+	public void AssignUser(Guid userId)
 	{
 		var userIds = new HashSet<Guid>(UserIds) { userId };
-		return ApplyUsers(userIds);
+		ApplyUsers(userIds);
 	}
 
-	public Result UnassignUser(Guid userId)
+	public void UnassignUser(Guid userId)
 	{
 		var userIds = new HashSet<Guid>(UserIds);
 		userIds.Remove(userId);
-		return ApplyUsers(userIds);
+		ApplyUsers(userIds);
 	}
 
-	public Result ApplyUsers(IEnumerable<Guid> userIds)
+	public void ApplyUsers(IEnumerable<Guid> userIds)
 	{
 		var target = userIds.ToHashSet();
 		var current = UserIds;
 
 		if (target.SetEquals(current))
 		{
-			return Result.Success();
+			return;
 		}
 
-		var toAdd = new List<TaskItemUserAssignment>();
-		foreach (var userId in target.Except(current))
-		{
-			var assignmentResult = TaskItemUserAssignment.Create(Id, userId);
-			if (assignmentResult.IsFailure)
-			{
-				return Result.Failure(assignmentResult.Error!);
-			}
-			toAdd.Add(assignmentResult.Value);
-		}
+		// Build every new assignment first, so an invalid id leaves the current assignments untouched.
+		var toAdd = target.Except(current)
+			.Select(userId => TaskItemUserAssignment.Create(Id, userId))
+			.ToList();
 
 		_userAssignments.RemoveAll(assignment => !target.Contains(assignment.UserId));
 		_userAssignments.AddRange(toAdd);
-		return Result.Success();
 	}
 
-	private static Error? ValidateTitle(string title) =>
+	private static DomainError? ValidateTitle(string title) =>
 		string.IsNullOrWhiteSpace(title) ? TaskItemErrors.EmptyTitle
 		: title.Length > TitleMaxLength ? TaskItemErrors.TitleTooLong
 		: null;
 
-	private static Error? ValidateDescription(string description) =>
+	private static DomainError? ValidateDescription(string description) =>
 		string.IsNullOrWhiteSpace(description) ? TaskItemErrors.EmptyDescription
 		: description.Length > DescriptionMaxLength ? TaskItemErrors.DescriptionTooLong
 		: null;

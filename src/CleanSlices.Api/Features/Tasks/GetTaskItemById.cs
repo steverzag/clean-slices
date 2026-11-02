@@ -1,5 +1,4 @@
 ﻿using CleanSlices.Api.Configuration.Endpoints;
-using CleanSlices.Api.Extensions;
 using CleanSlices.Core.Domain.Tasks;
 using CleanSlices.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -34,7 +33,7 @@ public class GetTaskItemById : IEndpoint
 			.FirstOrDefaultAsync(cancellationToken);
 
 		return task is null
-			? TaskItemErrors.NotFound(id).ToProblem()
+			? throw TaskItemErrors.NotFound(id)
 			: Results.Ok(task);
 	}
 

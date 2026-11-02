@@ -1,6 +1,4 @@
 ﻿using CleanSlices.Api.Configuration.Endpoints;
-using CleanSlices.Api.Extensions;
-using CleanSlices.Core.Shared;
 using CleanSlices.Infrastructure.Persistence;
 
 namespace CleanSlices.Api.Features.Users;
@@ -14,13 +12,13 @@ public class UpdateName : IEndpoint
 		var user = await context.Users.FindAsync([id], cancellationToken);
 		if (user is null)
 		{
-			return UserErrors.NotFound(id).ToProblem();
+			throw UserErrors.NotFound(id);
 		}
 
-		var result = await user.UpdateName(request.Name)
-			.TapAsync(async () => await context.SaveChangesAsync(cancellationToken));
+		user.UpdateName(request.Name);
+		await context.SaveChangesAsync(cancellationToken);
 
-		return result.ToNoContentOrProblem();
+		return Results.NoContent();
 	}
 
 	public void Register(IEndpointRouteBuilder app)

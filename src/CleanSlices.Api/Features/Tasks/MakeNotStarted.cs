@@ -1,5 +1,4 @@
 ﻿using CleanSlices.Api.Configuration.Endpoints;
-using CleanSlices.Api.Extensions;
 using CleanSlices.Infrastructure.Persistence;
 
 namespace CleanSlices.Api.Features.Tasks;
@@ -11,7 +10,7 @@ public class MakeNotStarted : IEndpoint
 		var task = await context.Tasks.FindAsync([id], cancellationToken);
 		if (task is null)
 		{
-			return TaskItemErrors.NotFound(id).ToProblem();
+			throw TaskItemErrors.NotFound(id);
 		}
 
 		task.MakeNotStarted();
