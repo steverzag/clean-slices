@@ -93,18 +93,24 @@ internal sealed class TemplateRepository : IDisposable
 
     public async Task<IReadOnlyList<PatternInfo>> ListPatternsAsync(CancellationToken cancellationToken)
     {
-        // refs/remotes/origin/pattern/<name> → "<name>\t<subject of the branch's last commit>"
+        // refs/remotes/origin/pattern/<name> → "<name>"
         var output = await Git.RunOrThrowAsync(
             _clone,
-            ["for-each-ref", "--format=%(refname:lstrip=4)\t%(contents:subject)", $"refs/remotes/origin/{PatternBranchPrefix}"],
+            ["for-each-ref", "--format=%(refname:lstrip=4)", $"refs/remotes/origin/{PatternBranchPrefix}"],
             cancellationToken);
 
-        return output
-            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(line => line.Split('\t', 2))
-            .Select(parts => new PatternInfo(parts[0], CleanSubject(parts.ElementAtOrDefault(1) ?? string.Empty)))
-            .OrderBy(p => p.Name, StringComparer.Ordinal)
-            .ToList();
+        var patterns = new List<PatternInfo>();
+        foreach (var name in output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            // The description is the subject of the pattern's *first* commit, so follow-up commits
+            // (docs, fixes) on the branch don't change how the pattern is presented.
+            var branch = $"origin/{PatternBranchPrefix}{name}";
+            var forkPoint = await Git.RunOrThrowAsync(_clone, ["merge-base", MainBranch, branch], cancellationToken);
+            var subjects = await Git.RunOrThrowAsync(_clone, ["log", "--reverse", "--format=%s", $"{forkPoint}..{branch}"], cancellationToken);
+            patterns.Add(new PatternInfo(name, CleanSubject(subjects.Split('\n')[0].Trim())));
+        }
+
+        return patterns.OrderBy(p => p.Name, StringComparer.Ordinal).ToList();
 
         static string CleanSubject(string subject)
         {

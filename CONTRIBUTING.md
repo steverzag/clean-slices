@@ -43,7 +43,7 @@ dotnet new install . --force
 
 ## How patterns work
 
-A pattern is a branch named `pattern/<name>`, based on `main`, whose commits add the pattern. The CLI lists every `pattern/*` branch it finds, and shows the subject of the branch's latest commit (minus a `type(scope): ` prefix) as the description.
+A pattern is a branch named `pattern/<name>`, based on `main`, whose commits add the pattern. The CLI lists every `pattern/*` branch it finds, and shows the subject of the branch's first commit (minus a `type(scope): ` prefix) as the description. Later commits on the branch (fixes, docs) don't change it.
 
 To build a solution with patterns, the CLI checks out the template commit the solution came from (recorded in `.cleanslices.json`), cherry-picks each pattern branch's own commits on top, and renders the result. `add pattern` renders the solution before and after the pattern and merges the difference into the user's code with `git merge-tree`.
 
