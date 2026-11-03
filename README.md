@@ -8,6 +8,10 @@ A starter .NET 10 Web API that mixes Clean Architecture layering with vertical s
 - There is no MediatR or CQRS pipeline. Each endpoint holds its own handler logic.
 - Comments are kept to a minimum. Names should explain the code.
 
+## Command-line tool
+
+A companion CLI creates solutions from this template, adds features to them, and merges optional patterns such as Result&lt;T&gt; into existing code. See **[docs/CLI.md](docs/CLI.md)** for installation and usage.
+
 ## Tech stack
 
 - .NET 10 / C# 14 (extension blocks)
@@ -26,7 +30,7 @@ aspire/
   CleanSlices.AppHost        Aspire orchestrator (runs the API, dashboard)
   CleanSlices.ServiceDefaults OpenTelemetry, health checks, service discovery, resilience
 src/
-  CleanSlices.Core           domain: entities, domain events, domain errors, Result
+  CleanSlices.Core           domain: entities, domain events, domain errors, domain exceptions
   CleanSlices.Infrastructure EF Core, migrations, event publisher, event handlers
   CleanSlices.Api            endpoints (vertical slices), error mapping, exception handler
 ```
@@ -44,16 +48,18 @@ Dependencies point inwards: `Api → Infrastructure → Core`. Core has no packa
 
   It is abstract on purpose. It is never created on its own and is only a base for real entities.
 - **`TaskItem`** and **`User`** are the entities. They:
-  - create instances through `Create(...)` factories that validate the input and return `Result<T>`
+  - create instances through `Create(...)` factories that validate the input and throw a `DomainValidationException` when it's invalid
   - change state only through methods (`UpdateTitle`, `Complete`, `AssignUser`, `Delete`, ...); setters are private
   - raise domain events (`Created`, `Completed`, `Deleted`)
 - **`TaskItemUserAssignment`** is the join between tasks and users. It is *not* an `Entity`: it has a composite key `(TaskItemId, UserId)` plus `AssignedOn`. `AssignUser` and `UnassignUser` are all-or-nothing. Every id is validated before the collection changes.
-- **Domain errors** (`Core/Domain/*/…Errors.cs`) only describe broken domain rules, such as an empty title or a name that is too long.
-- **`Result` / `Result<T>`** carry success or an `Error`. They support `Map`, `Bind`, `Tap`, `TapAsync`, `TapError` and `Match`. Error types:
-  - `ProblemError`
-  - `ValidationError` (wraps a list of errors)
-  - `NotFoundError`
-  - `ConflictError`
+- **Domain errors** (`Core/Domain/*/…Errors.cs`) are `DomainError(Code, Description)` records. They only describe broken domain rules, such as an empty title or a name that is too long.
+- **Expected failures are exceptions** (`Core/Shared/Exceptions.cs`). All of them derive from `DomainException`, which carries a `Code`:
+  - `DomainValidationException` (wraps a list of `DomainError`s; `DomainValidationException.ThrowIfAny(...)` throws only when a check failed)
+  - `BusinessRuleException`
+  - `NotFoundException`
+  - `ConflictException`
+
+  Prefer returning results over throwing? The `result` pattern replaces these with `Result<T>`. See [docs/CLI.md](docs/CLI.md).
 
 ### Api (vertical slices)
 
@@ -69,18 +75,19 @@ Conventions:
 - **API-level errors live next to the features**, not in Core. Examples are `Features/Users/UserErrors.cs` (`NotFound`, `EmailInUse`) and `Features/Tasks/TaskItemErrors.cs` (`NotFound`, `UserNotFound`). "Not found" and "email already used" depend on the database, so they are not domain rules.
 - **Reads** use `AsNoTracking()` and an inline `Select(...)` into the response record. EF then reads only the columns it needs. Mapping helpers such as `.From(entity)` are avoided because they load the whole entity first.
 - **Lookups for updates** use `FindAsync([id], ct)`. Use `Include(...)` when a collection is needed, as in assign/unassign.
-- **Results become HTTP responses** through `Extensions/ResultExtensions.cs` (`ToOkOrProblem`, `ToNoContentOrProblem`, `ToCreatedAtRouteOrProblem`, ...). Some of these helpers are unused for now. They stay as a template for projects built from this starter.
-- **Error → status code**:
+- **Handlers are plain imperative code**: load the entity, call the domain method, save, return `Results.*`. Failures are thrown (`throw UserErrors.NotFound(id)`) and never caught in the endpoint.
+- **Exceptions become HTTP responses** in `Handlers/ExceptionHandler.cs`, which writes ProblemDetails through `IProblemDetailsService`:
 
-  | Error             | Status |
-  |-------------------|--------|
-  | `ValidationError` | 400    |
-  | `ProblemError`    | 400    |
-  | `NotFoundError`   | 404    |
-  | `ConflictError`   | 409    |
-  | anything else     | 500    |
+  | Exception                   | Status |
+  |-----------------------------|--------|
+  | `DomainValidationException` | 400, with an `errors` list |
+  | `BusinessRuleException`     | 400    |
+  | `NotFoundException`         | 404    |
+  | `ConflictException`         | 409    |
+  | `BadHttpRequestException`   | 400    |
+  | anything else               | 500    |
 
-- **Unhandled exceptions** go to `Handlers/ExceptionHandler.cs`, which writes responses through `IProblemDetailsService`. A `BadHttpRequestException` returns 400. Anything else is logged and returns a generic 500. Clients aren't told more than that: the log has the details.
+  Domain exceptions are expected, so they're logged at Information level. Anything else is logged as an error and returns a generic 500. Clients aren't told more than that: the log has the details.
 - Every ProblemDetails response includes `instance` (`METHOD /path`), `requestId` and `traceId`.
 - Enums are serialized as strings (`"Status": "InProgress"`).
 
@@ -197,7 +204,8 @@ These are deliberate for a simple starter. Revisit them when the project grows.
 - **Deleting takes two steps.** The entity's `Delete()` raises the event, then `Remove()` deletes the row.
 - **Concurrent duplicates** (two identical assigns, or the same email created twice at once) get past the pre-checks. The database constraint stops them, which results in a logged 500.
 - **There is no optimistic concurrency** (no rowversion).
-- **Validation errors** are a list on `ValidationError`, not the standard ASP.NET Core `ValidationProblemDetails` dictionary.
+- **Expected failures are exceptions.** The code reads top to bottom, but method signatures don't show what can fail, and throwing costs more than returning. The `result` pattern is the alternative.
+- **Validation errors** are a list on `DomainValidationException`, not the standard ASP.NET Core `ValidationProblemDetails` dictionary.
 - **ProblemDetails titles are error codes**, such as `User.NotFound`.
 - **Time comes from `DateTimeOffset.UtcNow`** rather than `TimeProvider`.
 - **No paging** on the list endpoints.
@@ -210,5 +218,5 @@ These are deliberate for a simple starter. Revisit them when the project grows.
   - drop the `Version` columns
   - remove `Id` and `CreatedAt` from `TaskItemUserAssignments`
   - make the composite primary key
-- Add a test project (`CleanSlices.Core.Tests`) for `Result`, `TaskItem` and `User`.
+- Add a test project (`CleanSlices.Core.Tests`) for `TaskItem` and `User`.
 - Optionally remove `AppDbContextFactory` and run EF with `--startup-project src/CleanSlices.Api`, so the connection string comes only from appsettings.

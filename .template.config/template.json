@@ -49,6 +49,9 @@
   },
   "sources": [
     {
+      "copyOnly": [
+        "docs/CLI.md"
+      ],
       "modifiers": [
         {
           "exclude": [
@@ -61,6 +64,7 @@
             "templates/**",
             "cli/**",
             "CleanSlices.Dev.slnx",
+            "CONTRIBUTING.md",
             "src/CleanSlices.Infrastructure/Migrations/**"
           ]
         },
