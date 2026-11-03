@@ -14,7 +14,7 @@ internal sealed class AddPatternCommand : AsyncCommand<AddPatternCommand.Setting
         public string? Pattern { get; init; }
 
         [CommandOption("--template-repo <SOURCE>")]
-        [Description($"Template repository (local path or git URL). Defaults to the one recorded in .cleanslices.json, then ${TemplateRepository.EnvironmentVariable}.")]
+        [Description($"Template repository (local path or git URL). Defaults to the one recorded in .cleanslices.json, then ${TemplateRepository.EnvironmentVariable}, then {TemplateRepository.DefaultSource}.")]
         public string? TemplateRepo { get; init; }
 
         [CommandOption("--no-commit")]
@@ -52,12 +52,7 @@ internal sealed class AddPatternCommand : AsyncCommand<AddPatternCommand.Setting
             return 0;
         }
 
-        if (TemplateRepository.ResolveSource(settings.TemplateRepo, manifest) is not { } source)
-        {
-            Ui.Error("Patterns are rendered from the template repository, but none is configured for this solution.");
-            Ui.Hint($"Pass --template-repo <path-or-url>, or set {TemplateRepository.EnvironmentVariable}.");
-            return 1;
-        }
+        var source = TemplateRepository.ResolveSource(settings.TemplateRepo, manifest);
 
         if (await PatternMerger.CheckRepositoryAsync(solution.Root, cancellationToken) is { } repositoryError)
         {

@@ -16,6 +16,9 @@ internal sealed class TemplateRepository : IDisposable
 {
     public const string EnvironmentVariable = "CLEANSLICES_TEMPLATE_REPO";
 
+    /// <summary>Used when nothing more specific is configured (option, solution manifest, environment variable).</summary>
+    public const string DefaultSource = "https://github.com/steverzag/clean-slices.git";
+
     private const string MainBranch = "origin/main";
     private const string PatternBranchPrefix = "pattern/";
 
@@ -38,19 +41,21 @@ internal sealed class TemplateRepository : IDisposable
     /// <summary>Short temp directory (Windows path limits) for clones, worktrees and renders.</summary>
     public string WorkRoot { get; }
 
-    public static string? ResolveSource(string? explicitSource, ProjectManifest? manifest)
+    /// <summary>
+    /// Precedence: explicit option → the repository recorded in the solution's manifest →
+    /// <see cref="EnvironmentVariable"/> (e.g. a local working copy while developing templates) → <see cref="DefaultSource"/>.
+    /// </summary>
+    public static string ResolveSource(string? explicitSource, ProjectManifest? manifest)
     {
-        var source = explicitSource
-            ?? manifest?.TemplateRepo
-            ?? Environment.GetEnvironmentVariable(EnvironmentVariable);
-
-        if (string.IsNullOrWhiteSpace(source))
-        {
-            return null;
-        }
+        var source = new[] { explicitSource, manifest?.TemplateRepo, Environment.GetEnvironmentVariable(EnvironmentVariable) }
+            .FirstOrDefault(s => !string.IsNullOrWhiteSpace(s))
+            ?? DefaultSource;
 
         return Directory.Exists(source) ? Path.GetFullPath(source) : source;
     }
+
+    public static bool IsDefaultSource(string source) =>
+        string.Equals(source, DefaultSource, StringComparison.OrdinalIgnoreCase);
 
     public static async Task<TemplateRepository> OpenAsync(string source, CancellationToken cancellationToken)
     {
@@ -60,8 +65,19 @@ internal sealed class TemplateRepository : IDisposable
         var repository = new TemplateRepository(source, workRoot);
         try
         {
-            await Git.RunOrThrowAsync(workRoot, ["clone", "--quiet", "--no-checkout", source, "repo"], cancellationToken);
-            await Git.RunOrThrowAsync(repository._clone, ["rev-parse", "--verify", MainBranch], cancellationToken);
+            // Remote clones are partial (file contents fetched on demand), which keeps them small as history grows.
+            string[] filter = Directory.Exists(source) ? [] : ["--filter=blob:none"];
+            var clone = await Git.RunAsync(workRoot, ["clone", "--quiet", "--no-checkout", .. filter, source, "repo"], cancellationToken);
+            if (!clone.Succeeded)
+            {
+                throw new ToolException($"Couldn't fetch the template repository {source}.", clone.Output);
+            }
+
+            var main = await Git.RunAsync(repository._clone, ["rev-parse", "--verify", MainBranch], cancellationToken);
+            if (!main.Succeeded)
+            {
+                throw new ToolException($"The template repository {source} has no 'main' branch.", main.Output);
+            }
         }
         catch
         {

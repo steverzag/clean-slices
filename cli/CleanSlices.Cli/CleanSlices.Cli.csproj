@@ -7,7 +7,7 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>cleanslices</ToolCommandName>
     <PackageId>CleanSlices.Cli</PackageId>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <Authors>Steve</Authors>
     <Description>Interactive scaffolding for Clean Slices solutions (wraps the cleanslices / cs-feature dotnet new templates).</Description>
     <PackageOutputPath>$(MSBuildThisFileDirectory)..\artifacts</PackageOutputPath>

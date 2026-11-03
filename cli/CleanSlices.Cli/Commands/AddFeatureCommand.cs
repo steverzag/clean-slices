@@ -68,7 +68,7 @@ internal sealed class AddFeatureCommand : AsyncCommand<AddFeatureCommand.Setting
         // Solutions that record their template version render features from that version + their patterns,
         // so e.g. a Result<T> solution gets Result<T>-style features. Others use the installed template.
         var manifest = solution.Manifest;
-        var templateSource = manifest.TemplateCommit is null ? null : TemplateRepository.ResolveSource(null, manifest);
+        string? templateSource = manifest.TemplateCommit is null ? null : TemplateRepository.ResolveSource(null, manifest);
         if (templateSource is null && !await Ui.EnsureTemplateInstalledAsync("cs-feature", cancellationToken))
         {
             return 1;

@@ -38,7 +38,7 @@ internal sealed class NewCommand : AsyncCommand<NewCommand.Settings>
         public bool NoRestore { get; init; }
 
         [CommandOption("--template-repo <SOURCE>")]
-        [Description($"Template repository (local path or git URL). Enables patterns and later `add pattern`. Defaults to ${TemplateRepository.EnvironmentVariable}.")]
+        [Description($"Template repository (local path or git URL). Defaults to ${TemplateRepository.EnvironmentVariable}, then {TemplateRepository.DefaultSource}.")]
         public string? TemplateRepo { get; init; }
 
         [CommandOption("-p|--pattern <NAME>")]
@@ -83,19 +83,38 @@ internal sealed class NewCommand : AsyncCommand<NewCommand.Settings>
         }
     }
 
+    /// <summary>
+    /// Opens the template repository. When only the built-in default was used (nothing configured explicitly)
+    /// and it can't be reached, e.g. offline, falls back to the installed templates instead of failing.
+    /// </summary>
+    private static async Task<TemplateRepository?> OpenRepositoryOrFallBackAsync(string source, Settings settings, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await AnsiConsole.Status().StartAsync("Fetching templates...", _ => TemplateRepository.OpenAsync(source, cancellationToken));
+        }
+        catch (ToolException ex) when (TemplateRepository.IsDefaultSource(source) && settings.Patterns.Length == 0)
+        {
+            Ui.Warning($"Couldn't reach {source}; using the installed templates (no patterns).");
+            Ui.Hint(ex.Output.Trim().Split('\n').LastOrDefault() ?? string.Empty);
+            return null;
+        }
+    }
+
     private static async Task<int> RunAsync(Settings settings, CancellationToken cancellationToken)
     {
         var interactive = Ui.IsInteractive(settings.Yes);
         Ui.Header("new solution");
 
-        // With a template repository, the solution is rendered from main (+ patterns) and the commit is recorded,
-        // which is what makes `add pattern` possible later. Without one, the installed templates are used.
+        // The solution is rendered from the template repository's main (+ patterns) and the commit is recorded,
+        // which is what makes `add pattern` possible later.
         var source = TemplateRepository.ResolveSource(settings.TemplateRepo, manifest: null);
-        if (source is null)
+        var repository = await OpenRepositoryOrFallBackAsync(source, settings, cancellationToken);
+        if (repository is null)
         {
             if (settings.Patterns.Length > 0)
             {
-                Ui.Error($"--pattern needs a template repository: pass --template-repo <path-or-url> or set {TemplateRepository.EnvironmentVariable}.");
+                Ui.Error("--pattern needs the template repository, which isn't reachable right now.");
                 return 1;
             }
 
@@ -105,9 +124,7 @@ internal sealed class NewCommand : AsyncCommand<NewCommand.Settings>
             }
         }
 
-        using var repository = source is null
-            ? null
-            : await AnsiConsole.Status().StartAsync("Fetching templates...", _ => TemplateRepository.OpenAsync(source, cancellationToken));
+        using var _ = repository;
 
         // ---- Answers -------------------------------------------------------------------------
         var name = settings.Name;
