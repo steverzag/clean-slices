@@ -65,7 +65,11 @@ internal sealed class AddFeatureCommand : AsyncCommand<AddFeatureCommand.Setting
         AnsiConsole.MarkupLine($"[grey]Solution:[/] {Markup.Escape(solution.AppName)} [grey]({Markup.Escape(solution.Root)})[/]");
         AnsiConsole.WriteLine();
 
-        if (!await Ui.EnsureTemplateInstalledAsync("cs-feature", cancellationToken))
+        // Solutions that record their template version render features from that version + their patterns,
+        // so e.g. a Result<T> solution gets Result<T>-style features. Others use the installed template.
+        var manifest = solution.Manifest;
+        var templateSource = manifest.TemplateCommit is null ? null : TemplateRepository.ResolveSource(null, manifest);
+        if (templateSource is null && !await Ui.EnsureTemplateInstalledAsync("cs-feature", cancellationToken))
         {
             return 1;
         }
@@ -119,22 +123,43 @@ internal sealed class AddFeatureCommand : AsyncCommand<AddFeatureCommand.Setting
         AnsiConsole.WriteLine();
 
         // ---- Generate ------------------------------------------------------------------------
-        var generation = await AnsiConsole.Status().StartAsync($"Adding {entity} feature...", _ =>
-            Dotnet.RunAsync(
-                solution.Root,
-                ["new", "cs-feature", "-n", entity, "--plural", plural, "--app", solution.AppName],
-                cancellationToken));
-
-        if (!generation.Succeeded)
+        var slice = new SliceEntry(entity, plural);
+        if (templateSource is not null)
         {
-            Ui.Failure("dotnet new cs-feature failed.", generation.Output);
-            return 1;
+            try
+            {
+                await AnsiConsole.Status().StartAsync($"Adding {entity} feature...", async _ =>
+                {
+                    using var repository = await TemplateRepository.OpenAsync(templateSource, cancellationToken);
+                    var composition = await repository.ComposeAsync(manifest.TemplateCommit!, manifest.Patterns, cancellationToken);
+                    await composition.RenderFeatureAsync(solution.AppName, slice, solution.Root, cancellationToken);
+                });
+            }
+            catch (ToolException ex)
+            {
+                Ui.Failure(ex.Message, ex.Output);
+                return 1;
+            }
+        }
+        else
+        {
+            var generation = await AnsiConsole.Status().StartAsync($"Adding {entity} feature...", _ =>
+                Dotnet.RunAsync(
+                    solution.Root,
+                    ["new", "cs-feature", "-n", entity, "--plural", plural, "--app", solution.AppName],
+                    cancellationToken));
+
+            if (!generation.Succeeded)
+            {
+                Ui.Failure("dotnet new cs-feature failed.", generation.Output);
+                return 1;
+            }
         }
 
         Ui.Success($"Added {entity} feature");
         PrintSummary(solution.AppName, entity, plural);
 
-        await solution.Manifest.WithSlice(new SliceEntry(entity, plural)).SaveAsync(solution.Root, cancellationToken);
+        await manifest.WithSlice(slice).SaveAsync(solution.Root, cancellationToken);
         if (!solution.HasManifestFile)
         {
             Ui.Success($"Created {ProjectManifest.FileName} (this solution didn't have one yet)");

@@ -60,6 +60,7 @@
             ".template.config/**",
             "templates/**",
             "cli/**",
+            "CleanSlices.Dev.slnx",
             "src/CleanSlices.Infrastructure/Migrations/**"
           ]
         },

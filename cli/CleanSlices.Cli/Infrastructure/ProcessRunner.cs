@@ -4,7 +4,8 @@ using System.Text;
 
 namespace CleanSlices.Cli.Infrastructure;
 
-internal sealed record ProcessResult(int ExitCode, string Output)
+/// <summary><see cref="Output"/> interleaves stdout and stderr for display; <see cref="StandardOutput"/> is stdout only, for parsing.</summary>
+internal sealed record ProcessResult(int ExitCode, string Output, string StandardOutput = "")
 {
     public bool Succeeded => ExitCode == 0;
 }
@@ -15,7 +16,8 @@ internal static class ProcessRunner
         string fileName,
         IEnumerable<string> arguments,
         string workingDirectory,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IReadOnlyDictionary<string, string>? environment = null)
     {
         var startInfo = new ProcessStartInfo(fileName)
         {
@@ -32,13 +34,18 @@ internal static class ProcessRunner
         }
 
         startInfo.Environment["DOTNET_NOLOGO"] = "1";
+        foreach (var (key, value) in environment ?? new Dictionary<string, string>())
+        {
+            startInfo.Environment[key] = value;
+        }
 
         using var process = new Process { StartInfo = startInfo };
         var output = new StringBuilder();
+        var standardOutput = new StringBuilder();
         var gate = new Lock();
 
-        process.OutputDataReceived += (_, e) => Append(e.Data);
-        process.ErrorDataReceived += (_, e) => Append(e.Data);
+        process.OutputDataReceived += (_, e) => Append(e.Data, isStandardOutput: true);
+        process.ErrorDataReceived += (_, e) => Append(e.Data, isStandardOutput: false);
 
         try
         {
@@ -64,10 +71,10 @@ internal static class ProcessRunner
 
         lock (gate)
         {
-            return new ProcessResult(process.ExitCode, output.ToString());
+            return new ProcessResult(process.ExitCode, output.ToString(), standardOutput.ToString());
         }
 
-        void Append(string? line)
+        void Append(string? line, bool isStandardOutput)
         {
             if (line is null)
             {
@@ -77,9 +84,19 @@ internal static class ProcessRunner
             lock (gate)
             {
                 output.AppendLine(line);
+                if (isStandardOutput)
+                {
+                    standardOutput.AppendLine(line);
+                }
             }
         }
     }
+}
+
+/// <summary>A git/dotnet step failed; <see cref="Output"/> holds the process output for display.</summary>
+internal sealed class ToolException(string message, string output) : Exception(message)
+{
+    public string Output { get; } = output;
 }
 
 internal static class Dotnet
@@ -103,6 +120,30 @@ internal static class Dotnet
 
 internal static class Git
 {
+    public static Task<ProcessResult> RunAsync(
+        string workingDirectory,
+        IEnumerable<string> arguments,
+        CancellationToken cancellationToken,
+        IReadOnlyDictionary<string, string>? environment = null) =>
+        ProcessRunner.RunAsync("git", ["-c", "core.longpaths=true", .. arguments], workingDirectory, cancellationToken, environment);
+
+    /// <summary>Runs git and returns trimmed stdout, throwing <see cref="ToolException"/> on failure.</summary>
+    public static async Task<string> RunOrThrowAsync(
+        string workingDirectory,
+        IEnumerable<string> arguments,
+        CancellationToken cancellationToken,
+        IReadOnlyDictionary<string, string>? environment = null)
+    {
+        var argumentList = arguments.ToList();
+        var result = await RunAsync(workingDirectory, argumentList, cancellationToken, environment);
+        if (!result.Succeeded)
+        {
+            throw new ToolException($"git {string.Join(' ', argumentList)} failed", result.Output);
+        }
+
+        return result.StandardOutput.Trim();
+    }
+
     public static async Task<bool> IsAvailableAsync(CancellationToken cancellationToken)
     {
         var result = await ProcessRunner.RunAsync("git", ["--version"], Environment.CurrentDirectory, cancellationToken);

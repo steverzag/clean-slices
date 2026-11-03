@@ -28,6 +28,11 @@ app.Configure(config =>
             .WithExample("add", "feature")
             .WithExample("add", "feature", "Product")
             .WithExample("add", "feature", "Person", "--plural", "People", "--migration");
+
+        add.AddCommand<AddPatternCommand>("pattern")
+            .WithDescription("Merge a pattern (a pattern/<name> branch of the template repository) into this solution.")
+            .WithExample("add", "pattern")
+            .WithExample("add", "pattern", "result");
     });
 });
 

@@ -1,0 +1,32 @@
+<Solution>
+  <!--
+    Development solution for this repository: the template projects + the cleanslices CLI + template configs.
+    Not part of the template (excluded in .template.config/template.json). Generated solutions get CleanSlices.slnx.
+  -->
+  <Folder Name="/aspire/">
+    <Project Path="aspire/CleanSlices.AppHost/CleanSlices.AppHost.csproj" />
+    <Project Path="aspire/CleanSlices.ServiceDefaults/CleanSlices.ServiceDefaults.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/CleanSlices.Api/CleanSlices.Api.csproj" />
+    <Project Path="src/CleanSlices.Core/CleanSlices.Core.csproj" />
+    <Project Path="src/CleanSlices.Infrastructure/CleanSlices.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/cli/">
+    <Project Path="cli/CleanSlices.Cli/CleanSlices.Cli.csproj" />
+    <File Path="cli/Directory.Build.props" />
+    <File Path="cli/Directory.Packages.props" />
+  </Folder>
+  <Folder Name="/templates/">
+    <File Path=".template.config/template.json" />
+    <File Path="templates/cs-feature/.template.config/template.json" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path=".gitignore" />
+    <File Path="CleanSlices.slnx" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="README.md" />
+  </Folder>
+</Solution>
