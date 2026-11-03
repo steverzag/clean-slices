@@ -63,7 +63,9 @@ A pattern that *replaces* something on `main` can be made by reverting a commit:
 
 ### Keeping patterns healthy
 
-- After changing `main`, rebase each pattern (`git switch pattern/<name>; git rebase main`) and push it with `--force-with-lease`. Only the pattern's own commits are applied, so a stale branch still works as long as it applies cleanly.
+- After changing `main`, rebase each pattern onto it (`git switch pattern/<name>; git rebase main`), resolve any conflicts as the rebase stops on each commit, and push with `git push --force-with-lease`. Only the pattern's own commits are applied, so a stale branch still works as long as it applies cleanly.
+- **Don't merge `main` into a pattern branch.** The CLI cherry-picks the pattern's own commits (everything after its fork point from `main`), so the branch must stay a straight stack of commits on top of `main`. A merge commit can't be cherry-picked, and conflict fixes made in it never reach the CLI.
+- **Why the force-push:** rebasing gives the pattern's commits new IDs, so GitHub still has the old ones and a normal push is rejected. `--force-with-lease` replaces them only if the branch on GitHub is still what you last fetched; if someone pushed to it since, the push is refused instead of silently erasing their commits. Avoid plain `--force`, which skips that check. The check compares against your last fetch, so a fetch (yours or your IDE's) counts as having seen whatever it brought in. Before force-pushing, run `git status`: if the branch is `behind` by more than the commits you rebased, look at the extra ones first.
 - Patterns should add files rather than edit shared ones where they can. Every edited line is a possible conflict with the user's code or with other patterns.
 - Combinations are applied in the order the user chose them. If two patterns edit the same lines, the second one fails to apply, and the CLI reports it.
 
