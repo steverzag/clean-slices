@@ -137,14 +137,18 @@ internal sealed class TemplateRepository : IDisposable
 
             // Only the pattern's own commits, even if main moved on since the solution was generated.
             var forkPoint = await Git.RunOrThrowAsync(worktree, ["merge-base", MainBranch, branch], cancellationToken);
-            var pick = await Git.RunAsync(worktree, [.. CommitIdentity, "cherry-pick", "--allow-empty", $"{forkPoint}..{branch}"], cancellationToken);
+            var commits = await Git.RunOrThrowAsync(worktree, ["rev-list", "--reverse", $"{forkPoint}..{branch}"], cancellationToken);
 
-            if (!pick.Succeeded)
+            foreach (var commit in commits.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             {
-                throw new ToolException(
-                    $"Pattern '{pattern}' doesn't apply cleanly on top of template {templateCommit[..7]}"
-                    + (patterns.Count > 1 ? $" combined with {string.Join(", ", patterns.TakeWhile(p => p != pattern))}." : "."),
-                    pick.Output);
+                var pick = await Git.RunAsync(worktree, [.. CommitIdentity, "cherry-pick", "--allow-empty", commit], cancellationToken);
+                if (!pick.Succeeded && !await TryResolveDocsOnlyConflictAsync(worktree, cancellationToken))
+                {
+                    throw new ToolException(
+                        $"Pattern '{pattern}' doesn't apply cleanly on top of template {templateCommit[..7]}"
+                        + (patterns.Count > 1 ? $" combined with {string.Join(", ", patterns.TakeWhile(p => p != pattern))}." : "."),
+                        pick.Output);
+                }
             }
         }
 
@@ -162,6 +166,28 @@ internal sealed class TemplateRepository : IDisposable
         }
 
         return new TemplateComposition(export, Path.Combine(WorkRoot, $"h{id}"));
+    }
+
+    /// <summary>
+    /// Older template commits can have different documentation than the one a pattern's docs commit was written against.
+    /// When a cherry-pick conflicts only in Markdown files, take the pattern's version of them and continue:
+    /// docs can't break a build. Conflicts in anything else are real and are left to the caller.
+    /// </summary>
+    private static async Task<bool> TryResolveDocsOnlyConflictAsync(string worktree, CancellationToken cancellationToken)
+    {
+        var conflicted = (await Git.RunOrThrowAsync(worktree, ["diff", "--name-only", "--diff-filter=U"], cancellationToken))
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        if (conflicted.Length == 0 || !conflicted.All(file => file.EndsWith(".md", StringComparison.OrdinalIgnoreCase)))
+        {
+            await Git.RunAsync(worktree, ["cherry-pick", "--abort"], cancellationToken);
+            return false;
+        }
+
+        await Git.RunOrThrowAsync(worktree, ["checkout", "--theirs", "--", .. conflicted], cancellationToken);
+        await Git.RunOrThrowAsync(worktree, ["add", "--", .. conflicted], cancellationToken);
+        await Git.RunOrThrowAsync(worktree, [.. CommitIdentity, "-c", "core.editor=true", "cherry-pick", "--continue"], cancellationToken);
+        return true;
     }
 
     /// <summary>
