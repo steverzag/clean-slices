@@ -52,5 +52,6 @@ public class User : Entity
 	private static DomainError? ValidateEmail(string email) =>
 		string.IsNullOrWhiteSpace(email) ? UserErrors.EmptyEmail
 		: email.Length > EmailMaxLength ? UserErrors.EmailTooLong
+		: !EmailValidator.IsValid(email) ? UserErrors.InvalidEmail
 		: null;
 }
