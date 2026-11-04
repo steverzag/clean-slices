@@ -2,19 +2,11 @@
 using CleanSlices.Core.Shared;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
-using System.Text.Json;
-using HttpJsonOptions = Microsoft.AspNetCore.Http.Json.JsonOptions;
 
 namespace CleanSlices.Api.Handlers;
 
-public class ExceptionHandler(
-	ILogger<ExceptionHandler> logger,
-	IProblemDetailsService problemDetailsService,
-	IOptions<HttpJsonOptions> jsonOptions) : IExceptionHandler
+public class ExceptionHandler(ILogger<ExceptionHandler> logger, IProblemDetailsService problemDetailsService) : IExceptionHandler
 {
-	private readonly JsonNamingPolicy? _namingPolicy = jsonOptions.Value.SerializerOptions.PropertyNamingPolicy;
-
 	public async ValueTask<bool> TryHandleAsync(HttpContext httpContext, Exception exception, CancellationToken cancellationToken)
 	{
 		if (exception is DomainException domainException)
@@ -52,7 +44,7 @@ public class ExceptionHandler(
 		});
 	}
 
-	private ProblemDetails ToProblemDetails(DomainException exception)
+	private static ProblemDetails ToProblemDetails(DomainException exception)
 	{
 		var (status, type) = exception switch
 		{
@@ -63,7 +55,7 @@ public class ExceptionHandler(
 		};
 
 		var problemDetails = exception is DomainValidationException validation
-			? new HttpValidationProblemDetails(ToErrorDictionary(validation.Errors))
+			? new HttpValidationProblemDetails(validation.Errors.ToValidationErrors())
 			: new ProblemDetails();
 
 		problemDetails.Status = status;
@@ -73,11 +65,6 @@ public class ExceptionHandler(
 
 		return problemDetails;
 	}
-
-	private Dictionary<string, string[]> ToErrorDictionary(IReadOnlyList<FieldError> errors) =>
-		errors
-			.GroupBy(error => _namingPolicy?.ConvertName(error.Field) ?? error.Field)
-			.ToDictionary(group => group.Key, group => group.Select(error => error.Description).ToArray());
 
 	private ValueTask<bool> WriteAsync(HttpContext httpContext, Exception exception, ProblemDetails problemDetails)
 	{

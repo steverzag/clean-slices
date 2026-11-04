@@ -1,7 +1,7 @@
+using CleanSlices.Api.Configuration;
 using CleanSlices.Api.Configuration.Endpoints;
 using CleanSlices.Api.Handlers;
 using CleanSlices.Infrastructure;
-using Microsoft.AspNetCore.Http.Features;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -11,15 +11,7 @@ builder.AddInfrastructure();
 
 builder.Services.AddExceptionHandler<ExceptionHandler>();
 builder.Services.AddProblemDetails(options =>
-	options.CustomizeProblemDetails = context =>
-	{
-		context.ProblemDetails.Instance =
-			$"{context.HttpContext.Request.Method} {context.HttpContext.Request.Path}";
-		context.ProblemDetails.Extensions.TryAdd("requestId", context.HttpContext.TraceIdentifier);
-		var activity = context.HttpContext.Features.Get<IHttpActivityFeature>()?.Activity;
-		context.ProblemDetails.Extensions.TryAdd("traceId", activity?.Id);
-	}
-);
+	options.CustomizeProblemDetails = ProblemDetailsCustomization.Apply);
 
 builder.Services.ConfigureHttpJsonOptions(options =>
 	options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
