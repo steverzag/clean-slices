@@ -19,7 +19,27 @@
   </Folder>
   <Folder Name="/templates/">
     <File Path=".template.config/template.json" />
+  </Folder>
+  <Folder Name="/templates/cs-feature/">
     <File Path="templates/cs-feature/.template.config/template.json" />
+  </Folder>
+  <Folder Name="/templates/cs-feature/Api/">
+    <File Path="templates/cs-feature/src/CleanSlices.Api/Features/Widgets/CreateWidget.cs" />
+    <File Path="templates/cs-feature/src/CleanSlices.Api/Features/Widgets/DeleteWidget.cs" />
+    <File Path="templates/cs-feature/src/CleanSlices.Api/Features/Widgets/GetWidgetById.cs" />
+    <File Path="templates/cs-feature/src/CleanSlices.Api/Features/Widgets/GetWidgets.cs" />
+    <File Path="templates/cs-feature/src/CleanSlices.Api/Features/Widgets/UpdateWidgetName.cs" />
+    <File Path="templates/cs-feature/src/CleanSlices.Api/Features/Widgets/WidgetErrors.cs" />
+  </Folder>
+  <Folder Name="/templates/cs-feature/Core/">
+    <File Path="templates/cs-feature/src/CleanSlices.Core/Domain/Widgets/Widget.cs" />
+    <File Path="templates/cs-feature/src/CleanSlices.Core/Domain/Widgets/WidgetDomainEvents.cs" />
+    <File Path="templates/cs-feature/src/CleanSlices.Core/Domain/Widgets/WidgetErrors.cs" />
+  </Folder>
+  <Folder Name="/templates/cs-feature/Infrastructure/">
+    <File Path="templates/cs-feature/src/CleanSlices.Infrastructure/EventHandlers/Widgets/WidgetCreatedEventHandler.cs" />
+    <File Path="templates/cs-feature/src/CleanSlices.Infrastructure/EventHandlers/Widgets/WidgetDeletedEventHandler.cs" />
+    <File Path="templates/cs-feature/src/CleanSlices.Infrastructure/Persistence/Configuration/WidgetTypeConfiguration.cs" />
   </Folder>
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />
