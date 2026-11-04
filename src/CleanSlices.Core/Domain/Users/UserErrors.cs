@@ -4,9 +4,9 @@ namespace CleanSlices.Core.Domain.Users;
 
 internal class UserErrors
 {
-	internal static readonly DomainError EmptyName = new("User.Name", "Name cannot be empty.");
-	internal static readonly DomainError NameTooLong = new("User.Name", $"Name cannot exceed {User.NameMaxLength} characters.");
-	internal static readonly DomainError EmptyEmail = new("User.Email", "Email cannot be empty.");
-	internal static readonly DomainError EmailTooLong = new("User.Email", $"Email cannot exceed {User.EmailMaxLength} characters.");
-	internal static readonly DomainError InvalidEmail = new("User.Email", "Email is not a valid email address.");
+	internal static readonly FieldError EmptyName = new("User.Name", "Name cannot be empty.");
+	internal static readonly FieldError NameTooLong = new("User.Name", $"Name cannot exceed {User.NameMaxLength} characters.");
+	internal static readonly FieldError EmptyEmail = new("User.Email", "Email cannot be empty.");
+	internal static readonly FieldError EmailTooLong = new("User.Email", $"Email cannot exceed {User.EmailMaxLength} characters.");
+	internal static readonly FieldError InvalidEmail = new("User.Email", "Email is not a valid email address.");
 }

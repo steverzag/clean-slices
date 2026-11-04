@@ -1,24 +1,22 @@
 namespace CleanSlices.Core.Shared;
 
-public sealed record DomainError(string Code, string Description);
-
 public abstract class DomainException(string code, string message) : Exception(message)
 {
 	public string Code { get; } = code;
 }
 
-public sealed class DomainValidationException(IReadOnlyList<DomainError> errors)
+public sealed class DomainValidationException(IReadOnlyList<FieldError> errors)
 	: DomainException("Validation failed", "One or more validation errors occurred.")
 {
-	public IReadOnlyList<DomainError> Errors { get; } = errors;
+	public IReadOnlyList<FieldError> Errors { get; } = errors;
 
-	public DomainValidationException(DomainError error) : this([error])
+	public DomainValidationException(FieldError error) : this([error])
 	{
 	}
 
-	public static void ThrowIfAny(params DomainError?[] checks)
+	public static void ThrowIfAny(params FieldError?[] checks)
 	{
-		var errors = checks.OfType<DomainError>().ToList();
+		var errors = checks.OfType<FieldError>().ToList();
 		if (errors.Count > 0)
 		{
 			throw new DomainValidationException(errors);

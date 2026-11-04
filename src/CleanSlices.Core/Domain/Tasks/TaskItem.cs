@@ -112,12 +112,12 @@ public class TaskItem : Entity
 		_userAssignments.AddRange(toAdd);
 	}
 
-	private static DomainError? ValidateTitle(string title) =>
+	private static FieldError? ValidateTitle(string title) =>
 		string.IsNullOrWhiteSpace(title) ? TaskItemErrors.EmptyTitle
 		: title.Length > TitleMaxLength ? TaskItemErrors.TitleTooLong
 		: null;
 
-	private static DomainError? ValidateDescription(string description) =>
+	private static FieldError? ValidateDescription(string description) =>
 		string.IsNullOrWhiteSpace(description) ? TaskItemErrors.EmptyDescription
 		: description.Length > DescriptionMaxLength ? TaskItemErrors.DescriptionTooLong
 		: null;

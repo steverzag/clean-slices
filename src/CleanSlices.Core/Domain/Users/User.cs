@@ -44,12 +44,12 @@ public class User : Entity
 		Raise(new UserDeletedDomainEvent(Id));
 	}
 
-	private static DomainError? ValidateName(string name) =>
+	private static FieldError? ValidateName(string name) =>
 		string.IsNullOrWhiteSpace(name) ? UserErrors.EmptyName
 		: name.Length > NameMaxLength ? UserErrors.NameTooLong
 		: null;
 
-	private static DomainError? ValidateEmail(string email) =>
+	private static FieldError? ValidateEmail(string email) =>
 		string.IsNullOrWhiteSpace(email) ? UserErrors.EmptyEmail
 		: email.Length > EmailMaxLength ? UserErrors.EmailTooLong
 		: !EmailValidator.IsValid(email) ? UserErrors.InvalidEmail

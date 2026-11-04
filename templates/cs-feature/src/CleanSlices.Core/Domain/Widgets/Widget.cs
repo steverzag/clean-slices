@@ -35,7 +35,7 @@ public class Widget : Entity
 		Raise(new WidgetDeletedDomainEvent(Id));
 	}
 
-	private static DomainError? ValidateName(string name) =>
+	private static FieldError? ValidateName(string name) =>
 		string.IsNullOrWhiteSpace(name) ? WidgetErrors.EmptyName
 		: name.Length > NameMaxLength ? WidgetErrors.NameTooLong
 		: null;

@@ -52,9 +52,9 @@ Dependencies point inwards: `Api → Infrastructure → Core`. Core has no packa
   - change state only through methods (`UpdateTitle`, `Complete`, `AssignUser`, `Delete`, ...); setters are private
   - raise domain events (`Created`, `Completed`, `Deleted`)
 - **`TaskItemUserAssignment`** is the join between tasks and users. It is *not* an `Entity`: it has a composite key `(TaskItemId, UserId)` plus `AssignedOn`. `AssignUser` and `UnassignUser` are all-or-nothing. Every id is validated before the collection changes.
-- **Domain errors** (`Core/Domain/*/…Errors.cs`) are `DomainError(Code, Description)` records. They only describe broken domain rules, such as an empty title or a name that is too long.
+- **Domain errors** (`Core/Domain/*/…Errors.cs`) are `FieldError(Code, Description)` records. They only describe broken domain rules, such as an empty title or a name that is too long.
 - **Expected failures are exceptions** (`Core/Shared/Exceptions.cs`). All of them derive from `DomainException`, which carries a `Code`:
-  - `DomainValidationException` (wraps a list of `DomainError`s; `DomainValidationException.ThrowIfAny(...)` throws only when a check failed)
+  - `DomainValidationException` (wraps a list of `FieldError`s; `DomainValidationException.ThrowIfAny(...)` throws only when a check failed)
   - `BusinessRuleException`
   - `NotFoundException`
   - `ConflictException`
