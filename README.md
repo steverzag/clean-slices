@@ -52,7 +52,7 @@ Dependencies point inwards: `Api → Infrastructure → Core`. Core has no packa
   - change state only through methods (`UpdateTitle`, `Complete`, `AssignUser`, `Delete`, ...); setters are private
   - raise domain events (`Created`, `Completed`, `Deleted`)
 - **`TaskItemUserAssignment`** is the join between tasks and users. It is *not* an `Entity`: it has a composite key `(TaskItemId, UserId)` plus `AssignedOn`. `AssignUser` and `UnassignUser` are all-or-nothing. Every id is validated before the collection changes.
-- **Domain errors** (`Core/Domain/*/…Errors.cs`) are `FieldError(Code, Description)` records. They only describe broken domain rules, such as an empty title or a name that is too long.
+- **Field errors** (`Core/Domain/*/…Errors.cs`) are `FieldError(Field, Description)` records. Each one describes one invalid value, such as an empty title or a name that is too long. `Field` is the property name (`nameof(User.Email)`).
 - **Expected failures are exceptions** (`Core/Shared/Exceptions.cs`). All of them derive from `DomainException`, which carries a `Code`:
   - `DomainValidationException` (wraps a list of `FieldError`s; `DomainValidationException.ThrowIfAny(...)` throws only when a check failed)
   - `BusinessRuleException`
@@ -80,7 +80,7 @@ Conventions:
 
   | Exception                   | Status |
   |-----------------------------|--------|
-  | `DomainValidationException` | 400, with an `errors` list |
+  | `DomainValidationException` | 400, with `errors` per field (see below) |
   | `BusinessRuleException`     | 400    |
   | `NotFoundException`         | 404    |
   | `ConflictException`         | 409    |
@@ -88,6 +88,15 @@ Conventions:
   | anything else               | 500    |
 
   Domain exceptions are expected, so they're logged at Information level. Anything else is logged as an error and returns a generic 500. Clients aren't told more than that: the log has the details.
+
+  Validation failures use the standard `ValidationProblemDetails` shape: `errors` maps each field, named as in the JSON body, to its messages.
+
+  ```json
+  "errors": {
+    "email": [ "Email is not a valid email address." ],
+    "name": [ "Name cannot exceed 200 characters." ]
+  }
+  ```
 - Every ProblemDetails response includes `instance` (`METHOD /path`), `requestId` and `traceId`.
 - Enums are serialized as strings (`"Status": "InProgress"`).
 
@@ -205,7 +214,6 @@ These are deliberate for a simple starter. Revisit them when the project grows.
 - **Concurrent duplicates** (two identical assigns, or the same email created twice at once) get past the pre-checks. The database constraint stops them, which results in a logged 500.
 - **There is no optimistic concurrency** (no rowversion).
 - **Expected failures are exceptions.** The code reads top to bottom, but method signatures don't show what can fail, and throwing costs more than returning. The `result` pattern is the alternative.
-- **Validation errors** are a list on `DomainValidationException`, not the standard ASP.NET Core `ValidationProblemDetails` dictionary.
 - **ProblemDetails titles are error codes**, such as `User.NotFound`.
 - **Time comes from `DateTimeOffset.UtcNow`** rather than `TimeProvider`.
 - **No paging** on the list endpoints.
