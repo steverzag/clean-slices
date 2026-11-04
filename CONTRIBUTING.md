@@ -8,7 +8,7 @@ This repository is three things at once:
 | Feature template | `templates/cs-feature/` | `dotnet new cs-feature`: one vertical slice, written for a placeholder entity called `Widget` |
 | CLI | `cli/CleanSlices.Cli/` | the `cleanslices` tool, which drives both templates and applies patterns |
 
-`templates/`, `cli/`, `CleanSlices.Dev.slnx` and this file are excluded from the project template, so generated solutions don't get them.
+`templates/`, `cli/`, `CleanSlices.Dev.slnx`, this file and [ROADMAP.md](ROADMAP.md) are excluded from the project template, so generated solutions don't get them. ROADMAP.md describes where the CLI is heading (a project configurator) and the design rules new options should follow.
 
 ## Solutions
 

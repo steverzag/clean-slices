@@ -65,6 +65,7 @@
             "cli/**",
             "CleanSlices.Dev.slnx",
             "CONTRIBUTING.md",
+            "ROADMAP.md",
             "src/CleanSlices.Infrastructure/Migrations/**"
           ]
         },
