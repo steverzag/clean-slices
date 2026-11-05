@@ -1,7 +1,7 @@
 ﻿using CleanSlices.Core.Messages;
 using CleanSlices.Infrastructure.Messages;
 using CleanSlices.Infrastructure.Persistence;
-using CleanSlices.Infrastructure.Persistence.Configuration;
+using CleanSlices.Infrastructure.Persistence.SaveChanges;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -22,11 +22,12 @@ public static class InfrastructureRegistration
 
 			services.TryAddScoped<IPublisher, Publisher>();
 			services.AddNotificationHandlers();
-			services.TryAddScoped<DomainEventDispatchInterceptor>();
+			services.AddSaveChangesSteps();
+			services.TryAddScoped<SaveChangesPipeline>();
 
 			services.AddDbContext<AppDbContext>((sp, o) =>
 				o.UseSqlServer(builder.Configuration.GetConnectionString(DatabaseConnectionName))
-					.AddInterceptors(sp.GetRequiredService<DomainEventDispatchInterceptor>()));
+					.AddInterceptors(sp.GetRequiredService<SaveChangesPipeline>()));
 
 			builder.EnrichSqlServerDbContext<AppDbContext>();
 
@@ -45,6 +46,16 @@ public static class InfrastructureRegistration
 				.SelectMany(t => t.GetInterfaces()
 					.Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == handlerInterface)
 					.Select(i => ServiceDescriptor.Scoped(i, t)));
+
+			services.TryAddEnumerable(registrations);
+		}
+
+		private void AddSaveChangesSteps()
+		{
+			var registrations = typeof(InfrastructureRegistration).Assembly.GetTypes()
+				.Where(t => t is { IsAbstract: false, IsInterface: false, IsGenericTypeDefinition: false }
+					&& typeof(ISaveChangesStep).IsAssignableFrom(t))
+				.Select(t => ServiceDescriptor.Scoped(typeof(ISaveChangesStep), t));
 
 			services.TryAddEnumerable(registrations);
 		}

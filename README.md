@@ -113,14 +113,20 @@ Conventions:
   - the composite key and the `UserId` index on assignments
 
   EF already finds backing fields and foreign keys on its own, so there is no `ToTable`, `Navigation` or `HasMany` for those.
-- **Domain events** are published by `DomainEventDispatchInterceptor` (a `SaveChangesInterceptor`):
-  1. Events are collected before the save.
-  2. They are published *after* the commit succeeds, through the in-process `IPublisher`.
+- **The save pipeline** (`Persistence/SaveChanges/`) is the only interceptor on the DbContext. `SaveChangesPipeline` runs every `ISaveChangesStep` it finds in the assembly, sorted by `Order`. A step can act at three moments:
+  - **before the save**: its changes are saved together with everything else
+  - **after the commit**: for work that must only happen if the save succeeded
+  - **when the save fails**: to drop whatever it prepared
 
-  Only `SaveChangesAsync` is supported.
+  Adding a step means adding a class; the pipeline doesn't change. Only `SaveChangesAsync` is supported.
+- **Domain events** are dispatched by `DomainEventsStep`, the last step, **before the save**, through the in-process `IPublisher`:
+  - What the handlers change is saved **in the same save** as the change that raised the event. If a handler fails, **nothing is saved** and the client gets a 500.
+  - Handlers can raise more events; those are dispatched in further rounds (at most 10).
+  - **Handlers never call `SaveChanges`.** They only change tracked entities; the pipeline throws if a handler saves.
+  - Handlers don't reach outside the app (emails, other services): a later failure would undo the data but not the email.
 - **Event handlers** implement `INotificationHandler<T>`. They are found by scanning the assembly and registered with `TryAddEnumerable`, so one event can have several handlers:
   - logging handlers for the created, completed and deleted events
-  - `UnassignDeletedUserFromTasksHandler`, which removes a deleted user from every task it was assigned to
+  - `UnassignDeletedUserFromTasksHandler`, which removes a deleted user from every task it was assigned to, in the same save as the delete
 - **`EnrichSqlServerDbContext`** (from Aspire) adds connection retries, a health check, tracing and metrics to the DbContext.
 
 ## Endpoints
@@ -225,7 +231,6 @@ The tests use xUnit v3 on Microsoft.Testing.Platform, which `global.json` turns 
 
 These are deliberate for a simple starter. Revisit them when the project grows.
 
-- **Domain events run after the commit and outside the transaction.** If a handler fails, the data is already saved and the client gets a 500.
 - **Deleting takes two steps.** The entity's `Delete()` raises the event, then `Remove()` deletes the row.
 - **Concurrent duplicates** (two identical assigns, or the same email created twice at once) get past the pre-checks. The database constraint stops them, which results in a logged 500.
 - **There is no optimistic concurrency** (no rowversion).

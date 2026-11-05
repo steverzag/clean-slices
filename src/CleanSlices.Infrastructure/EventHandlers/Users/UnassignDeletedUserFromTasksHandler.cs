@@ -15,16 +15,10 @@ internal sealed class UnassignDeletedUserFromTasksHandler(AppDbContext context)
 			.Where(t => t.UserAssignments.Any(a => a.UserId == notification.Id))
 			.ToListAsync(cancellationToken);
 
-		if (tasks.Count == 0)
-		{
-			return;
-		}
-
+		// No SaveChanges here: the save that deleted the user stores these changes too.
 		foreach (var task in tasks)
 		{
 			task.UnassignUser(notification.Id);
 		}
-
-		await context.SaveChangesAsync(cancellationToken);
 	}
 }

@@ -6,35 +6,37 @@ Changes to `main` that the options depend on. They make the default solution bet
 
 ### Ordered save pipeline
 
-One `SaveChangesInterceptor` runs every `ISaveChangesStep`, sorted by a declared order. Steps are found by scanning, so an option adds a step file and never edits the interceptor.
+**Done** (`Persistence/SaveChanges/`). `SaveChangesPipeline`, the only interceptor, runs every `ISaveChangesStep`, sorted by `Order`. Steps are found by scanning, so an option adds a step file and never edits the pipeline.
 
-A step has two phases:
+A step can act at three moments:
 
-- **Before the save**, inside the transaction: change tracked entities, add rows.
+- **Before the save**: change tracked entities, add rows. Everything is saved together.
 - **After the commit**: things that must only happen once the data is saved.
+- **When the save fails**: drop whatever the step prepared (realtime's buffer, for example).
 
 | Order | Step | Phase | From |
 |---|---|---|---|
+| 0 | Domain events: dispatch, repeat until no new events | before | base (done) |
 | 100 | Soft delete: a deleted `ISoftDeletable` becomes an update | before | soft delete strategy |
 | 200 | *(reserved: optimistic concurrency, parked)* | before | – |
 | 300 | Audit: write `AuditEntries` | before | audit strategy |
-| last | Domain events: dispatch, repeat until no new events | before | base |
 | – | Send buffered integration events (without outbox) | after | integration events |
 | – | Send buffered realtime messages | after | realtime |
 
-Soft delete must run before audit, or audit records a delete instead of the update it becomes.
+Order matters:
+
+- **Domain events run first**, so the strategies also see what the handlers changed: audit records the handlers' changes, and soft delete converts a delete made by a handler. (The first design put them last, which would have missed both.)
+- Soft delete runs before audit, or audit records a delete instead of the update it becomes.
 
 ### Domain events before the commit
 
-Today `DomainEventDispatchInterceptor` publishes domain events **after** the commit, and handlers save again in a second transaction. If a handler fails, the first change is already saved and the client gets a 500.
+**Done.** Domain events used to be published **after** the commit, and handlers saved again in a second transaction: if a handler failed, the first change was already saved.
 
-Change:
-
-- Domain events are dispatched **during the save, in the same transaction**. Everything is saved together, or nothing is.
-- The step repeats until no new events are raised, because a handler can raise more.
-- Handlers change tracked entities and **never call `SaveChanges`**. `UnassignDeletedUserFromTasksHandler` drops its `SaveChangesAsync`.
+- Domain events are dispatched **before the save**, and the handlers' changes are saved in the same save. Everything is saved together, or nothing is. A test proves it (`Deleting_a_user_saves_nothing_when_a_domain_event_handler_fails`).
+- The step repeats until no new events are raised (at most 10 rounds), because a handler can raise more.
+- Handlers change tracked entities and **never call `SaveChanges`**; the pipeline throws if one does. `UnassignDeletedUserFromTasksHandler` dropped its `SaveChangesAsync`.
 - Rule: domain event handlers don't reach outside the app. Emails, other services and notifications that must survive a failure are integration events (see [patterns.md](patterns.md#integration-events-hidden-unit)).
-- The README's first known trade-off ("domain events run after the commit and outside the transaction") goes away.
+- The README's trade-off "domain events run after the commit and outside the transaction" is gone.
 
 ### Model rules hook
 
