@@ -54,7 +54,11 @@ Document: `ExecuteUpdate` and `ExecuteDelete` skip the save pipeline, so no stra
 
 ### `TimeProvider`
 
-Replace `DateTimeOffset.UtcNow` with the injected `TimeProvider`. `Entity.CreatedAt` is set by a save step; domain methods that need the time receive it. Every strategy uses the same clock.
+**Not in the base template.** It was built and then reverted: the default solution keeps `DateTimeOffset.UtcNow`, because a design driven by testability goes against the template's pragmatism. It may become an option; which concept is still to decide (see [ROADMAP.md](../../ROADMAP.md#parked-and-open)).
+
+The reverted design, for when it's picked up: `Entity.CreatedAt` set by a save step (order 10, after domain events) from `TimeProvider`; domain methods receive the time as a value (`Complete(now)`, `AssignUser(userId, now)`); handlers pass `timeProvider.GetUtcNow()`; the API tests' factory fixes the clock with `FakeTimeProvider`. No analyzer: using it is a convention.
+
+Options that need the time (soft delete, audit, outbox, idempotency) read the clock the same way the rest of the solution does.
 
 ### `HybridCache`
 

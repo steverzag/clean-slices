@@ -145,7 +145,7 @@ Each phase ends with something usable. The order is a proposal.
 | Phase | What | Proves |
 |---|---|---|
 | 0, done | Patterns as git branches; `result` | Composing and merging options into existing code |
-| 1 | **Base template changes** ([backlog](docs/roadmap/base-template.md)): ordered save pipeline, domain events before the commit, `ICurrentUser`, `TimeProvider`, pagination, `HybridCache`, test projects, Aspire-managed database | The seams every option needs |
+| 1 | **Base template changes** ([backlog](docs/roadmap/base-template.md)): ordered save pipeline, domain events before the commit, `ICurrentUser`, pagination, `HybridCache`, test projects, Aspire-managed database | The seams every option needs |
 | 2 | **Conditionals**: move `result` from its branch to template conditionals; catalog and resolver in the CLI | One mechanism; requires / provides / conflicts / groups / choices |
 | 3 | **CI matrix** | Combinations stay working |
 | 4 | **Outbox, inbox, integration events** | Seams with defaults and hidden units |
@@ -159,6 +159,7 @@ Each phase ends with something usable. The order is a proposal.
 
 Parked: discussed or proposed, deliberately not now.
 
+- **`TimeProvider`** as an option instead of part of the base template: built, then reverted (see [base-template.md](docs/roadmap/base-template.md#timeprovider)). Which concept it belongs to is still to decide.
 - **Optimistic concurrency**, with a full proposed design in [strategies.md](docs/roadmap/strategies.md#parked-optimistic-concurrency).
 - **CI workflow** extra (GitHub Actions for generated solutions).
 - **Multi-tenancy** strategy. EF Core named query filters make it compatible with soft delete later.

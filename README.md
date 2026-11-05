@@ -119,7 +119,7 @@ Conventions:
   - **when the save fails**: to drop whatever it prepared
 
   Adding a step means adding a class; the pipeline doesn't change. Only `SaveChangesAsync` is supported.
-- **Domain events** are dispatched by `DomainEventsStep`, the last step, **before the save**, through the in-process `IPublisher`:
+- **Domain events** are dispatched by `DomainEventsStep`, the first step, **before the save**, through the in-process `IPublisher`:
   - What the handlers change is saved **in the same save** as the change that raised the event. If a handler fails, **nothing is saved** and the client gets a 500.
   - Handlers can raise more events; those are dispatched in further rounds (at most 10).
   - **Handlers never call `SaveChanges`.** They only change tracked entities; the pipeline throws if a handler saves.

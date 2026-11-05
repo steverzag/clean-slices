@@ -21,7 +21,7 @@ Every strategy follows the same three steps, so strategies never touch each othe
 **Design.**
 
 - `ISoftDeletable` has a read-only `DateTimeOffset? DeletedAt`. Domain code can read it; only the save step sets it.
-- The save step (order 100) turns a deleted `ISoftDeletable` entity into an update and sets `DeletedAt` from `TimeProvider`. Handlers and the entity's `Delete()` don't change.
+- The save step (order 100) turns a deleted `ISoftDeletable` entity into an update and sets `DeletedAt` to the current time. Handlers and the entity's `Delete()` don't change.
 - A named EF Core query filter, `"SoftDelete"`, hides deleted rows everywhere, including repositories and CQRS's `IReadDb`. It's switched off by name: `IgnoreQueryFilters(["SoftDelete"])`, which leaves other filters in place.
 - Rule 7: the API behaves exactly like a hard delete. After a delete, GET returns 404 and a second DELETE returns 404.
 - No `IsDeleted` column: it would hold the same fact as `DeletedAt` and could disagree with it, and it doesn't make the filter faster.
