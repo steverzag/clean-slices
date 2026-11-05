@@ -12,6 +12,10 @@
     <Project Path="src/CleanSlices.Core/CleanSlices.Core.csproj" />
     <Project Path="src/CleanSlices.Infrastructure/CleanSlices.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/CleanSlices.Api.Tests/CleanSlices.Api.Tests.csproj" />
+    <Project Path="tests/CleanSlices.Core.Tests/CleanSlices.Core.Tests.csproj" />
+  </Folder>
   <Folder Name="/cli/">
     <Project Path="cli/CleanSlices.Cli/CleanSlices.Cli.csproj" />
     <File Path="cli/Directory.Build.props" />
@@ -36,6 +40,10 @@
     <File Path="templates/cs-feature/src/CleanSlices.Core/Domain/Widgets/WidgetDomainEvents.cs" />
     <File Path="templates/cs-feature/src/CleanSlices.Core/Domain/Widgets/WidgetErrors.cs" />
   </Folder>
+  <Folder Name="/templates/cs-feature/Tests/">
+    <File Path="templates/cs-feature/tests/CleanSlices.Api.Tests/Features/Widgets/WidgetEndpointsTests.cs" />
+    <File Path="templates/cs-feature/tests/CleanSlices.Core.Tests/Domain/Widgets/WidgetTests.cs" />
+  </Folder>
   <Folder Name="/templates/cs-feature/Infrastructure/">
     <File Path="templates/cs-feature/src/CleanSlices.Infrastructure/EventHandlers/Widgets/WidgetCreatedEventHandler.cs" />
     <File Path="templates/cs-feature/src/CleanSlices.Infrastructure/EventHandlers/Widgets/WidgetDeletedEventHandler.cs" />
@@ -49,6 +57,7 @@
     <File Path="docs/CLI.md" />
     <File Path="Directory.Build.props" />
     <File Path="Directory.Packages.props" />
+    <File Path="global.json" />
     <File Path="README.md" />
   </Folder>
 </Solution>

@@ -26,6 +26,7 @@ A companion CLI creates solutions from this template, adds features to them, and
 CleanSlices.slnx
 Directory.Build.props        shared build settings (net10.0, nullable, warnings as errors, code style)
 Directory.Packages.props     central package versions + transitive security pins
+global.json                  opts `dotnet test` in to Microsoft.Testing.Platform
 aspire/
   CleanSlices.AppHost        Aspire orchestrator (runs the API, dashboard)
   CleanSlices.ServiceDefaults OpenTelemetry, health checks, service discovery, resilience
@@ -33,6 +34,9 @@ src/
   CleanSlices.Core           domain: entities, domain events, domain errors, domain exceptions
   CleanSlices.Infrastructure EF Core, migrations, event publisher, event handlers
   CleanSlices.Api            endpoints (vertical slices), error mapping, exception handler
+tests/
+  CleanSlices.Core.Tests     unit tests: entities, validators
+  CleanSlices.Api.Tests      integration tests: HTTP calls against the API and a real SQL Server
 ```
 
 Dependencies point inwards: `Api → Infrastructure → Core`. Core has no package references.
@@ -150,6 +154,7 @@ Conventions:
 - .NET 10 SDK
 - A SQL Server instance. The default connection string uses `localhost` with Windows authentication.
 - The EF Core CLI: `dotnet tool install -g dotnet-ef`, or `dotnet tool update -g dotnet-ef` to upgrade it
+- Docker (Docker Desktop or Podman), only for the integration tests
 
 ### Database connection
 
@@ -194,6 +199,17 @@ dotnet run --project src/CleanSlices.Api
 
 The API listens on `http://localhost:5221` and `https://localhost:7155`.
 
+### Test
+
+```
+dotnet test
+```
+
+- **`CleanSlices.Core.Tests`** are unit tests for the entities and validators. They need nothing else.
+- **`CleanSlices.Api.Tests`** call the API over HTTP. The API runs in memory (`WebApplicationFactory`) against a real SQL Server that Testcontainers starts in Docker, once for the whole run. The schema is created from the model with `EnsureCreated()`, so the tests don't depend on migrations. Each test creates its own data, so the database is never reset.
+
+The tests use xUnit v3 on Microsoft.Testing.Platform, which `global.json` turns on for `dotnet test`. `cleanslices add feature` also generates tests for the new slice in both projects.
+
 ## Build conventions
 
 - `Directory.Build.props` sets the shared properties, so the `.csproj` files only list references:
@@ -217,7 +233,6 @@ These are deliberate for a simple starter. Revisit them when the project grows.
 - **ProblemDetails titles are error codes**, such as `User.NotFound`.
 - **Time comes from `DateTimeOffset.UtcNow`** rather than `TimeProvider`.
 - **No paging** on the list endpoints.
-- **Email format isn't validated.** Only empty and too-long values are rejected.
 - **Any status change is allowed**, including `Completed → NotStarted`.
 
 ## Pending
@@ -226,5 +241,4 @@ These are deliberate for a simple starter. Revisit them when the project grows.
   - drop the `Version` columns
   - remove `Id` and `CreatedAt` from `TaskItemUserAssignments`
   - make the composite primary key
-- Add a test project (`CleanSlices.Core.Tests`) for `TaskItem` and `User`.
 - Optionally remove `AppDbContextFactory` and run EF with `--startup-project src/CleanSlices.Api`, so the connection string comes only from appsettings.

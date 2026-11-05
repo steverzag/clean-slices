@@ -157,7 +157,7 @@ internal sealed class AddFeatureCommand : AsyncCommand<AddFeatureCommand.Setting
         }
 
         Ui.Success($"Added {entity} feature");
-        PrintSummary(solution.AppName, entity, plural);
+        PrintSummary(solution.AppName, entity, plural, solution.Root);
 
         await manifest.WithSlice(slice).SaveAsync(solution.Root, cancellationToken);
         if (!solution.HasManifestFile)
@@ -202,7 +202,7 @@ internal sealed class AddFeatureCommand : AsyncCommand<AddFeatureCommand.Setting
         return 0;
     }
 
-    private static void PrintSummary(string app, string entity, string plural)
+    private static void PrintSummary(string app, string entity, string plural, string root)
     {
         var route = $"/{Naming.ToKebabCase(plural)}";
 
@@ -216,6 +216,13 @@ internal sealed class AddFeatureCommand : AsyncCommand<AddFeatureCommand.Setting
         tree.AddNode($"{app}.Api/Features/{plural}/")
             .AddNodes($"Create{entity}.cs", $"Get{entity}ById.cs", $"Get{plural}.cs", $"Update{entity}Name.cs", $"Delete{entity}.cs", $"{entity}Errors.cs");
 
+        // Solutions created from an older template commit have no test projects, so no tests were generated.
+        var coreTests = $"{app}.Core.Tests/Domain/{plural}/{entity}Tests.cs";
+        var apiTests = $"{app}.Api.Tests/Features/{plural}/{entity}EndpointsTests.cs";
+        var generatedTests = new[] { coreTests, apiTests }
+            .Where(path => File.Exists(Path.Combine(root, "tests", path)))
+            .ToList();
+
         var endpoints = new Table().Border(TableBorder.Rounded).BorderColor(Color.Grey)
             .AddColumn("Method").AddColumn("Route").AddColumn("Endpoint");
         endpoints.AddRow("[green]POST[/]", route, $"Create{entity}");
@@ -226,6 +233,13 @@ internal sealed class AddFeatureCommand : AsyncCommand<AddFeatureCommand.Setting
 
         AnsiConsole.WriteLine();
         AnsiConsole.Write(tree);
+        if (generatedTests.Count > 0)
+        {
+            var testsTree = new Tree("[grey]tests[/]");
+            testsTree.AddNodes(generatedTests);
+            AnsiConsole.Write(testsTree);
+        }
+
         AnsiConsole.WriteLine();
         AnsiConsole.Write(endpoints);
         AnsiConsole.WriteLine();

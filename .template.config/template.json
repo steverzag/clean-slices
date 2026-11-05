@@ -81,7 +81,11 @@
             "src/CleanSlices.Infrastructure/EventHandlers/Users/**",
             "src/CleanSlices.Infrastructure/Persistence/Configuration/TaskItemTypeConfiguration.cs",
             "src/CleanSlices.Infrastructure/Persistence/Configuration/TaskItemUserAssignmentTypeConfiguration.cs",
-            "src/CleanSlices.Infrastructure/Persistence/Configuration/UserTypeConfiguration.cs"
+            "src/CleanSlices.Infrastructure/Persistence/Configuration/UserTypeConfiguration.cs",
+            "tests/CleanSlices.Core.Tests/Domain/Tasks/**",
+            "tests/CleanSlices.Core.Tests/Domain/Users/**",
+            "tests/CleanSlices.Api.Tests/Features/Tasks/**",
+            "tests/CleanSlices.Api.Tests/Features/Users/**"
           ]
         }
       ]

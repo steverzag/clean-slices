@@ -17,6 +17,14 @@ This repository is three things at once:
 
 ## Testing changes locally
 
+Run the tests with the dev solution. The repository root has two solution files, so `dotnet` needs to be told which one:
+
+```powershell
+dotnet test --solution CleanSlices.Dev.slnx
+```
+
+The integration tests (`tests/CleanSlices.Api.Tests`) need Docker running. Generated solutions have a single solution file, so plain `dotnet test` works there.
+
 The CLI reads templates from git, not from your working folder, so **commit** before testing. Point it at your local clone so you don't have to push:
 
 ```powershell

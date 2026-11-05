@@ -66,11 +66,12 @@ cleanslices add feature Product
 cleanslices add feature Person --plural People --migration
 ```
 
-It generates a complete slice across the three projects:
+It generates a complete slice across the three projects, plus its tests:
 
 - **Core**: the entity (with `Name`, `Create`, `UpdateName`, `Delete`), its domain events and its errors
 - **Infrastructure**: the EF configuration and event handlers
 - **Api**: CRUD endpoints (`POST /products`, `GET /products`, `GET /products/{id}`, `PATCH /products/{id}/name`, `DELETE /products/{id}`)
+- **Tests**: `ProductTests` for the entity and `ProductEndpointsTests` for the endpoints. Solutions created before test projects existed don't get them.
 
 Nothing existing is edited. Endpoints, event handlers and EF configurations are picked up automatically, and the entity is reached through `context.Set<Product>()`, so `AppDbContext` stays as it is. The generated code follows the solution's patterns: in a solution with `result`, the feature uses `Result<T>`.
 

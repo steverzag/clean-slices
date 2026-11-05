@@ -72,11 +72,12 @@ SQL Server compares text without case by default; PostgreSQL doesn't. Storing em
 
 ### Test projects
 
-Tests are part of every generated solution. To decide:
+**Done.** Tests are part of every generated solution:
 
-- the framework (xUnit v3 is the proposal),
-- integration tests through Aspire's testing support (the AppHost starts the real containers) or `WebApplicationFactory` with Testcontainers,
-- the tests `add feature` generates for each slice. They follow the selected options, so each generated solution tests its own combination.
+- xUnit v3 on Microsoft.Testing.Platform (`global.json`), plain `Assert`, no mocking library.
+- `tests/CleanSlices.Core.Tests`: unit tests. `tests/CleanSlices.Api.Tests`: integration tests with `WebApplicationFactory` and a SQL Server container from Testcontainers, started once per run (assembly fixture), schema from `EnsureCreated()`, unique data per test instead of resets.
+- Sample tests come with `--samples`. `add feature` generates `<Entity>Tests` and `<Entity>EndpointsTests`.
+- When options arrive: the Api tests check responses, so the same tests should pass in every combination (rule 7). Only the Core tests need conditionals (for `result`). An authentication option will need a test login in the factory. PostgreSQL needs its own container in the factory.
 
 ### Aspire-managed database
 

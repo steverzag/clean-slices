@@ -8,11 +8,16 @@
     <File Path=".gitignore" />
     <File Path="Directory.Build.props" />
     <File Path="Directory.Packages.props" />
+    <File Path="global.json" />
     <File Path="README.md" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/CleanSlices.Api/CleanSlices.Api.csproj" />
     <Project Path="src/CleanSlices.Core/CleanSlices.Core.csproj" />
     <Project Path="src/CleanSlices.Infrastructure/CleanSlices.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/CleanSlices.Api.Tests/CleanSlices.Api.Tests.csproj" />
+    <Project Path="tests/CleanSlices.Core.Tests/CleanSlices.Core.Tests.csproj" />
   </Folder>
 </Solution>
