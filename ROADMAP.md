@@ -2,17 +2,22 @@
 
 This document describes where CleanSlices is heading and the design rules that should get it there. It's for people working on the template and the CLI; generated solutions don't get it.
 
+The details of every option live in [docs/roadmap/](docs/roadmap/README.md).
+
 ## The goal
 
 Today the CLI creates a solution, adds features to it, and merges optional patterns into it. There is one pattern (`result`).
 
 The goal is a **project configurator**: you describe the setup you want, choosing from several *concepts*, each with several *options*, and the CLI generates a solution where all the chosen options work together. Both lists, concepts and the options within them, should be able to grow without limit.
 
-| Concept | What it decides | Example options |
-|---|---|---|
-| **Patterns** | How the code is structured | Result&lt;T&gt;, outbox |
-| **Tools** | Which infrastructure the solution uses | Database provider (SQL Server, PostgreSQL), cache (in-memory, Redis), queue (RabbitMQ, Azure Service Bus) |
-| **Strategies** | Cross-cutting behavior applied to entities | Soft delete, audit history |
+The CLI is for anyone. The template's own style, pragmatic and without ceremony, is the **default**, not the only choice: widely used approaches such as repositories or CQRS are options.
+
+| Concept | An option belongs here if it… | Choose | Options |
+|---|---|---|---|
+| **[Patterns](docs/roadmap/patterns.md)** | changes *how code is written* | any number | Result&lt;T&gt;, outbox, inbox, repository / unit of work, CQRS, idempotency keys, request validation |
+| **[Infrastructure](docs/roadmap/infrastructure.md)** | picks *which product* sits behind a seam | at most one per group | Database, queue, cache, authentication, realtime |
+| **[Strategies](docs/roadmap/strategies.md)** | adds *behavior to entities* | any number | Soft delete, audit |
+| **[Extras](docs/roadmap/extras.md)** | adds files around the code, without changing how it's written | any number | Logging (Serilog), API reference (Scalar) |
 
 The same choices must also hold *after* creation: `add feature` generates code that fits the configuration, and adding an option to an existing solution merges it into the user's code.
 
@@ -20,7 +25,7 @@ Similar tools exist in other ecosystems: JHipster (Java) is the closest, Spring 
 
 ## The core problem: cohesion
 
-Options interact. If the user picks RabbitMQ as the queue, the outbox should deliver its events through RabbitMQ instead of in-process. If they pick PostgreSQL, everything that touches the database must work on PostgreSQL.
+Options interact. If the user picks RabbitMQ, integration events must go through RabbitMQ whether or not the outbox is selected. If they pick PostgreSQL, everything that touches the database must work on PostgreSQL.
 
 The number of possible interactions grows much faster than the number of options: 10 options make 45 pairs. If every pair needs its own code, the project stops scaling long before the list gets interesting.
 
@@ -28,97 +33,102 @@ The number of possible interactions grows much faster than the number of options
 
 These rules are what make the goal achievable. A new option that breaks one of them should be redesigned before it's merged.
 
-1. **Options meet only through seams in the base project.** A seam is an interface or registration point that the base template defines. One option *provides* an implementation; another *uses* the interface. Neither knows the other exists.
+1. **Options meet only through seams.** A seam is an interface or registration point. One option *provides* an implementation; another *uses* the interface. Neither knows the other exists.
 
-   Example: the outbox stores events and hands each one to an `IMessageDispatcher`. It never mentions RabbitMQ. The RabbitMQ tool registers an `IMessageDispatcher` that sends to the broker. "Outbox + RabbitMQ" needs no code of its own: it falls out of dependency injection.
+   Example: integration events are handed to an `IMessageDispatcher`. The outbox never mentions RabbitMQ; the RabbitMQ option registers an `IMessageDispatcher` that sends to the broker. "Outbox + RabbitMQ" needs no code of its own.
 
-2. **Every seam works with nothing selected.** The base template ships a default implementation for each seam (e.g. an in-process dispatcher that calls the handlers directly). A solution with no options builds and runs, and every option can be added on its own.
+2. **Every seam works with nothing selected.** The base template, or the unit that introduces the seam, ships a default implementation (an in-process dispatcher, an in-memory cache, an anonymous current user). A solution with no options builds and runs, and every option can be added on its own.
 
-3. **Code that is specific to a combination lives in a glue unit.** Sometimes a pair really needs specific code. A glue unit is a small piece applied only when both options are selected. Prefer designing it away first (e.g. a provider-neutral query instead of one per database). **The number of glue units is the health metric of the design:** if it grows with every option, the seams are in the wrong place.
+3. **Code that is specific to a combination lives in a glue unit.** A glue unit is a small piece applied only when both options are selected. Design it away first. **The number of glue units is the health metric of the design:** if it grows with every option, the seams are in the wrong place. Known glue units today: realtime × Redis (SignalR backplane) and realtime × ASP.NET Core Identity (token in the query string).
 
-4. **Add files rather than edit shared ones.** Every edited line is a possible conflict with the user's code or with another option. An option should ideally be new files plus one registration call.
+4. **Add files rather than edit shared ones.** Every edited line is a possible conflict with the user's code or with another option. An option should ideally be new files plus a few small conditionals at known places. This is also why the CLI never converts the user's existing entities (see [strategies](docs/roadmap/strategies.md)).
 
-5. **Provider-specific artifacts are generated on the user's side.** Migrations are the main case: they differ per database provider. Generated solutions already don't ship migrations (`template.json` excludes `src/CleanSlices.Infrastructure/Migrations/**`); users run `dotnet ef migrations add`. Options keep it that way.
+5. **Provider-specific artifacts are generated on the user's side.** Migrations differ per database provider. Generated solutions don't ship migrations (`template.json` excludes them); users run `dotnet ef migrations add`.
 
-6. **The feature template honors the configuration.** `add feature` must generate code that fits the chosen options. This already happens for `result` (`templates/cs-feature/` changes with it). Strategies make it more important: with soft delete selected, new entities get the soft-delete marker.
+6. **The feature template honors the configuration.** `add feature` must generate code that fits the chosen options.
 
-## Seams
+7. **Options don't change what clients see unless that is their purpose.** The same failure gives the same HTTP response with or without `result`; a soft-deleted entity behaves exactly like a deleted one; request validation and domain validation return the same shape.
 
-The seams the planned options need. None exist yet except where noted.
+8. **Code stays provider-neutral.** Entity type configurations use no provider-specific column types, no code depends on provider error numbers, and times are always UTC.
 
-| Seam | Default (base template) | Provided by | Used by |
-|---|---|---|---|
-| `IPublisher` / `INotificationHandler<T>` | In-process publisher | exists today | Domain event handlers |
-| `IMessageDispatcher` | In-process: forwards to `IPublisher` | Queue tools (RabbitMQ, Service Bus) | Outbox |
-| Database provider registration | SQL Server | DB provider tools | `AppDbContext`, Aspire AppHost |
-| `ICache` (or `HybridCache`) | In-memory | Cache tools (Redis) | Features that cache reads |
-| `ISoftDeletable` + EF query filter | none | Soft delete strategy | Entities, feature template |
-| `IAuditable` + EF interceptor | none | Audit strategy | Entities, feature template |
-
-Seams that need nothing from the base until an option uses them (soft delete, audit) can be introduced by the option itself, as long as no other option depends on them.
+9. **No hidden licenses.** When an option depends on a commercial package or product (MediatR, Seq), the CLI prints a notice when it's chosen and the setting for the license key is generated empty.
 
 ## How options are applied
 
-There are two kinds of options, and they need different mechanisms.
+All options use one mechanism: **template conditionals**.
 
-| Kind | Example | Mechanism |
-|---|---|---|
-| **Additive**: new files plus a few registration calls | Tools, strategies, outbox | A **module**: its files, plus edits at a few known *anchors* (`InfrastructureRegistration`, `AppHost.cs`, `Directory.Packages.props`, `appsettings.json`) |
-| **Invasive**: rewrites code across the solution | Result&lt;T&gt; (35 files) | A **pattern branch**, cherry-picked onto the template commit, as today |
+- **Whole files** are included only when an option is selected (`Result.cs`, `OutboxProcessor.cs`), or only when it isn't (`Exceptions.cs`).
+- **Inline `//#if (option)` blocks** cover the lines that differ inside shared files: a handler body, a registration call, an AppHost resource. The comment form keeps the template compiling in its default state.
 
-Most future options are additive. Modules almost never conflict, because they mostly add files. Invasive options should stay rare.
+Rule 4 keeps the inline blocks few. Pattern branches (`pattern/result`) are retired once `result` moves to conditionals.
 
-Adding an option *to an existing solution* doesn't depend on the mechanism. `add pattern` already renders the solution before and after the option and merges the difference into the user's code with `git merge-tree`, and that approach works for modules too.
+Adding an option *to an existing solution* doesn't depend on the mechanism: `add <option>` renders the solution before and after the option and merges the difference into the user's code with `git merge-tree`, as `add pattern` does today.
+
+**The sample features (Tasks/Users) only come with the default setup.** `--samples` together with an invasive pattern or an authentication option is rejected. The feature template is the code that must support every option.
 
 ## The catalog
 
-Each option declares what it is and how it relates to others, in a catalog the CLI reads. A sketch:
+Each option declares what it is and how it relates to others, in a catalog the CLI reads:
 
 ```jsonc
 {
-  "id": "outbox",
+  "id": "cqrs",
   "concept": "pattern",
-  "title": "Outbox for reliable domain events",
-  "mechanism": "module",           // or "branch"
-  "requires": ["message-dispatcher"],
-  "provides": ["outbox"],
-  "conflicts": [],
-  "featureTemplate": {}            // symbols passed to cs-feature, if any
+  "title": "CQRS",
+  "choices": {
+    "dispatcher": { "values": ["handlers", "mediator", "mediatr"], "default": "handlers" }
+  },
+  "requires": [],
+  "provides": [],
+  "conflicts": []
 }
 ```
 
 ```jsonc
 {
   "id": "rabbitmq",
-  "concept": "tool",
-  "group": "queue",                // at most one option per group
+  "concept": "infrastructure",
+  "group": "queue",                       // at most one option per group
   "title": "RabbitMQ",
-  "mechanism": "module",
-  "provides": ["message-dispatcher"],
-  "conflicts": []
+  "requires": ["integration-events"],
+  "provides": ["message-dispatcher", "at-least-once-delivery"]
 }
 ```
 
+```jsonc
+{
+  "id": "integration-events",
+  "hidden": true,                         // never picked by the user, added by the resolver
+  "provides": ["integration-events"]
+}
+```
+
+- **Groups and sub-options are both "pick one"**, with different meanings. A *sub-option* (`choices`) only matters when its parent is selected: the CQRS dispatcher. A *group* is a choice other options depend on: the database provider.
+- **Hidden units** are pieces several options need but no user picks directly: `integration-events` is required by the outbox and the queue options.
+
 The CLI resolves the selection like a package manager:
 
-1. Collect the selected options.
-2. For each `requires` capability that no selected option provides, use the base template's default (if there is one) or ask.
+1. Collect the selected options and their choices (asking for, or defaulting, the choices not given).
+2. For each `requires` capability that no selected option provides, add the hidden unit or default that provides it, or ask.
 3. Reject conflicts and two options in the same group before generating anything, with a message that says why.
 4. Add the glue units whose conditions are met.
-5. Apply everything in a deterministic order.
+5. Print the license notices.
+6. Apply everything in a deterministic order.
 
-`.cleanslices.json` records the resolved configuration, not just the options the user typed, so later commands (`add feature`, adding another option) see the same picture.
+`.cleanslices.json` records the resolved configuration, choices included (`{ "id": "cqrs", "dispatcher": "mediator" }`), not just the options the user typed, so later commands see the same picture.
 
 ## Testing
 
-Combinations can't be tested by hand. CI must generate and build:
+**Generated solutions have tests.** The base template ships test projects, and `add feature` generates tests for each new slice (see [base-template.md](docs/roadmap/base-template.md)). So every generated solution runs tests for its own combination of options.
+
+**The template repository tests combinations in CI.** It must generate, build and test:
 
 - the base template with no options,
-- each option alone,
+- each option alone, and each value of each sub-option,
 - every **pair** of options (most interaction bugs involve two options),
 - one solution with everything compatible selected.
 
-For each, it should: generate a new solution, add a feature with `add feature`, add each option later with `add <option>` on a solution that has a feature, and build. Once the solution has tests, run them too.
+For each, it should: generate a new solution, add a feature with `add feature`, add each option later on a solution that has a feature, build, and run the tests.
 
 Set this up before the catalog grows past about five options. Without it, combinations break silently.
 
@@ -128,26 +138,40 @@ Set this up before the catalog grows past about five options. Without it, combin
 - The catalog lives in the template repository, so it's versioned with the template.
 - When the catalog format changes, the CLI must still read older solutions' manifests, or say clearly that it can't.
 
-## Roadmap
+## Phases
 
-Each phase ends with something usable and tests one part of the design.
+Each phase ends with something usable. The order is a proposal.
 
 | Phase | What | Proves |
 |---|---|---|
 | 0, done | Patterns as git branches; `result` | Composing and merging options into existing code |
-| 1 | **Outbox** pattern, with `IMessageDispatcher` and an in-process default from day one. Built as a pattern branch, since modules don't exist yet; it's additive, so it can move to a module in phase 2 | Seams and defaults (rules 1 and 2) |
-| 2 | **Database provider** tool: PostgreSQL alongside SQL Server | The module mechanism and anchors; provider-specific concerns |
-| 3 | **Catalog and resolver** in the CLI; `.cleanslices.json` records the resolved configuration | requires / provides / conflicts / groups |
-| 4 | **CI matrix** | Combinations stay working |
-| 5 | **Queue** tool (RabbitMQ) | Outbox + RabbitMQ with zero glue |
-| 6 | **Strategies**: soft delete, audit | Options that change the feature template |
-| 7 | **Cache** tool; publish the CLI on NuGet | Ready for other people |
+| 1 | **Base template changes** ([backlog](docs/roadmap/base-template.md)): ordered save pipeline, domain events before the commit, `ICurrentUser`, `TimeProvider`, pagination, `HybridCache`, test projects, Aspire-managed database | The seams every option needs |
+| 2 | **Conditionals**: move `result` from its branch to template conditionals; catalog and resolver in the CLI | One mechanism; requires / provides / conflicts / groups / choices |
+| 3 | **CI matrix** | Combinations stay working |
+| 4 | **Outbox, inbox, integration events** | Seams with defaults and hidden units |
+| 5 | **PostgreSQL** | Provider-neutral code |
+| 6 | **Repository, CQRS, request validation, idempotency keys** | Several invasive patterns in one feature template |
+| 7 | **Queue, cache, authentication, realtime** | Zero-glue combinations, and the first glue units |
+| 8 | **Strategies**: soft delete, audit | Options on entities and the save pipeline order |
+| 9 | **Extras**; publish the CLI on NuGet | Ready for other people |
 
-## Open questions
+## Parked and open
 
-- **Do patterns stay git branches?** Branches suit invasive changes like Result&lt;T&gt;, but they're the hardest to combine. Could Result&lt;T&gt; become a module plus template conditionals instead?
+Parked: discussed or proposed, deliberately not now.
+
+- **Optimistic concurrency**, with a full proposed design in [strategies.md](docs/roadmap/strategies.md#parked-optimistic-concurrency).
+- **CI workflow** extra (GitHub Actions for generated solutions).
+- **Multi-tenancy** strategy. EF Core named query filters make it compatible with soft delete later.
+- **Strongly typed IDs** pattern.
+- **SSE** as a second realtime option; **Azure SignalR Service** for scale-out.
+- **Database-backed idempotency store**, as a `store` sub-option, for teams that need the transactional guarantee.
+- **Public-only integration events** refinements, and a **separate read store** for CQRS.
+- **Containers**, **dev container** (extras); **API versioning**, **rate limiting** (pattern candidates).
+
+Open questions:
+
 - **Removing an option.** Today options can only be added. Is removal a goal?
-- **Strategies on existing entities.** When soft delete is added to a solution that already has features, should the CLI convert the existing entities, or only new ones?
-- **Interactive UX.** With many options, the prompts need grouping (by concept) and sensible defaults.
 - **Upgrades.** Can a solution move to a newer template commit, and what happens to its options?
-- **Naming.** "Tools" might read better as "infrastructure".
+- **Interactive UX.** With many options, the prompts need grouping by concept, sensible defaults, and follow-up questions for choices.
+
+To verify before the docs for users are written: MediatR's and MassTransit's current license terms, and whether `HybridCache` skips the in-memory `IDistributedCache` as its second level.

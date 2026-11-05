@@ -66,6 +66,7 @@
             "CleanSlices.Dev.slnx",
             "CONTRIBUTING.md",
             "ROADMAP.md",
+            "docs/roadmap/**",
             "src/CleanSlices.Infrastructure/Migrations/**"
           ]
         },
