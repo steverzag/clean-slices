@@ -53,6 +53,8 @@ These rules are what make the goal achievable. A new option that breaks one of t
 
 9. **No hidden licenses.** When an option depends on a commercial package or product (MediatR, Seq), the CLI prints a notice when it's chosen and the setting for the license key is generated empty.
 
+10. **The default solution only contains what it uses itself.** A change to the base template must make the default solution better on its own. A seam that only options use goes into a [hidden unit](docs/roadmap/hidden-units.md), added when an option requires it. Testability alone isn't a reason to change the default solution.
+
 ## How options are applied
 
 All options use one mechanism: **template conditionals**.
@@ -104,7 +106,7 @@ Each option declares what it is and how it relates to others, in a catalog the C
 ```
 
 - **Groups and sub-options are both "pick one"**, with different meanings. A *sub-option* (`choices`) only matters when its parent is selected: the CQRS dispatcher. A *group* is a choice other options depend on: the database provider.
-- **Hidden units** are pieces several options need but no user picks directly: `integration-events` is required by the outbox and the queue options.
+- **Hidden units** are pieces several options need but no user picks directly, such as `integration-events`, required by the outbox and the queue options. The others are `current-user`, `model-rules` and `cache`; all of them are in [hidden-units.md](docs/roadmap/hidden-units.md).
 
 The CLI resolves the selection like a package manager:
 
@@ -145,7 +147,7 @@ Each phase ends with something usable. The order is a proposal.
 | Phase | What | Proves |
 |---|---|---|
 | 0, done | Patterns as git branches; `result` | Composing and merging options into existing code |
-| 1 | **Base template changes** ([backlog](docs/roadmap/base-template.md)): ordered save pipeline, domain events before the commit, `ICurrentUser`, pagination, `HybridCache`, test projects, Aspire-managed database | The seams every option needs |
+| 1 | **Base template changes** ([backlog](docs/roadmap/base-template.md)): test projects (done), ordered save pipeline and domain events before the save (done), pagination, lower-case emails, Aspire-managed database | A better default solution, and the save pipeline options plug into |
 | 2 | **Conditionals**: move `result` from its branch to template conditionals; catalog and resolver in the CLI | One mechanism; requires / provides / conflicts / groups / choices |
 | 3 | **CI matrix** | Combinations stay working |
 | 4 | **Outbox, inbox, integration events** | Seams with defaults and hidden units |

@@ -1,6 +1,6 @@
 # Base template backlog
 
-Changes to `main` that the options depend on. They make the default solution better on their own, and they give the options the seams they need (rules 1 and 2 in [ROADMAP.md](../../ROADMAP.md#design-rules)).
+Changes to `main`. Each one must make the default solution better on its own (rule 10 in [ROADMAP.md](../../ROADMAP.md#design-rules)). Seams that only options use are hidden units instead: see [Moved out of the base template](#moved-out-of-the-base-template).
 
 ## Persistence
 
@@ -35,34 +35,12 @@ Order matters:
 - Domain events are dispatched **before the save**, and the handlers' changes are saved in the same save. Everything is saved together, or nothing is. A test proves it (`Deleting_a_user_saves_nothing_when_a_domain_event_handler_fails`).
 - The step repeats until no new events are raised (at most 10 rounds), because a handler can raise more.
 - Handlers change tracked entities and **never call `SaveChanges`**; the pipeline throws if one does. `UnassignDeletedUserFromTasksHandler` dropped its `SaveChangesAsync`.
-- Rule: domain event handlers don't reach outside the app. Emails, other services and notifications that must survive a failure are integration events (see [patterns.md](patterns.md#integration-events-hidden-unit)).
+- Rule: domain event handlers don't reach outside the app. Emails, other services and notifications that must survive a failure are integration events (see [hidden-units.md](hidden-units.md#integration-events)).
 - The README's trade-off "domain events run after the commit and outside the transaction" is gone.
-
-### Model rules hook
-
-`OnModelCreating` runs every model rule class found by scanning, after the type configurations. Strategies use it to apply query filters, extra columns and tables to entities with their marker interface, without editing `AppDbContext`.
 
 ### Bulk operations
 
 Document: `ExecuteUpdate` and `ExecuteDelete` skip the save pipeline, so no strategy runs for them (no audit, and `ExecuteDelete` hard-deletes even with soft delete).
-
-## Seams
-
-### `ICurrentUser`
-
-`string? UserId` and `bool IsAuthenticated`. The default implementation is anonymous (`null`). Authentication options provide one that reads the claims. Used by idempotency keys, audit, logging and realtime.
-
-### `TimeProvider`
-
-**Not in the base template.** It was built and then reverted: the default solution keeps `DateTimeOffset.UtcNow`, because a design driven by testability goes against the template's pragmatism. It may become an option; which concept is still to decide (see [ROADMAP.md](../../ROADMAP.md#parked-and-open)).
-
-The reverted design, for when it's picked up: `Entity.CreatedAt` set by a save step (order 10, after domain events) from `TimeProvider`; domain methods receive the time as a value (`Complete(now)`, `AssignUser(userId, now)`); handlers pass `timeProvider.GetUtcNow()`; the API tests' factory fixes the clock with `FakeTimeProvider`. No analyzer: using it is a convention.
-
-Options that need the time (soft delete, audit, outbox, idempotency) read the clock the same way the rest of the solution does.
-
-### `HybridCache`
-
-`AddHybridCache()` plus the in-memory `IDistributedCache`. Idempotency keys store records in `IDistributedCache`; the Redis option replaces it and both pick Redis up. Verify that `HybridCache` doesn't use the in-memory `IDistributedCache` as a redundant second level.
 
 ## Features
 
@@ -100,3 +78,20 @@ The AppHost adds SQL Server (`AddSqlServer(...).AddDatabase("Database")`), so `d
 - `.cleanslices.json` records options with their choices.
 - Reject `--samples` with an invasive pattern or an authentication option.
 - Retire pattern branches once `result` uses conditionals.
+
+## Moved out of the base template
+
+These were planned for `main` and moved out: nothing in the default solution would use them, or their main benefit was testability. The default solution only contains what it uses itself (rule 10).
+
+| Item | Now | Why |
+|---|---|---|
+| `ICurrentUser` | hidden unit [`current-user`](hidden-units.md#current-user) | Without authentication it always answers "anonymous", and only options read it |
+| Model rules hook | hidden unit [`model-rules`](hidden-units.md#model-rules) | Only strategies use it |
+| `HybridCache` | hidden unit [`cache`](hidden-units.md#cache) | Features cache nothing by default; only idempotency keys and Redis need it |
+| `TimeProvider` | possible option, concept to decide | Built, then reverted: its main benefit is testability, which shouldn't shape the default solution |
+
+### `TimeProvider`
+
+The default solution keeps `DateTimeOffset.UtcNow`. The reverted design, for when it's picked up: `Entity.CreatedAt` set by a save step (order 10, after domain events) from `TimeProvider`; domain methods receive the time as a value (`Complete(now)`, `AssignUser(userId, now)`); handlers pass `timeProvider.GetUtcNow()`; the API tests' factory fixes the clock with `FakeTimeProvider`. No analyzer: using it is a convention. Changing domain signatures makes it a pattern by our definitions.
+
+Options that need the time (soft delete, audit, outbox, idempotency) read the clock the same way the rest of the solution does.

@@ -7,7 +7,7 @@ A strategy adds *behavior to entities*. Any number can be selected. See the [cat
 Every strategy follows the same three steps, so strategies never touch each other or `AppDbContext`:
 
 1. **A marker interface in Core** (`ISoftDeletable`, `IAuditable`), implemented by the entities that use the strategy.
-2. **A model rule**, found by scanning and run from the base template's `OnModelCreating` hook, applies filters, columns or tables to every entity with the marker.
+2. **A model rule**, found by scanning and run from the `OnModelCreating` hook of the [`model-rules`](hidden-units.md#model-rules) hidden unit, applies filters, columns or tables to every entity with the marker.
 3. **A save step** in the ordered save pipeline fills values or writes rows automatically (see [base-template.md](base-template.md#ordered-save-pipeline)).
 
 **Which entities get a strategy.** `add feature` adds the marker to new entities when the strategy is selected. The CLI doesn't convert existing entities, since that would edit the user's files (rule 4). The docs show how: add the interface, then a migration.

@@ -28,7 +28,7 @@ A pattern changes *how code is written*: method signatures, control flow, how a 
 
 **Design.**
 
-- `IIntegrationEventPublisher` (from the [integration events](#integration-events-hidden-unit) unit) writes an outbox row instead of buffering the event.
+- `IIntegrationEventPublisher` (from the [integration events](hidden-units.md#integration-events) unit) writes an outbox row instead of buffering the event.
 - The processor reads pending rows and hands each one to `IMessageDispatcher`: in-process by default, the broker with a queue option.
 - Serialization: JSON plus a type *name* resolved through a registry built at startup. Never `Type.GetType` on a string from the database. Events are plain records.
 - Several API instances: each row is claimed with a lease (`LockedUntil`) through EF `ExecuteUpdate`, which works on every provider. No `UPDLOCK READPAST` / `SKIP LOCKED`, which would need glue per database.
@@ -55,37 +55,6 @@ A pattern changes *how code is written*: method signatures, control flow, how a 
 - Only available when something delivers at least once: the outbox or a queue option provides that capability. Selected by default when available.
 
 **Feature template.** No change.
-
-## Integration events (hidden unit)
-
-**What.** Events meant for the outside world: other services, emails, anything that can happen after the save and be retried. Never selected by the user: the resolver adds it when the outbox or a queue option is selected.
-
-Domain events and integration events:
-
-| | Domain events (base) | Integration events |
-|---|---|---|
-| Purpose | Keep the app consistent | Side effects and other services |
-| When | Before the commit, same transaction | After the commit |
-| If a handler fails | The whole save fails | Retried; the data is already saved |
-| Handlers may | Change tracked entities, never call `SaveChanges` | Do anything, including external calls |
-
-**Design.**
-
-- Contains `IIntegrationEvent`, `IIntegrationEventHandler<T>`, the serializer and the type registry.
-- A domain event handler publishes the integration event:
-  ```csharp
-  internal sealed class PublishUserCreated(IIntegrationEventPublisher publisher) : INotificationHandler<UserCreatedDomainEvent>
-  {
-  	public Task Handle(UserCreatedDomainEvent e, CancellationToken ct) =>
-  		publisher.Publish(new UserCreatedIntegrationEvent(e.Id, e.Email), ct);
-  }
-  ```
-- Two seams:
-  - `IIntegrationEventPublisher`, what app code calls. Without the outbox it buffers the event and sends it in the save pipeline's after-commit phase; with the outbox it writes an outbox row.
-  - `IMessageDispatcher`, the transport. The default calls the `IIntegrationEventHandler`s in-process, in the background; queue options send to a broker.
-- Integration events are public contracts: add fields, never rename or remove them.
-
-**Feature template.** Generates none. Integration events are deliberate contracts; the docs show how to add one.
 
 ## Repository / unit of work
 

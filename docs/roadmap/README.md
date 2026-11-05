@@ -6,7 +6,7 @@ Each option page uses the same headings: **What**, **Design**, **Sub-options**, 
 
 ## Base template
 
-Changes to `main` that the options rely on: [base-template.md](base-template.md).
+Changes to `main` that improve the default solution on their own: [base-template.md](base-template.md). Seams only options use are [hidden units](hidden-units.md).
 
 ## Options
 
@@ -19,7 +19,10 @@ Changes to `main` that the options rely on: [base-template.md](base-template.md)
 | Pattern | [CQRS](patterns.md#cqrs) | `dispatcher`: handlers (default), mediator, mediatr | designed |
 | Pattern | [Idempotency keys](patterns.md#idempotency-keys) | – | designed |
 | Pattern | [Request validation](patterns.md#request-validation) | – | designed (FluentValidation) |
-| Hidden unit | [Integration events](patterns.md#integration-events-hidden-unit) | – | designed |
+| Hidden unit | [Current user](hidden-units.md#current-user) | – | designed |
+| Hidden unit | [Model rules](hidden-units.md#model-rules) | – | designed |
+| Hidden unit | [Cache](hidden-units.md#cache) | – | designed |
+| Hidden unit | [Integration events](hidden-units.md#integration-events) | – | designed |
 | Infrastructure | [SQL Server](infrastructure.md#database), [PostgreSQL](infrastructure.md#database) | group `database` | SQL Server is the default |
 | Infrastructure | [RabbitMQ, Azure Service Bus](infrastructure.md#queue) | group `queue` | designed |
 | Infrastructure | [Redis](infrastructure.md#cache) | group `cache` | designed |

@@ -34,7 +34,7 @@ An infrastructure option picks *which product* sits behind a seam. Options are o
 
 **Design.**
 
-- Only **integration events** go through the queue. Domain events always run in-process, before the commit. A queue option requires the [integration events](patterns.md#integration-events-hidden-unit) unit, which the resolver adds.
+- Only **integration events** go through the queue. Domain events always run in-process, before the commit. A queue option requires the [integration events](hidden-units.md#integration-events) unit, which the resolver adds.
 - The option provides `IMessageDispatcher` (send) and a consumer that hands each message to the `IIntegrationEventHandler`s. It works with or without the outbox, with no glue.
 - Official clients (`RabbitMQ.Client`, `Azure.Messaging.ServiceBus`) with their Aspire integrations. No messaging framework: MassTransit and NServiceBus have commercial licenses, and frameworks bring their own outbox, inbox and retries, which would duplicate ours.
 - Topology: one topic-style exchange or Service Bus topic per app; the routing key is the event type name; the app's own queue or subscription is bound to it. Names default to the solution name and are configurable.
@@ -60,7 +60,7 @@ An infrastructure option picks *which product* sits behind a seam. Options are o
 
 **Design.**
 
-- The seam is `HybridCache` in the base template, plus the in-memory `IDistributedCache`.
+- The seam is `HybridCache` plus the in-memory `IDistributedCache`, from the [`cache`](hidden-units.md#cache) hidden unit, which this option requires.
 - The Redis option registers a Redis `IDistributedCache`. `HybridCache` uses it as its second level, and idempotency keys switch to it too, with no glue.
 - Aspire: `AddRedis("cache")`; the client is the Aspire StackExchange.Redis distributed-cache integration.
 
@@ -80,7 +80,7 @@ An infrastructure option picks *which product* sits behind a seam. Options are o
 
 **Design.**
 
-- Each option provides `ICurrentUser` from the claims, replacing the anonymous default.
+- Each option provides `ICurrentUser` from the claims, replacing the anonymous default of the [`current-user`](hidden-units.md#current-user) hidden unit.
 - Secure by default: a fallback policy requires an authenticated user on every endpoint. Health checks and the OpenAPI document opt out with `.AllowAnonymous()`. Roles and permissions are left to the user; the docs show a policy.
 - Each option describes its login fully in the OpenAPI document (OAuth2 flows for Keycloak and Entra ID, bearer for Identity), so the API reference UI can log in with no glue.
 - `--samples` is rejected with an authentication option: the sample `User` entity is a domain user, not a login account.
