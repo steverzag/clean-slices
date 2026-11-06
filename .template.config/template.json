@@ -91,7 +91,8 @@
             "tests/CleanSlices.Core.Tests/Domain/Tasks/**",
             "tests/CleanSlices.Core.Tests/Domain/Users/**",
             "tests/CleanSlices.Api.Tests/Features/Tasks/**",
-            "tests/CleanSlices.Api.Tests/Features/Users/**"
+            "tests/CleanSlices.Api.Tests/Features/Users/**",
+            "docs/samples.md"
           ]
         },
         {
@@ -100,19 +101,39 @@
             "src/CleanSlices.Api/Extensions/ResultExtensions.cs",
             "src/CleanSlices.Core/Shared/Error.cs",
             "src/CleanSlices.Core/Shared/Result.cs",
-            "tests/CleanSlices.Core.Tests/ResultAssertions.cs"
+            "tests/CleanSlices.Core.Tests/ResultAssertions.cs",
+            "docs/error-handling.result.md"
           ]
         },
         {
           "condition": "(result)",
           "exclude": [
-            "src/CleanSlices.Core/Shared/Exceptions.cs"
-          ]
+            "src/CleanSlices.Core/Shared/Exceptions.cs",
+            "docs/error-handling.md"
+          ],
+          "rename": {
+            "docs/error-handling.result.md": "docs/error-handling.md"
+          }
         }
       ]
     }
   ],
   "SpecialCustomOperations": {
+    "**/*.md": {
+      "operations": [
+        {
+          "type": "conditional",
+          "configuration": {
+            "if": [ "<!--#if" ],
+            "else": [ "<!--#else" ],
+            "elseif": [ "<!--#elseif" ],
+            "endif": [ "<!--#endif" ],
+            "trim": true,
+            "wholeLine": true
+          }
+        }
+      ]
+    },
     "**/*.http": {
       "operations": [
         {

@@ -1,6 +1,6 @@
 # CleanSlices
 
-A starter .NET 10 Web API that mixes Clean Architecture layering with vertical slices, in a **pragmatic** way. It is a simple CRUD over two entities, **Tasks** and **Users**, and it is meant as a starting point for other projects.
+A starter .NET 10 Web API that mixes Clean Architecture layering with vertical slices, in a **pragmatic** way. It is meant as a starting point for other projects: add features to it, and options when you need them.
 
 "Pragmatic" means the layers separate what matters, the domain, but the code skips ceremony that doesn't pay off at this size:
 
@@ -11,6 +11,20 @@ A starter .NET 10 Web API that mixes Clean Architecture layering with vertical s
 ## Command-line tool
 
 A companion CLI creates solutions from this template, adds features to them, and merges optional patterns such as Result&lt;T&gt; into existing code. See **[docs/CLI.md](docs/CLI.md)** for installation and usage.
+
+## Options in this solution
+
+The options the solution was created with, each with its own documentation:
+
+<!--#if (samples)-->
+- **Sample features**: Tasks and Users, a reference for your own features. See [docs/samples.md](docs/samples.md).
+<!--#endif-->
+<!--#if (result)-->
+- **Result&lt;T&gt;**: expected failures are results instead of exceptions. See [docs/error-handling.md](docs/error-handling.md).
+<!--#endif-->
+<!--#if (!samples && !result)-->
+- None: this is the default setup. Options can be added later with the CLI.
+<!--#endif-->
 
 ## Tech stack
 
@@ -31,9 +45,9 @@ aspire/
   CleanSlices.AppHost        Aspire orchestrator (runs SQL Server, the API, dashboard)
   CleanSlices.ServiceDefaults OpenTelemetry, health checks, service discovery, resilience
 src/
-  CleanSlices.Core           domain: entities, domain events, domain errors, domain exceptions
+  CleanSlices.Core           domain: entities, domain events, domain errors
   CleanSlices.Infrastructure EF Core, migrations, event publisher, event handlers
-  CleanSlices.Api            endpoints (vertical slices), error mapping, exception handler
+  CleanSlices.Api            endpoints (vertical slices), error mapping
 tests/
   CleanSlices.Core.Tests     unit tests: entities, validators
   CleanSlices.Api.Tests      integration tests: HTTP calls against the API and a real SQL Server
@@ -51,19 +65,12 @@ Dependencies point inwards: `Api → Infrastructure → Core`. Core has no packa
   - the domain-event list (`Raise`, `DomainEvents`, `ClearDomainEvents`)
 
   It is abstract on purpose. It is never created on its own and is only a base for real entities.
-- **`TaskItem`** and **`User`** are the entities. They:
-  - create instances through `Create(...)` factories that validate the input and throw a `DomainValidationException` when it's invalid
-  - change state only through methods (`UpdateTitle`, `Complete`, `AssignUser`, `Delete`, ...); setters are private
-  - raise domain events (`Created`, `Completed`, `Deleted`)
-- **`TaskItemUserAssignment`** is the join between tasks and users. It is *not* an `Entity`: it has a composite key `(TaskItemId, UserId)` plus `AssignedOn`. `AssignUser` and `UnassignUser` are all-or-nothing. Every id is validated before the collection changes.
-- **Field errors** (`Core/Domain/*/…Errors.cs`) are `FieldError(Field, Description)` records. Each one describes one invalid value, such as an empty title or a name that is too long. `Field` is the property name (`nameof(User.Email)`).
-- **Expected failures are exceptions** (`Core/Shared/Exceptions.cs`). All of them derive from `DomainException`, which carries a `Code`:
-  - `DomainValidationException` (wraps a list of `FieldError`s; `DomainValidationException.ThrowIfAny(...)` throws only when a check failed)
-  - `BusinessRuleException`
-  - `NotFoundException`
-  - `ConflictException`
-
-  Prefer returning results over throwing? The `result` pattern replaces these with `Result<T>`. See [docs/CLI.md](docs/CLI.md).
+- **Entities** (`Core/Domain/<Area>/`) derive from `Entity`. They:
+  - create instances through `Create(...)` factories that validate the input
+  - change state only through methods (`UpdateName`, `Delete`, ...); setters are private
+  - raise domain events (`Created`, `Deleted`, ...)
+- **Field errors** (`Core/Domain/<Area>/<Entity>Errors.cs`) describe one invalid value each, such as an empty name.
+- **Expected failures** (invalid input, not found, conflicts) and how they become HTTP responses are described in [docs/error-handling.md](docs/error-handling.md).
 
 ### Api (vertical slices)
 
@@ -76,7 +83,7 @@ Classes that implement `IEndpoint` are found by reflection and registered throug
 
 Conventions:
 
-- **API-level errors live next to the features**, not in Core. Examples are `Features/Users/UserErrors.cs` (`NotFound`, `EmailInUse`) and `Features/Tasks/TaskItemErrors.cs` (`NotFound`, `UserNotFound`). "Not found" and "email already used" depend on the database, so they are not domain rules.
+- **API-level errors live next to the features**, not in Core (`Features/<Area>/<Entity>Errors.cs`). "Not found" and "email already used" depend on the database, so they are not domain rules.
 - **Reads** use `AsNoTracking()` and an inline `Select(...)` into the response record. EF then reads only the columns it needs. Mapping helpers such as `.From(entity)` are avoided because they load the whole entity first.
 - **Lists are paged.** A list handler binds `[AsParameters] PaginationParameters paging` (`?pageNumber=2&pageSize=10`), orders the query, reads one page with `.PaginateAsync(paging, cancellationToken)` and returns `page.ToResponse()`:
 
@@ -88,41 +95,19 @@ Conventions:
   - `PaginationList<T>` is a read-only collection (`ReadOnlyCollection<T>`), built only by `PaginateAsync`. JSON writes collections as bare arrays, so the page information would be lost. The Api maps it to `PaginationResponse<T>` (`Configuration/PaginationResponse.cs`) with `ToResponse()`.
   - The defaults are page 1 and 10 items; `pageSize` is at most 50. Out-of-range values are clamped, never rejected: `pageNumber=0` becomes 1, `pageSize=1000` becomes 50.
   - Lists are ordered newest first (`CreatedAt`, then `Id`), so pages don't overlap or skip rows. A list must always be ordered before paging.
-- **Lookups for updates** use `FindAsync([id], ct)`. Use `Include(...)` when a collection is needed, as in assign/unassign.
-- **Handlers are plain imperative code**: load the entity, call the domain method, save, return `Results.*`. Failures are thrown (`throw UserErrors.NotFound(id)`) and never caught in the endpoint.
-- **Exceptions become HTTP responses** in `Handlers/ExceptionHandler.cs`, which writes ProblemDetails through `IProblemDetailsService`:
-
-  | Exception                   | Status |
-  |-----------------------------|--------|
-  | `DomainValidationException` | 400, with `errors` per field (see below) |
-  | `BusinessRuleException`     | 400    |
-  | `NotFoundException`         | 404    |
-  | `ConflictException`         | 409    |
-  | `BadHttpRequestException`   | 400    |
-  | anything else               | 500    |
-
-  Domain exceptions are expected, so they're logged at Information level. Anything else is logged as an error and returns a generic 500. Clients aren't told more than that: the log has the details.
-
-  Validation failures use the standard `ValidationProblemDetails` shape: `errors` maps each field, named as in the JSON body, to its messages.
-
-  ```json
-  "errors": {
-    "email": [ "Email is not a valid email address." ],
-    "name": [ "Name cannot exceed 200 characters." ]
-  }
-  ```
-- Every ProblemDetails response includes `instance` (`METHOD /path`), `requestId` and `traceId`.
+- **Lookups for updates** use `FindAsync([id], ct)`. Use `Include(...)` when a collection is needed.
+- **Handlers** load the entity, call the domain method, save and return a response. How they report failures, and how failures become ProblemDetails responses, is in [docs/error-handling.md](docs/error-handling.md).
 - Enums are serialized as strings (`"Status": "InProgress"`).
 
 ### Infrastructure
 
-- **`AppDbContext`** has two `DbSet`s, `Tasks` and `Users`, which also give the table names.
-- **Type configurations** hold only what EF can't work out by convention:
-  - maximum lengths, which reuse the domain constants (`TaskItem.TitleMaxLength`, ...)
-  - a unique index on `User.Email`
-  - the composite key and the `UserId` index on assignments
+- **`AppDbContext`** has no `DbSet` per feature. Features reach their entities with `context.Set<T>()`, so adding one never edits `AppDbContext`.
+- **Type configurations** (`Persistence/Configuration/`) are found by scanning the assembly and hold only what EF can't work out by convention:
+  - the table name (`ToTable(...)`), since there's no `DbSet` to give it
+  - maximum lengths, which reuse the domain constants (`Product.NameMaxLength`, ...)
+  - unique indexes and composite keys
 
-  EF already finds backing fields and foreign keys on its own, so there is no `ToTable`, `Navigation` or `HasMany` for those.
+  EF already finds backing fields and foreign keys on its own, so there is no `Navigation` or `HasMany` for those.
 - **The save pipeline** (`Persistence/SaveChanges/`) is the only interceptor on the DbContext. `SaveChangesPipeline` runs every `ISaveChangesStep` it finds in the assembly, sorted by `Order`. A step can act at three moments:
   - **before the save**: its changes are saved together with everything else
   - **after the commit**: for work that must only happen if the save succeeded
@@ -134,34 +119,22 @@ Conventions:
   - Handlers can raise more events; those are dispatched in further rounds (at most 10).
   - **Handlers never call `SaveChanges`.** They only change tracked entities; the pipeline throws if a handler saves.
   - Handlers don't reach outside the app (emails, other services): a later failure would undo the data but not the email.
-- **Event handlers** implement `INotificationHandler<T>`. They are found by scanning the assembly and registered with `TryAddEnumerable`, so one event can have several handlers:
-  - logging handlers for the created, completed and deleted events
-  - `UnassignDeletedUserFromTasksHandler`, which removes a deleted user from every task it was assigned to, in the same save as the delete
+- **Event handlers** (`EventHandlers/<Area>/`) implement `INotificationHandler<T>`. They are found by scanning the assembly and registered with `TryAddEnumerable`, so one event can have several handlers. A new feature gets logging handlers for its created and deleted events.
 - **`EnrichSqlServerDbContext`** (from Aspire) adds connection retries, a health check, tracing and metrics to the DbContext.
 
 ## Endpoints
 
-| Method | Route                             | Description                     |
-|--------|-----------------------------------|---------------------------------|
-| GET    | `/tasks?pageNumber=&pageSize=`    | List tasks, newest first, paged |
-| GET    | `/tasks/{id}`                     | Get a task (includes `UserIds`) |
-| POST   | `/tasks`                          | Create `{ title, description }` |
-| PATCH  | `/tasks/{id}/title`               | `{ title }`                     |
-| PATCH  | `/tasks/{id}/description`         | `{ description }`               |
-| PATCH  | `/tasks/{id}/not-started`         | Set status                      |
-| PATCH  | `/tasks/{id}/in-progress`         | Set status                      |
-| PATCH  | `/tasks/{id}/completed`           | Set status                      |
-| POST   | `/tasks/{id}/users/{userId}`      | Assign a user                   |
-| DELETE | `/tasks/{id}/users/{userId}`      | Unassign a user                 |
-| DELETE | `/tasks/{id}`                     | Delete a task                   |
-| GET    | `/users?pageNumber=&pageSize=`    | List users, newest first, paged |
-| GET    | `/users/{id}`                     | Get a user                      |
-| POST   | `/users`                          | Create `{ name, email }` (409 if the email is used) |
-| PATCH  | `/users/{id}/name`                | `{ name }`                      |
-| PATCH  | `/users/{id}/email`               | `{ email }` (409 if the email is used) |
-| DELETE | `/users/{id}`                     | Delete a user (also unassigns them from their tasks) |
+Each feature maps its own routes. A feature added with the CLI gets five, for example for `Product`:
 
-`src/CleanSlices.Api/CleanSlices.Api.http` has ready-made requests. In Development the OpenAPI document is served at `/openapi/v1.json`.
+| Method | Route                              | Description                        |
+|--------|------------------------------------|------------------------------------|
+| GET    | `/products?pageNumber=&pageSize=`  | List, newest first, paged          |
+| GET    | `/products/{id}`                   | Get one                            |
+| POST   | `/products`                        | Create `{ name }`                  |
+| PATCH  | `/products/{id}/name`              | `{ name }`                         |
+| DELETE | `/products/{id}`                   | Delete                             |
+
+In Development the OpenAPI document is served at `/openapi/v1.json`, and `src/CleanSlices.Api/CleanSlices.Api.http` is the place for ready-made requests.
 
 ## Getting started
 
@@ -233,7 +206,7 @@ dotnet test
 - **`CleanSlices.Core.Tests`** are unit tests for the entities and validators. They need nothing else.
 - **`CleanSlices.Api.Tests`** call the API over HTTP. The API runs in memory (`WebApplicationFactory`) against a real SQL Server that Testcontainers starts in Docker, once for the whole run. The schema is created from the model with `EnsureCreated()`, so the tests don't depend on migrations. Each test creates its own data, so the database is never reset.
 
-The tests use xUnit v3 on Microsoft.Testing.Platform, which `global.json` turns on for `dotnet test`. `cleanslices add feature` also generates tests for the new slice in both projects.
+The tests use xUnit v3 on Microsoft.Testing.Platform, which `global.json` turns on for `dotnet test`. Adding a feature with the CLI also generates tests for the new slice in both projects.
 
 ## Build conventions
 
@@ -251,12 +224,12 @@ The tests use xUnit v3 on Microsoft.Testing.Platform, which `global.json` turns 
 These are deliberate for a simple starter. Revisit them when the project grows.
 
 - **Deleting takes two steps.** The entity's `Delete()` raises the event, then `Remove()` deletes the row.
-- **Concurrent duplicates** (two identical assigns, or the same email created twice at once) get past the pre-checks. The database constraint stops them, which results in a logged 500.
+- **Concurrent duplicates** (the same unique value created twice at once) get past a handler's pre-check. The database constraint stops them, which results in a logged 500.
 - **There is no optimistic concurrency** (no rowversion).
-- **Expected failures are exceptions.** The code reads top to bottom, but method signatures don't show what can fail, and throwing costs more than returning. The `result` pattern is the alternative.
-- **ProblemDetails titles are error codes**, such as `User.NotFound`.
+- **ProblemDetails titles are error codes**, such as `Product.NotFound`.
 - **Time comes from `DateTimeOffset.UtcNow`** rather than `TimeProvider`.
-- **Any status change is allowed**, including `Completed → NotStarted`.
+
+The trade-offs of error handling are in [docs/error-handling.md](docs/error-handling.md).
 
 ## Pending
 
