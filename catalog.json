@@ -1,0 +1,23 @@
+{
+  "$schema": "./catalog.schema.json",
+  "catalogVersion": 1,
+
+  "concepts": {
+    "pattern": { "title": "Patterns", "select": "many" },
+    "infrastructure": { "title": "Infrastructure", "select": "onePerGroup" },
+    "strategy": { "title": "Strategies", "select": "many" },
+    "extra": { "title": "Extras", "select": "many" }
+  },
+
+  "groups": {},
+
+  "units": [
+    {
+      "id": "result",
+      "kind": "option",
+      "concept": "pattern",
+      "title": "Result<T>",
+      "description": "Domain methods return Result / Result<T> instead of throwing for expected failures."
+    }
+  ]
+}

@@ -23,6 +23,8 @@
   </Folder>
   <Folder Name="/templates/">
     <File Path=".template.config/template.json" />
+    <File Path="catalog.json" />
+    <File Path="catalog.schema.json" />
   </Folder>
   <Folder Name="/templates/cs-feature/">
     <File Path="templates/cs-feature/.template.config/template.json" />

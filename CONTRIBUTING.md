@@ -83,3 +83,13 @@ A pattern that *replaces* something on `main` can be made by reverting a commit:
 - Sample-only code is wrapped in `//#if (samples)` … `//#endif` (C#) or `# #if (samples)` (in `.http` files). Using comment syntax keeps the template solution itself compiling.
 - New features must be additive: no `DbSet` (use `context.Set<T>()` and `ToTable(...)`), and no registration edits (endpoints and handlers are found by reflection).
 - The CLI's default template repository is `TemplateRepository.DefaultSource` in `cli/CleanSlices.Cli/Infrastructure/TemplateRepository.cs`. Update it if the repository moves.
+
+## Pending
+
+These concern this repository only. Its tracked migrations (`src/CleanSlices.Infrastructure/Migrations`) are excluded from generated solutions.
+
+- Add a migration that matches the current model:
+  - drop the `Version` columns
+  - remove `Id` and `CreatedAt` from `TaskItemUserAssignments`
+  - make the composite primary key
+- Optionally remove `AppDbContextFactory` and run EF with `--startup-project src/CleanSlices.Api`, so the connection string comes only from appsettings.

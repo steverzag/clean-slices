@@ -1,0 +1,182 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/steverzag/clean-slices/catalog.schema.json",
+  "title": "CleanSlices catalog",
+  "description": "The options the cleanslices CLI offers and how they relate. Rendering (template symbols, file excludes) lives in the template.json files; a consistency test keeps both in step. See ROADMAP.md.",
+  "type": "object",
+  "required": [ "catalogVersion", "concepts", "groups", "units" ],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "catalogVersion": {
+      "description": "Format version. A CLI that finds a newer version than it supports asks to be updated; newer CLIs keep reading older versions.",
+      "const": 1
+    },
+    "concepts": {
+      "description": "What options are grouped by in prompts and in `cleanslices list`, in this order.",
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/name" },
+      "additionalProperties": {
+        "type": "object",
+        "required": [ "title", "select" ],
+        "additionalProperties": false,
+        "properties": {
+          "title": { "type": "string" },
+          "select": {
+            "description": "many: any number of options. onePerGroup: at most one option per group.",
+            "enum": [ "many", "onePerGroup" ]
+          }
+        }
+      }
+    },
+    "groups": {
+      "description": "Pick-one sets that other options may depend on, such as the database provider.",
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/name" },
+      "additionalProperties": {
+        "type": "object",
+        "required": [ "title", "required" ],
+        "additionalProperties": false,
+        "properties": {
+          "title": { "type": "string" },
+          "required": {
+            "description": "true: the group always has exactly one option (its default unless another is picked). false: it can be empty, meaning the seam's default implementation.",
+            "type": "boolean"
+          },
+          "default": {
+            "description": "Id of the option used when none is picked. Only for required groups.",
+            "$ref": "#/$defs/id"
+          }
+        },
+        "if": { "properties": { "required": { "const": true } } },
+        "then": { "required": [ "default" ] },
+        "else": { "not": { "required": [ "default" ] } }
+      }
+    },
+    "units": {
+      "description": "Everything the resolver can apply. The order is the order in prompts and in `cleanslices list`.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/unit" }
+    }
+  },
+  "$defs": {
+    "id": {
+      "description": "Kebab-case. The template symbol is the id with '-' replaced by '_', so it must also work as a C# identifier.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+    },
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z][a-zA-Z0-9]*$"
+    },
+    "names": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$" },
+      "uniqueItems": true
+    },
+    "license": {
+      "description": "Printed when the option or choice value is selected (no hidden licenses, rule 9).",
+      "type": "object",
+      "required": [ "notice" ],
+      "additionalProperties": false,
+      "properties": {
+        "notice": { "type": "string" },
+        "setting": {
+          "description": "Configuration key for the license key, generated empty.",
+          "type": "string"
+        }
+      }
+    },
+    "choice": {
+      "description": "A sub-option: only matters when its unit is selected. Each value becomes a computed bool template symbol of the same name.",
+      "type": "object",
+      "required": [ "default", "values" ],
+      "additionalProperties": false,
+      "properties": {
+        "default": { "$ref": "#/$defs/name" },
+        "values": {
+          "type": "object",
+          "minProperties": 2,
+          "propertyNames": { "$ref": "#/$defs/name" },
+          "additionalProperties": {
+            "type": "object",
+            "required": [ "title" ],
+            "additionalProperties": false,
+            "properties": {
+              "title": { "type": "string" },
+              "description": { "type": "string" },
+              "license": { "$ref": "#/$defs/license" }
+            }
+          }
+        }
+      }
+    },
+    "unit": {
+      "type": "object",
+      "required": [ "id", "kind" ],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "kind": {
+          "description": "option: picked by the user. hidden: added by the resolver when a selected unit requires what it provides. glue: added when every unit in `when` is selected.",
+          "enum": [ "option", "hidden", "glue" ]
+        },
+        "concept": { "$ref": "#/$defs/name" },
+        "group": {
+          "description": "Key of a group in `groups`. Only for concepts that select onePerGroup.",
+          "$ref": "#/$defs/name"
+        },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "choices": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/name" },
+          "additionalProperties": { "$ref": "#/$defs/choice" }
+        },
+        "requires": {
+          "description": "Capabilities (or unit ids) that must be provided by a selected unit. Every unit provides its own id.",
+          "$ref": "#/$defs/names"
+        },
+        "provides": {
+          "description": "Capabilities this unit provides, besides its own id.",
+          "$ref": "#/$defs/names"
+        },
+        "conflicts": {
+          "description": "Unit ids or capabilities that can't be selected together with this unit.",
+          "$ref": "#/$defs/names"
+        },
+        "samples": {
+          "description": "Whether the sample features support this unit. Default true; false needs a reason in the option's documentation.",
+          "type": "boolean",
+          "default": true
+        },
+        "license": { "$ref": "#/$defs/license" },
+        "when": {
+          "description": "Glue units only: applied when every listed unit is selected.",
+          "$ref": "#/$defs/names",
+          "minItems": 2
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "kind": { "const": "option" } } },
+          "then": {
+            "required": [ "concept", "title", "description" ],
+            "not": { "required": [ "when" ] }
+          }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "hidden" } } },
+          "then": { "not": { "anyOf": [ { "required": [ "concept" ] }, { "required": [ "group" ] }, { "required": [ "when" ] } ] } }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "glue" } } },
+          "then": {
+            "required": [ "when" ],
+            "not": { "anyOf": [ { "required": [ "concept" ] }, { "required": [ "group" ] }, { "required": [ "choices" ] } ] }
+          }
+        }
+      ]
+    }
+  }
+}

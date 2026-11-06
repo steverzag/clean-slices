@@ -73,6 +73,8 @@
             "CONTRIBUTING.md",
             "ROADMAP.md",
             "docs/roadmap/**",
+            "catalog.json",
+            "catalog.schema.json",
             "src/CleanSlices.Infrastructure/Migrations/**"
           ]
         },

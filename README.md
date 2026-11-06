@@ -230,11 +230,3 @@ These are deliberate for a simple starter. Revisit them when the project grows.
 - **Time comes from `DateTimeOffset.UtcNow`** rather than `TimeProvider`.
 
 The trade-offs of error handling are in [docs/error-handling.md](docs/error-handling.md).
-
-## Pending
-
-- Add a migration that matches the current model:
-  - drop the `Version` columns
-  - remove `Id` and `CreatedAt` from `TaskItemUserAssignments`
-  - make the composite primary key
-- Optionally remove `AppDbContextFactory` and run EF with `--startup-project src/CleanSlices.Api`, so the connection string comes only from appsettings.
