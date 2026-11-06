@@ -53,7 +53,7 @@ internal static class OptionSelection
                 var selected = AnsiConsole.Prompt(new MultiSelectionPrompt<Unit>()
                     .Title($"[bold]{Markup.Escape(concept.Title)}[/]")
                     .NotRequired()
-                    .InstructionsText("[grey](space to toggle, enter to accept; none is fine)[/]")
+                    .InstructionsText("[yellow]space[/] selects, [yellow]enter[/] confirms [grey](none is fine)[/]")
                     .UseConverter(u => Label(catalog, u, samples, [.. applied, .. picked]))
                     .AddChoices(available));
                 picked.AddRange(selected.Select(u => u.Id));
@@ -191,16 +191,24 @@ internal static class OptionSelection
         }
     }
 
-    /// <summary>What will be applied, why, and the licenses that come with it.</summary>
+    /// <summary>
+    /// What will be applied, why, and the licenses that come with it. Printed even when it's empty, so a selection
+    /// that didn't register (Enter without Space in a multi-select) is visible before anything is generated.
+    /// </summary>
     public static void PrintPlan(Resolution resolution, IReadOnlyCollection<string> applied)
     {
         var adding = resolution.Units.Where(u => !applied.Contains(u.Unit.Id)).ToList();
+
+        AnsiConsole.WriteLine();
         if (adding.Count == 0 && resolution.Replaced.Count == 0)
         {
+            AnsiConsole.MarkupLine(applied.Count == 0
+                ? "[bold]Options:[/] none [grey](the default setup)[/]"
+                : "[bold]Options:[/] nothing new");
             return;
         }
 
-        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine("[bold]Options:[/]");
         foreach (var unit in adding)
         {
             var reason = unit.Origin switch
