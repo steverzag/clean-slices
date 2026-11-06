@@ -18,4 +18,8 @@
     <PackageReference Include="Spectre.Console.Cli" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="CleanSlices.Cli.Tests" />
+  </ItemGroup>
+
 </Project>
