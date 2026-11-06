@@ -57,10 +57,6 @@ Document: `ExecuteUpdate` and `ExecuteDelete` skip the save pipeline, so no stra
 - Cursor paging isn't planned. If it's ever needed, it's a catalog option, and it can't sort by `Id` alone: SQL Server doesn't order version-7 GUIDs by time.
 - Tests count rows in their own empty database (`ApiFactory.WithEmptyDatabaseAsync()`), because other tests add rows to the shared one at the same time.
 
-### Emails in lower case
-
-SQL Server compares text without case by default; PostgreSQL doesn't. Storing emails in lower case in the domain keeps the unique index correct on both.
-
 ## Development experience
 
 ### Test projects
@@ -97,6 +93,7 @@ These were planned for `main` and moved out: nothing in the default solution wou
 | `ICurrentUser` | hidden unit [`current-user`](hidden-units.md#current-user) | Without authentication it always answers "anonymous", and only options read it |
 | Model rules hook | hidden unit [`model-rules`](hidden-units.md#model-rules) | Only strategies use it |
 | `HybridCache` | hidden unit [`cache`](hidden-units.md#cache) | Features cache nothing by default; only idempotency keys and Redis need it |
+| Lower-case emails | the [PostgreSQL option](infrastructure.md#database) | SQL Server's default collation already ignores case: a second user with `ana@x.com` after `Ana@X.com` gets a 409 (tested). Only PostgreSQL has the problem |
 | `TimeProvider` | possible option, concept to decide | Built, then reverted: its main benefit is testability, which shouldn't shape the default solution |
 
 ### `TimeProvider`

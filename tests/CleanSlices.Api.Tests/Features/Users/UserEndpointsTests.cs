@@ -49,6 +49,17 @@ public class UserEndpointsTests(ApiFactory factory)
 	}
 
 	[Fact]
+	public async Task Create_with_an_email_in_use_ignoring_case_returns_409()
+	{
+		var local = Guid.NewGuid().ToString("N");
+		await _client.Post("/users", new CreateUser.CreateUserRequest("Ana", $"Ana.{local}@Example.com"));
+
+		var response = await _client.Post("/users", new CreateUser.CreateUserRequest("Luis", $"ana.{local}@example.com"));
+
+		Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+	}
+
+	[Fact]
 	public async Task Get_with_an_unknown_id_returns_404()
 	{
 		var response = await _client.Get($"/users/{Guid.CreateVersion7()}");

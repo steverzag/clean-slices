@@ -20,12 +20,13 @@ An infrastructure option picks *which product* sits behind a seam. Options are o
 - The database is called `Database` with both, so the API's connection string name doesn't change.
 - PostgreSQL uses `snake_case` table and column names (`EFCore.NamingConventions`).
 - Type configurations stay provider-neutral (rule 8): no `HasColumnType`.
+- **Case-insensitive email.** SQL Server's default collation ignores case, so a second user with `ana@x.com` after `Ana@X.com` gets a 409; PostgreSQL compares with case and would accept it. The PostgreSQL option gives `User.Email` a case-insensitive ICU collation in its own model rule, so it behaves like SQL Server (rule 7) without changing the domain. The provider-specific line lives in the option, not in the shared type configuration. The test `Create_with_an_email_in_use_ignoring_case_returns_409` fails until this is in place.
 
 **Feature template.** No change.
 
 **Trade-offs to document.**
 
-- Case sensitivity: SQL Server's default collation ignores case, PostgreSQL's doesn't. The base template stores emails in lower case; user code with text uniqueness must do the same.
+- Case sensitivity: the option makes `Email` case-insensitive, but other text the user makes unique, or compares, is case-sensitive on PostgreSQL. The docs show the same collation for their own columns.
 - Npgsql stores `DateTimeOffset` as `timestamptz` and accepts only UTC. Times are always UTC.
 
 ## Queue
