@@ -70,7 +70,16 @@ Document: `ExecuteUpdate` and `ExecuteDelete` skip the save pipeline, so no stra
 
 ### Aspire-managed database
 
-The AppHost adds SQL Server (`AddSqlServer(...).AddDatabase("Database")`), so `dotnet run` on the AppHost starts it in a container and passes the connection string. The connection string in `appsettings.json` stays as a fallback for running the API alone. Needs Docker or Podman.
+**Done** (`AppHost.cs`). `dotnet run` on the AppHost starts SQL Server in a container and passes the `Database` connection string to the API.
+
+- **Fixed port** `14330`, so `dotnet ef` can reach the container with a known connection string. Use `127.0.0.1,14330`: Aspire's port proxy listens on `::1` too but only forwards on IPv4, and `localhost` makes the SQL Server client try IPv6 first and fail (found while testing).
+- **Password:** Aspire generates the `sa` password on the first run and keeps it in the AppHost's user secrets (`Parameters:cleanslices-sql-password`). Each generated solution has its own user-secrets ID, so its own password. The README shows how to read it for `dotnet ef`.
+- **Data volume:** the data survives restarts (tested: after a restart the migrated tables were still there).
+- **Existing server:** if the AppHost has `ConnectionStrings:Database` (user secrets or appsettings), it uses that with `AddConnectionString` and starts no container (tested).
+- Migrations are still never applied on startup; a new container starts empty.
+- The API's `appsettings.json` keeps its local connection string for running the API without the AppHost.
+- A database name with a dot (`Acme.Orders`, from the solution name) works: Aspire quotes it when creating the database (tested with a generated solution).
+- Stopping the AppHost with Ctrl+C removes its container; killing the process leaves it running, to remove by hand.
 
 ### Smaller items
 

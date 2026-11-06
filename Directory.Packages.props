@@ -15,6 +15,7 @@
   </ItemGroup>
 
   <ItemGroup Label="Aspire integrations">
+    <PackageVersion Include="Aspire.Hosting.SqlServer" Version="13.6.1" />
     <PackageVersion Include="Aspire.Microsoft.EntityFrameworkCore.SqlServer" Version="13.6.1" />
   </ItemGroup>
 

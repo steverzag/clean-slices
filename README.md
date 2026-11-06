@@ -28,7 +28,7 @@ Directory.Build.props        shared build settings (net10.0, nullable, warnings 
 Directory.Packages.props     central package versions + transitive security pins
 global.json                  opts `dotnet test` in to Microsoft.Testing.Platform
 aspire/
-  CleanSlices.AppHost        Aspire orchestrator (runs the API, dashboard)
+  CleanSlices.AppHost        Aspire orchestrator (runs SQL Server, the API, dashboard)
   CleanSlices.ServiceDefaults OpenTelemetry, health checks, service discovery, resilience
 src/
   CleanSlices.Core           domain: entities, domain events, domain errors, domain exceptions
@@ -168,40 +168,49 @@ Conventions:
 ### Prerequisites
 
 - .NET 10 SDK
-- A SQL Server instance. The default connection string uses `localhost` with Windows authentication.
+- Docker (Docker Desktop or Podman): for SQL Server when you run the AppHost, and for the integration tests. Not needed for the AppHost if you use an existing server (below).
 - The EF Core CLI: `dotnet tool install -g dotnet-ef`, or `dotnet tool update -g dotnet-ef` to upgrade it
-- Docker (Docker Desktop or Podman), only for the integration tests
 
-### Database connection
+### Database
 
-The connection string is called `Database` and lives in the API's `appsettings.json`:
+The connection string is called `Database`. Where the database comes from depends on how you run the API.
 
-```json
-"ConnectionStrings": {
-  "Database": "Server=localhost;Database=CleanSlicesDb;Trusted_Connection=True;TrustServerCertificate=True"
-}
+**With the AppHost (default): SQL Server in a container.** `dotnet run --project aspire/CleanSlices.AppHost` starts SQL Server and passes its connection string to the API.
+
+- It listens on `127.0.0.1,14330` (the port is fixed in `AppHost.cs`), and the database is called `CleanSlices`. Use `127.0.0.1`, not `localhost`: Aspire forwards the port only on IPv4, and `localhost` makes the SQL Server client try IPv6 first and fail. If another solution already uses port 14330, change the port in `AppHost.cs`.
+- The `sa` password is generated on the first run and kept in the AppHost's user secrets, as `Parameters:cleanslices-sql-password`.
+- A Docker volume keeps the data between runs.
+
+**With the AppHost and an existing server.** Set the connection string in the AppHost's user secrets; the AppHost then uses that server and starts no container:
+
+```powershell
+dotnet user-secrets set "ConnectionStrings:Database" "Server=localhost;Database=CleanSlices;Trusted_Connection=True;TrustServerCertificate=True" --project aspire/CleanSlices.AppHost
 ```
 
-The Aspire AppHost does **not** set up a database. The API always takes the connection string from its own configuration.
+**The API on its own** (`dotnet run --project src/CleanSlices.Api`) reads `ConnectionStrings:Database` from its `appsettings.json`, which points to a local SQL Server with Windows authentication.
 
 ### Migrations
 
-Migrations are **never applied on startup**. You create and apply them yourself with the EF CLI.
+Migrations are **never applied on startup**. You create and apply them yourself with the EF CLI; a new container starts with an empty database.
 
-`dotnet ef` builds the DbContext through `AppDbContextFactory`. That factory reads the `ConnectionStrings__Database` environment variable, **not** appsettings. Set the variable to the same connection string the API uses:
+`dotnet ef` builds the DbContext through `AppDbContextFactory`. That factory reads the `ConnectionStrings__Database` environment variable, **not** appsettings. Set the variable to the database you want to change. For the container, take the password from the AppHost's user secrets (the AppHost must have run once):
 
 ```powershell
-$env:ConnectionStrings__Database = "Server=localhost;Database=CleanSlicesDb;Trusted_Connection=True;TrustServerCertificate=True"
+$password = (dotnet user-secrets list --project aspire/CleanSlices.AppHost |
+  Select-String '^Parameters:cleanslices-sql-password = (.+)$').Matches.Groups[1].Value
+$env:ConnectionStrings__Database = "Server=127.0.0.1,14330;Database=CleanSlices;User ID=sa;Password=$password;TrustServerCertificate=True"
 
 dotnet ef migrations add <Name> --project src/CleanSlices.Infrastructure
 dotnet ef database update --project src/CleanSlices.Infrastructure
 ```
 
+For a local server, use its connection string instead, for example the one in `appsettings.json`.
+
 `dotnet ef` writes migrations to `src/CleanSlices.Infrastructure/Migrations`, EF's default folder. A new solution has none: the template doesn't ship migrations, because they depend on the database provider, so the first `migrations add` creates the folder. `.editorconfig` marks them as generated code, so the code-style rules don't apply to them.
 
 ### Run
 
-With Aspire (dashboard, traces, metrics, logs):
+With Aspire (SQL Server in a container, dashboard, traces, metrics, logs):
 
 ```
 dotnet run --project aspire/CleanSlices.AppHost
