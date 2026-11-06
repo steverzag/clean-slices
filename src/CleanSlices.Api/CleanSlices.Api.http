@@ -6,6 +6,12 @@ Accept: application/json
 
 ###
 
+# Lists are paged: page 1 and 10 items by default, at most 50 per page
+GET {{CleanSlices.Api_HostAddress}}/tasks?pageNumber=2&pageSize=5
+Accept: application/json
+
+###
+
 GET {{CleanSlices.Api_HostAddress}}/users
 Accept: application/json
 

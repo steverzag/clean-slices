@@ -1,4 +1,5 @@
 using System.Net;
+using CleanSlices.Api.Configuration;
 using CleanSlices.Api.Features.Widgets;
 using CleanSlices.Api.Tests.Infrastructure;
 
@@ -37,15 +38,23 @@ public class WidgetEndpointsTests(ApiFactory factory)
 	}
 
 	[Fact]
-	public async Task List_includes_a_created_one()
+	public async Task List_returns_pages_newest_first_with_totals()
 	{
-		var id = await CreateAsync();
+		// Its own empty database, so the totals only count what this test creates.
+		await using var api = await factory.WithEmptyDatabaseAsync();
+		var client = api.CreateClient();
+		var oldest = await CreateAsync(client);
+		var middle = await CreateAsync(client);
+		var newest = await CreateAsync(client);
 
-		var response = await _client.Get("/widgets");
+		var first = await GetPageAsync(client, "/widgets?pageSize=2");
+		var second = await GetPageAsync(client, "/widgets?pageNumber=2&pageSize=2");
 
-		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-		var items = await response.Content.ReadAsAsync<List<GetWidgets.WidgetListItemResponse>>();
-		Assert.Contains(items, item => item.Id == id);
+		Assert.Equal([newest, middle], first.Items.Select(item => item.Id));
+		Assert.Equal((1, 2, 3, 2), (first.PageNumber, first.PageSize, first.TotalCount, first.TotalPages));
+		Assert.Equal((false, true), (first.HasPreviousPage, first.HasNextPage));
+		Assert.Equal(oldest, Assert.Single(second.Items).Id);
+		Assert.Equal((true, false), (second.HasPreviousPage, second.HasNextPage));
 	}
 
 	[Fact]
@@ -70,10 +79,19 @@ public class WidgetEndpointsTests(ApiFactory factory)
 		Assert.Equal(HttpStatusCode.NotFound, (await _client.Get($"/widgets/{id}")).StatusCode);
 	}
 
-	private async Task<Guid> CreateAsync()
+	private Task<Guid> CreateAsync() => CreateAsync(_client);
+
+	private static async Task<Guid> CreateAsync(HttpClient client)
 	{
-		var response = await _client.Post("/widgets", new CreateWidget.CreateWidgetRequest("First"));
+		var response = await client.Post("/widgets", new CreateWidget.CreateWidgetRequest("First"));
 		return (await response.Content.ReadAsAsync<CreateWidget.CreateWidgetResponse>()).Id;
+	}
+
+	private static async Task<PaginationResponse<GetWidgets.WidgetListItemResponse>> GetPageAsync(HttpClient client, string uri)
+	{
+		var response = await client.Get(uri);
+		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+		return await response.Content.ReadAsAsync<PaginationResponse<GetWidgets.WidgetListItemResponse>>();
 	}
 
 	private async Task<GetWidgetById.GetWidgetByIdResponse> GetAsync(Guid id) =>

@@ -46,7 +46,16 @@ Document: `ExecuteUpdate` and `ExecuteDelete` skip the save pipeline, so no stra
 
 ### Pagination
 
-List endpoints return pages. Offset or cursor is still to decide. The page type lives in `Core/Shared`, because repositories return it. Page and size are validated by the base template, not by the request validation option.
+**Done.** Offset paging, adapted from the pagination in `exp-demo-worker` (`Feature/Pagination`):
+
+- **Infrastructure** (`Pagination/`), next to EF: `PaginationParameters` (`?pageNumber=&pageSize=`), `PaginationList<T>` and `PaginateAsync`. List endpoints bind `[AsParameters] PaginationParameters`.
+- **Api** (`Configuration/PaginationResponse.cs`): `PaginationList<T>` is a collection, which JSON writes as a bare array, so endpoints return `page.ToResponse()`: `{ items, pageNumber, pageSize, totalCount, totalPages, hasPreviousPage, hasNextPage }`.
+- Changes from the original: renamed `PaginatedList` to `PaginationList` and `PageIndex` to `PageNumber`; added `TotalCount` and `PageSize`; dropped the sync `Create`; made the constructor private and `CreateAsync` internal, so `PaginateAsync` is the only way to build a page; inherits `ReadOnlyCollection<T>` instead of `List<T>`, so a page can't be changed after it's read (its totals would no longer match); added a `CancellationToken`; clamped the lower end too (page ≥ 1, size ≥ 1), since 0 meant a 500 or a division by zero. The parameters come through the constructor: with settable `int` properties, `[AsParameters]` makes them required, so a missing value would be a 400.
+- Defaults: page 1, 10 items; at most 50. Out-of-range values are clamped silently, so the same code works with and without `result`, and no validation is needed.
+- Newest first: `CreatedAt` descending, then `Id`.
+- The repository option can't return `PaginationList<T>` from a Core interface, since it lives in Infrastructure; that option adds a Core page type or moves it.
+- Cursor paging isn't planned. If it's ever needed, it's a catalog option, and it can't sort by `Id` alone: SQL Server doesn't order version-7 GUIDs by time.
+- Tests count rows in their own empty database (`ApiFactory.WithEmptyDatabaseAsync()`), because other tests add rows to the shared one at the same time.
 
 ### Emails in lower case
 

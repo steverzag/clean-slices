@@ -78,6 +78,16 @@ Conventions:
 
 - **API-level errors live next to the features**, not in Core. Examples are `Features/Users/UserErrors.cs` (`NotFound`, `EmailInUse`) and `Features/Tasks/TaskItemErrors.cs` (`NotFound`, `UserNotFound`). "Not found" and "email already used" depend on the database, so they are not domain rules.
 - **Reads** use `AsNoTracking()` and an inline `Select(...)` into the response record. EF then reads only the columns it needs. Mapping helpers such as `.From(entity)` are avoided because they load the whole entity first.
+- **Lists are paged.** A list handler binds `[AsParameters] PaginationParameters paging` (`?pageNumber=2&pageSize=10`), orders the query, reads one page with `.PaginateAsync(paging, cancellationToken)` and returns `page.ToResponse()`:
+
+  ```json
+  { "items": [ … ], "pageNumber": 2, "pageSize": 10, "totalCount": 57, "totalPages": 6, "hasPreviousPage": true, "hasNextPage": true }
+  ```
+
+  - The paging itself is in Infrastructure (`Pagination/`), next to EF: `PaginationParameters`, `PaginationList<T>` (one page of items plus its position) and `PaginateAsync`. It runs a `COUNT` for the totals, then `Skip`/`Take`.
+  - `PaginationList<T>` is a read-only collection (`ReadOnlyCollection<T>`), built only by `PaginateAsync`. JSON writes collections as bare arrays, so the page information would be lost. The Api maps it to `PaginationResponse<T>` (`Configuration/PaginationResponse.cs`) with `ToResponse()`.
+  - The defaults are page 1 and 10 items; `pageSize` is at most 50. Out-of-range values are clamped, never rejected: `pageNumber=0` becomes 1, `pageSize=1000` becomes 50.
+  - Lists are ordered newest first (`CreatedAt`, then `Id`), so pages don't overlap or skip rows. A list must always be ordered before paging.
 - **Lookups for updates** use `FindAsync([id], ct)`. Use `Include(...)` when a collection is needed, as in assign/unassign.
 - **Handlers are plain imperative code**: load the entity, call the domain method, save, return `Results.*`. Failures are thrown (`throw UserErrors.NotFound(id)`) and never caught in the endpoint.
 - **Exceptions become HTTP responses** in `Handlers/ExceptionHandler.cs`, which writes ProblemDetails through `IProblemDetailsService`:
@@ -133,7 +143,7 @@ Conventions:
 
 | Method | Route                             | Description                     |
 |--------|-----------------------------------|---------------------------------|
-| GET    | `/tasks`                          | List tasks                      |
+| GET    | `/tasks?pageNumber=&pageSize=`    | List tasks, newest first, paged |
 | GET    | `/tasks/{id}`                     | Get a task (includes `UserIds`) |
 | POST   | `/tasks`                          | Create `{ title, description }` |
 | PATCH  | `/tasks/{id}/title`               | `{ title }`                     |
@@ -144,7 +154,7 @@ Conventions:
 | POST   | `/tasks/{id}/users/{userId}`      | Assign a user                   |
 | DELETE | `/tasks/{id}/users/{userId}`      | Unassign a user                 |
 | DELETE | `/tasks/{id}`                     | Delete a task                   |
-| GET    | `/users`                          | List users                      |
+| GET    | `/users?pageNumber=&pageSize=`    | List users, newest first, paged |
 | GET    | `/users/{id}`                     | Get a user                      |
 | POST   | `/users`                          | Create `{ name, email }` (409 if the email is used) |
 | PATCH  | `/users/{id}/name`                | `{ name }`                      |
@@ -237,7 +247,6 @@ These are deliberate for a simple starter. Revisit them when the project grows.
 - **Expected failures are exceptions.** The code reads top to bottom, but method signatures don't show what can fail, and throwing costs more than returning. The `result` pattern is the alternative.
 - **ProblemDetails titles are error codes**, such as `User.NotFound`.
 - **Time comes from `DateTimeOffset.UtcNow`** rather than `TimeProvider`.
-- **No paging** on the list endpoints.
 - **Any status change is allowed**, including `Completed → NotStarted`.
 
 ## Pending

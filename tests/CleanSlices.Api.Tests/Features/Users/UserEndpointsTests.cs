@@ -1,6 +1,8 @@
 using System.Net;
+using CleanSlices.Api.Configuration;
 using CleanSlices.Api.Features.Users;
 using CleanSlices.Api.Tests.Infrastructure;
+using CleanSlices.Infrastructure.Pagination;
 
 namespace CleanSlices.Api.Tests.Features.Users;
 
@@ -77,10 +79,51 @@ public class UserEndpointsTests(ApiFactory factory)
 		Assert.Equal(HttpStatusCode.NotFound, (await _client.Get($"/users/{id}")).StatusCode);
 	}
 
-	private async Task<Guid> CreateUserAsync()
+	[Fact]
+	public async Task List_returns_pages_newest_first_with_totals()
 	{
-		var response = await _client.Post("/users", new CreateUser.CreateUserRequest("Ana", UniqueEmail()));
+		await using var api = await factory.WithEmptyDatabaseAsync();
+		var client = api.CreateClient();
+		var oldest = await CreateUserAsync(client);
+		var middle = await CreateUserAsync(client);
+		var newest = await CreateUserAsync(client);
+
+		var first = await GetPageAsync(client, "/users?pageSize=2");
+		var second = await GetPageAsync(client, "/users?pageNumber=2&pageSize=2");
+
+		Assert.Equal([newest, middle], first.Items.Select(user => user.Id));
+		Assert.Equal((1, 2, 3, 2), (first.PageNumber, first.PageSize, first.TotalCount, first.TotalPages));
+		Assert.Equal((false, true), (first.HasPreviousPage, first.HasNextPage));
+		Assert.Equal(oldest, Assert.Single(second.Items).Id);
+		Assert.Equal(2, second.PageNumber);
+		Assert.Equal((true, false), (second.HasPreviousPage, second.HasNextPage));
+	}
+
+	[Theory]
+	[InlineData("/users", 1, PaginationParameters.DefaultPageSize)]
+	[InlineData("/users?pageNumber=0&pageSize=1000", 1, PaginationParameters.MaxPageSize)]
+	[InlineData("/users?pageNumber=-5&pageSize=0", 1, 1)]
+	public async Task List_clamps_out_of_range_paging_values(string uri, int expectedPage, int expectedPageSize)
+	{
+		var page = await GetPageAsync(_client, uri);
+
+		Assert.Equal(expectedPage, page.PageNumber);
+		Assert.Equal(expectedPageSize, page.PageSize);
+	}
+
+	private Task<Guid> CreateUserAsync() => CreateUserAsync(_client);
+
+	private static async Task<Guid> CreateUserAsync(HttpClient client)
+	{
+		var response = await client.Post("/users", new CreateUser.CreateUserRequest("Ana", UniqueEmail()));
 		return (await response.Content.ReadAsAsync<CreateUser.CreateUserResponse>()).Id;
+	}
+
+	private static async Task<PaginationResponse<GetUsers.UserListItemResponse>> GetPageAsync(HttpClient client, string uri)
+	{
+		var response = await client.Get(uri);
+		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+		return await response.Content.ReadAsAsync<PaginationResponse<GetUsers.UserListItemResponse>>();
 	}
 
 	private static string UniqueEmail() => $"{Guid.NewGuid():N}@example.com";

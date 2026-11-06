@@ -147,7 +147,7 @@ Each phase ends with something usable. The order is a proposal.
 | Phase | What | Proves |
 |---|---|---|
 | 0, done | Patterns as git branches; `result` | Composing and merging options into existing code |
-| 1 | **Base template changes** ([backlog](docs/roadmap/base-template.md)): test projects (done), ordered save pipeline and domain events before the save (done), pagination, lower-case emails, Aspire-managed database | A better default solution, and the save pipeline options plug into |
+| 1 | **Base template changes** ([backlog](docs/roadmap/base-template.md)): test projects (done), ordered save pipeline and domain events before the save (done), pagination (done), lower-case emails, Aspire-managed database | A better default solution, and the save pipeline options plug into |
 | 2 | **Conditionals**: move `result` from its branch to template conditionals; catalog and resolver in the CLI | One mechanism; requires / provides / conflicts / groups / choices |
 | 3 | **CI matrix** | Combinations stay working |
 | 4 | **Outbox, inbox, integration events** | Seams with defaults and hidden units |

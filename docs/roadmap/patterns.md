@@ -65,7 +65,7 @@ A pattern changes *how code is written*: method signatures, control flow, how a 
 - Each entity gets `IWidgetRepository : IRepository<Widget>`, with a generic `Repository<T>` base implementation. Common methods come for free; entity-specific queries go in the per-entity pair.
 - Interfaces in Core, implementations in Infrastructure, registered by scanning. The Api stops using `AppDbContext`.
 - `IUnitOfWork.SaveChangesAsync` is implemented directly by `AppDbContext`. Repositories never save; the handler ends the transaction. The save pipeline keeps working unchanged.
-- `IRepository<T>` has a paged list method returning the base template's page type.
+- `IRepository<T>` has a paged list method. The base template's `PaginationList<T>` lives in Infrastructure, which Core can't reference, so this option adds a Core page type or moves it.
 
 **Feature template.** Generates an empty `IWidgetRepository` and `WidgetRepository`; handlers take the repository and `IUnitOfWork`.
 
