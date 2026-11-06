@@ -17,11 +17,14 @@ app.Configure(config =>
         .WithDescription("Create a new Clean Slices solution.")
         .WithExample("new")
         .WithExample("new", "Acme.Orders", "--samples")
-        .WithExample("new", "Acme.Orders", "-y");
+        .WithExample("new", "Acme.Orders", "--with", "result", "-y");
+
+    config.AddCommand<ListCommand>("list")
+        .WithDescription("List the options the template offers (and, inside a solution, which ones it has).");
 
     config.AddBranch("add", add =>
     {
-        add.SetDescription("Add something to an existing Clean Slices solution.");
+        add.SetDescription("Add options (cleanslices add <id>...) or a feature (cleanslices add feature) to an existing solution.");
 
         add.AddCommand<AddFeatureCommand>("feature")
             .WithDescription("Add a vertical slice (entity, EF configuration, events, CRUD endpoints).")
@@ -29,11 +32,11 @@ app.Configure(config =>
             .WithExample("add", "feature", "Product")
             .WithExample("add", "feature", "Person", "--plural", "People", "--migration");
 
-        add.AddCommand<AddPatternCommand>("pattern")
-            .WithDescription("Merge a pattern (a pattern/<name> branch of the template repository) into this solution.")
-            .WithExample("add", "pattern")
-            .WithExample("add", "pattern", "result");
+        // Reached as `add <id>...` (see AddOptionArguments); hidden so help shows that form.
+        add.AddCommand<AddOptionCommand>(AddOptionArguments.Command)
+            .WithDescription("Merge options into this solution.")
+            .IsHidden();
     });
 });
 
-return await app.RunAsync(args);
+return await app.RunAsync(AddOptionArguments.Rewrite(args));

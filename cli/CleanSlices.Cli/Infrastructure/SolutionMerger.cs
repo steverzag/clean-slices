@@ -13,7 +13,7 @@ internal sealed record MergeOutcome(IReadOnlyList<FileChange> Changes, IReadOnly
 /// the after-render into HEAD using the before-render as the common ancestor.
 /// User edits are preserved; overlapping edits surface as normal conflict markers.
 /// </summary>
-internal static class PatternMerger
+internal static class SolutionMerger
 {
     // Identity for the synthetic, unreferenced base/target commits; the user's own commit uses their identity.
     private static readonly Dictionary<string, string> SyntheticIdentity = new()
@@ -30,12 +30,12 @@ internal static class PatternMerger
         var head = await Git.RunAsync(root, ["rev-parse", "--verify", "HEAD"], cancellationToken);
         if (!head.Succeeded)
         {
-            return "Applying a pattern needs a git repository with at least one commit (run `git init` and commit first).";
+            return "Adding an option needs a git repository with at least one commit (run `git init` and commit first).";
         }
 
         var status = await Git.RunOrThrowAsync(root, ["status", "--porcelain"], cancellationToken);
         return status.Length > 0
-            ? "The working tree has uncommitted changes. Commit or stash them first, so the pattern's changes can be reviewed (and undone) on their own."
+            ? "The working tree has uncommitted changes. Commit or stash them first, so the option's changes can be reviewed (and undone) on their own."
             : null;
     }
 

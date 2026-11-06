@@ -1,15 +1,14 @@
 using System.Formats.Tar;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using CleanSlices.Cli.Catalog;
 
 namespace CleanSlices.Cli.Infrastructure;
 
-internal sealed record PatternInfo(string Name, string Description);
-
 /// <summary>
-/// A throwaway clone of the template repository. Patterns live on <c>pattern/&lt;name&gt;</c> branches based on
-/// <c>main</c>; a <see cref="TemplateComposition"/> is a template commit with pattern branches cherry-picked on top,
+/// A throwaway clone of the template repository. A <see cref="TemplateComposition"/> is one template commit,
 /// rendered through an isolated template hive so the user's installed templates are never touched.
+/// Options are template parameters; which ones exist is in the commit's <c>catalog.json</c>.
 /// Disposing deletes everything.
 /// </summary>
 internal sealed class TemplateRepository : IDisposable
@@ -20,10 +19,6 @@ internal sealed class TemplateRepository : IDisposable
     public const string DefaultSource = "https://github.com/steverzag/clean-slices.git";
 
     private const string MainBranch = "origin/main";
-    private const string PatternBranchPrefix = "pattern/";
-
-    // Synthetic commits in the throwaway clone shouldn't depend on the user's git identity.
-    private static readonly string[] CommitIdentity = ["-c", "user.name=cleanslices", "-c", "user.email=cli@cleanslices.invalid"];
 
     private readonly string _clone;
     private int _compositions;
@@ -38,7 +33,7 @@ internal sealed class TemplateRepository : IDisposable
     /// <summary>Normalized source: an absolute path for local repositories, otherwise the URL as given.</summary>
     public string Source { get; }
 
-    /// <summary>Short temp directory (Windows path limits) for clones, worktrees and renders.</summary>
+    /// <summary>Short temp directory (Windows path limits) for clones and renders.</summary>
     public string WorkRoot { get; }
 
     /// <summary>
@@ -91,72 +86,45 @@ internal sealed class TemplateRepository : IDisposable
     public Task<string> GetMainCommitAsync(CancellationToken cancellationToken) =>
         Git.RunOrThrowAsync(_clone, ["rev-parse", MainBranch], cancellationToken);
 
-    public async Task<IReadOnlyList<PatternInfo>> ListPatternsAsync(CancellationToken cancellationToken)
+    /// <summary>
+    /// The catalog at <paramref name="templateCommit"/>, or null for commits from before options existed
+    /// (legacy: rendered without option parameters, and no options can be added).
+    /// </summary>
+    /// <exception cref="ToolException">The catalog exists but is invalid or newer than this CLI.</exception>
+    public async Task<OptionCatalog?> ReadCatalogAsync(string templateCommit, CancellationToken cancellationToken)
     {
-        // refs/remotes/origin/pattern/<name> → "<name>"
-        var output = await Git.RunOrThrowAsync(
-            _clone,
-            ["for-each-ref", "--format=%(refname:lstrip=4)", $"refs/remotes/origin/{PatternBranchPrefix}"],
-            cancellationToken);
-
-        var patterns = new List<PatternInfo>();
-        foreach (var name in output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        var show = await Git.RunAsync(_clone, ["show", $"{templateCommit}:{OptionCatalog.FileName}"], cancellationToken);
+        if (!show.Succeeded)
         {
-            // The description is the subject of the pattern's *first* commit, so follow-up commits
-            // (docs, fixes) on the branch don't change how the pattern is presented.
-            var branch = $"origin/{PatternBranchPrefix}{name}";
-            var forkPoint = await Git.RunOrThrowAsync(_clone, ["merge-base", MainBranch, branch], cancellationToken);
-            var subjects = await Git.RunOrThrowAsync(_clone, ["log", "--reverse", "--format=%s", $"{forkPoint}..{branch}"], cancellationToken);
-            patterns.Add(new PatternInfo(name, CleanSubject(subjects.Split('\n')[0].Trim())));
+            return null;
         }
 
-        return patterns.OrderBy(p => p.Name, StringComparer.Ordinal).ToList();
-
-        static string CleanSubject(string subject)
+        OptionCatalog catalog;
+        try
         {
-            var separator = subject.IndexOf("): ", StringComparison.Ordinal);
-            return separator >= 0 ? subject[(separator + 3)..] : subject;
+            catalog = OptionCatalog.Parse(show.StandardOutput);
         }
+        catch (CatalogException ex)
+        {
+            throw new ToolException(ex.Message, string.Empty);
+        }
+
+        var errors = CatalogValidator.Validate(catalog);
+        return errors.Count == 0
+            ? catalog
+            : throw new ToolException($"The template's {OptionCatalog.FileName} at {templateCommit[..7]} is inconsistent.", string.Join(Environment.NewLine, errors));
     }
 
-    /// <summary>Checks out <paramref name="templateCommit"/> and cherry-picks each pattern branch's own commits on top, in order.</summary>
+    /// <summary>Exports <paramref name="templateCommit"/> for rendering.</summary>
     /// <param name="stableGuids">Keep the template's GUIDs instead of regenerating them (for before/after diff renders).</param>
-    public async Task<TemplateComposition> ComposeAsync(
-        string templateCommit,
-        IReadOnlyList<string> patterns,
-        CancellationToken cancellationToken,
-        bool stableGuids = false)
+    public async Task<TemplateComposition> ComposeAsync(string templateCommit, CancellationToken cancellationToken, bool stableGuids = false)
     {
         var id = ++_compositions;
-        var worktree = Path.Combine(WorkRoot, $"t{id}");
-        await Git.RunOrThrowAsync(_clone, ["worktree", "add", "--quiet", "--detach", worktree, templateCommit], cancellationToken);
 
-        foreach (var pattern in patterns)
-        {
-            var branch = $"origin/{PatternBranchPrefix}{pattern}";
-
-            // Only the pattern's own commits, even if main moved on since the solution was generated.
-            var forkPoint = await Git.RunOrThrowAsync(worktree, ["merge-base", MainBranch, branch], cancellationToken);
-            var commits = await Git.RunOrThrowAsync(worktree, ["rev-list", "--reverse", $"{forkPoint}..{branch}"], cancellationToken);
-
-            foreach (var commit in commits.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-            {
-                var pick = await Git.RunAsync(worktree, [.. CommitIdentity, "cherry-pick", "--allow-empty", commit], cancellationToken);
-                if (!pick.Succeeded && !await TryResolveDocsOnlyConflictAsync(worktree, cancellationToken))
-                {
-                    throw new ToolException(
-                        $"Pattern '{pattern}' doesn't apply cleanly on top of template {templateCommit[..7]}"
-                        + (patterns.Count > 1 ? $" combined with {string.Join(", ", patterns.TakeWhile(p => p != pattern))}." : "."),
-                        pick.Output);
-                }
-            }
-        }
-
-        // Render from a clean export, not the worktree: a worktree has a `.git` *file*, which the template
-        // doesn't exclude (it only excludes the `.git/` directory) and would be copied into the output.
+        // An archive rather than a checkout: only tracked files, and no `.git` entry for the template to copy.
         var export = Path.Combine(WorkRoot, $"x{id}");
         var archive = Path.Combine(WorkRoot, $"x{id}.tar");
-        await Git.RunOrThrowAsync(worktree, ["archive", "--format=tar", "-o", archive, "HEAD"], cancellationToken);
+        await Git.RunOrThrowAsync(_clone, ["archive", "--format=tar", "-o", archive, templateCommit], cancellationToken);
         Directory.CreateDirectory(export);
         await TarFile.ExtractToDirectoryAsync(archive, export, overwriteFiles: false, cancellationToken);
 
@@ -166,28 +134,6 @@ internal sealed class TemplateRepository : IDisposable
         }
 
         return new TemplateComposition(export, Path.Combine(WorkRoot, $"h{id}"));
-    }
-
-    /// <summary>
-    /// Older template commits can have different documentation than the one a pattern's docs commit was written against.
-    /// When a cherry-pick conflicts only in Markdown files, take the pattern's version of them and continue:
-    /// docs can't break a build. Conflicts in anything else are real and are left to the caller.
-    /// </summary>
-    private static async Task<bool> TryResolveDocsOnlyConflictAsync(string worktree, CancellationToken cancellationToken)
-    {
-        var conflicted = (await Git.RunOrThrowAsync(worktree, ["diff", "--name-only", "--diff-filter=U"], cancellationToken))
-            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-        if (conflicted.Length == 0 || !conflicted.All(file => file.EndsWith(".md", StringComparison.OrdinalIgnoreCase)))
-        {
-            await Git.RunAsync(worktree, ["cherry-pick", "--abort"], cancellationToken);
-            return false;
-        }
-
-        await Git.RunOrThrowAsync(worktree, ["checkout", "--theirs", "--", .. conflicted], cancellationToken);
-        await Git.RunOrThrowAsync(worktree, ["add", "--", .. conflicted], cancellationToken);
-        await Git.RunOrThrowAsync(worktree, [.. CommitIdentity, "-c", "core.editor=true", "cherry-pick", "--continue"], cancellationToken);
-        return true;
     }
 
     /// <summary>
@@ -232,25 +178,48 @@ internal sealed class TemplateRepository : IDisposable
 /// <summary>A checked-out template version, renderable via its own template hive.</summary>
 internal sealed class TemplateComposition(string directory, string hive)
 {
+    private const string SolutionTemplateJson = ".template.config/template.json";
+    private const string FeatureTemplateJson = "templates/cs-feature/.template.config/template.json";
+
     private bool _installed;
 
     /// <summary>Renders the solution plus every recorded slice, i.e. what the user got from the CLI (minus their own edits).</summary>
-    public async Task RenderProjectAsync(ProjectManifest manifest, string output, CancellationToken cancellationToken)
+    public async Task RenderProjectAsync(ProjectManifest manifest, IReadOnlyList<(string Name, string Value)> options, string output, CancellationToken cancellationToken)
     {
-        await RenderSolutionAsync(manifest.Name, manifest.Options.Samples, output, cancellationToken);
+        await RenderSolutionAsync(manifest.Name, manifest.Samples, options, output, cancellationToken);
         foreach (var slice in manifest.Slices)
         {
-            await RenderFeatureAsync(manifest.Name, slice, output, cancellationToken);
+            await RenderFeatureAsync(manifest.Name, slice, options, output, cancellationToken);
         }
     }
 
-    public Task RenderSolutionAsync(string name, bool samples, string output, CancellationToken cancellationToken) =>
+    public Task RenderSolutionAsync(string name, bool samples, IReadOnlyList<(string Name, string Value)> options, string output, CancellationToken cancellationToken) =>
         RunNewAsync(
-            ["cleanslices", "-n", name, "-o", output, .. samples ? new[] { "--samples" } : []],
+            ["cleanslices", "-n", name, "-o", output, .. samples ? new[] { "--samples" } : [], .. Parameters(SolutionTemplateJson, options)],
             cancellationToken);
 
-    public Task RenderFeatureAsync(string app, SliceEntry slice, string output, CancellationToken cancellationToken) =>
-        RunNewAsync(["cs-feature", "-n", slice.Name, "--plural", slice.Plural, "--app", app, "-o", output], cancellationToken);
+    public Task RenderFeatureAsync(string app, SliceEntry slice, IReadOnlyList<(string Name, string Value)> options, string output, CancellationToken cancellationToken) =>
+        RunNewAsync(
+            ["cs-feature", "-n", slice.Name, "--plural", slice.Plural, "--app", app, "-o", output, .. Parameters(FeatureTemplateJson, options)],
+            cancellationToken);
+
+    /// <summary>
+    /// Option parameters for one template: only those it defines. The feature template declares just the options its
+    /// code depends on, and dotnet new rejects parameters a template doesn't have.
+    /// </summary>
+    private IEnumerable<string> Parameters(string templateJson, IReadOnlyList<(string Name, string Value)> options)
+    {
+        var path = Path.Combine(directory, templateJson);
+        if (options.Count == 0 || !File.Exists(path))
+        {
+            return [];
+        }
+
+        var symbols = JsonNode.Parse(File.ReadAllText(path))?["symbols"]?.AsObject();
+        return options
+            .Where(o => symbols?[o.Name]?["type"]?.GetValue<string>() == "parameter")
+            .SelectMany(o => new[] { $"--{o.Name}", o.Value });
+    }
 
     private async Task RunNewAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken)
     {

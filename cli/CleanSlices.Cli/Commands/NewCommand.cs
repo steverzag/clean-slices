@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using CleanSlices.Cli.Catalog;
 using CleanSlices.Cli.Infrastructure;
 using Spectre.Console;
 using Spectre.Console.Cli;
@@ -25,6 +26,10 @@ internal sealed class NewCommand : AsyncCommand<NewCommand.Settings>
         [Description("Don't include the sample features (default).")]
         public bool NoSamples { get; init; }
 
+        [CommandOption("-w|--with <OPTION>")]
+        [Description("Include an option (repeatable): <id> or <id>:<choice>=<value>[,...], e.g. --with result. See `cleanslices list`.")]
+        public string[] With { get; init; } = [];
+
         [CommandOption("--git")]
         [Description("Initialize a git repository with an initial commit (default when git is available).")]
         public bool Git { get; init; }
@@ -40,10 +45,6 @@ internal sealed class NewCommand : AsyncCommand<NewCommand.Settings>
         [CommandOption("--template-repo <SOURCE>")]
         [Description($"Template repository (local path or git URL). Defaults to ${TemplateRepository.EnvironmentVariable}, then {TemplateRepository.DefaultSource}.")]
         public string? TemplateRepo { get; init; }
-
-        [CommandOption("-p|--pattern <NAME>")]
-        [Description("Include a pattern (repeatable), e.g. --pattern result. Prompted for when a template repository is available.")]
-        public string[] Patterns { get; init; } = [];
 
         [CommandOption("-y|--yes")]
         [Description("Accept defaults for everything not passed explicitly; never prompt.")]
@@ -93,9 +94,9 @@ internal sealed class NewCommand : AsyncCommand<NewCommand.Settings>
         {
             return await AnsiConsole.Status().StartAsync("Fetching templates...", _ => TemplateRepository.OpenAsync(source, cancellationToken));
         }
-        catch (ToolException ex) when (TemplateRepository.IsDefaultSource(source) && settings.Patterns.Length == 0)
+        catch (ToolException ex) when (TemplateRepository.IsDefaultSource(source) && settings.With.Length == 0)
         {
-            Ui.Warning($"Couldn't reach {source}; using the installed templates (no patterns).");
+            Ui.Warning($"Couldn't reach {source}; using the installed templates (no options).");
             Ui.Hint(ex.Output.Trim().Split('\n').LastOrDefault() ?? string.Empty);
             return null;
         }
@@ -106,25 +107,34 @@ internal sealed class NewCommand : AsyncCommand<NewCommand.Settings>
         var interactive = Ui.IsInteractive(settings.Yes);
         Ui.Header("new solution");
 
-        // The solution is rendered from the template repository's main (+ patterns) and the commit is recorded,
-        // which is what makes `add pattern` possible later.
+        if (OptionSelection.Parse(settings.With) is not { } requested)
+        {
+            return 1;
+        }
+
+        // The solution is rendered from the template repository's main and the commit is recorded,
+        // which is what makes `add feature` and `add <option>` render the same template later.
         var source = TemplateRepository.ResolveSource(settings.TemplateRepo, manifest: null);
         var repository = await OpenRepositoryOrFallBackAsync(source, settings, cancellationToken);
-        if (repository is null)
+        if (repository is null && !await Ui.EnsureTemplateInstalledAsync("cleanslices", cancellationToken))
         {
-            if (settings.Patterns.Length > 0)
-            {
-                Ui.Error("--pattern needs the template repository, which isn't reachable right now.");
-                return 1;
-            }
-
-            if (!await Ui.EnsureTemplateInstalledAsync("cleanslices", cancellationToken))
-            {
-                return 1;
-            }
+            return 1;
         }
 
         using var _ = repository;
+
+        string? templateCommit = null;
+        OptionCatalog? catalog = null;
+        if (repository is not null)
+        {
+            templateCommit = await repository.GetMainCommitAsync(cancellationToken);
+            catalog = await repository.ReadCatalogAsync(templateCommit, cancellationToken);
+            if (catalog is null && requested.Count > 0)
+            {
+                Ui.Error($"The template repository {repository.Source} has no {OptionCatalog.FileName}, so it offers no options.");
+                return 1;
+            }
+        }
 
         // ---- Answers -------------------------------------------------------------------------
         var name = settings.Name;
@@ -150,32 +160,25 @@ internal sealed class NewCommand : AsyncCommand<NewCommand.Settings>
             || (!settings.NoSamples && interactive
                 && AnsiConsole.Confirm("Include the sample [bold]Tasks/Users[/] features?", defaultValue: false));
 
-        IReadOnlyList<string> patterns = [];
-        if (repository is not null)
+        Resolution? resolution = null;
+        if (catalog is not null)
         {
-            var available = await repository.ListPatternsAsync(cancellationToken);
-            if (settings.Patterns.Length > 0)
+            if (requested.Count == 0 && interactive)
             {
-                var unknown = settings.Patterns.Where(p => available.All(a => a.Name != p)).ToList();
-                if (unknown.Count > 0)
-                {
-                    Ui.Error($"Unknown pattern(s): {string.Join(", ", unknown)}.");
-                    Ui.Hint(available.Count > 0 ? $"Available: {string.Join(", ", available.Select(a => a.Name))}" : "The template repository has no patterns.");
-                    return 1;
-                }
-
-                patterns = settings.Patterns.Distinct().ToList();
+                requested = OptionSelection.Ask(catalog, samples, applied: []);
             }
-            else if (interactive && available.Count > 0)
+
+            requested = OptionSelection.AskChoices(catalog, requested, interactive);
+            resolution = OptionSelection.Resolve(catalog, existing: [], requested, samples, interactive);
+            if (resolution is null)
             {
-                patterns = AnsiConsole.Prompt(new MultiSelectionPrompt<PatternInfo>()
-                        .Title("Which [bold]patterns[/] do you want to include?")
-                        .NotRequired()
-                        .InstructionsText("[grey](space to toggle, enter to accept; none is fine)[/]")
-                        .UseConverter(p => $"[bold]{Markup.Escape(p.Name)}[/] [grey]{Markup.Escape(p.Description)}[/]")
-                        .AddChoices(available))
-                    .Select(p => p.Name)
-                    .ToList();
+                return 1;
+            }
+
+            if (!OptionSelection.ConfirmPlan(resolution, applied: [], interactive))
+            {
+                Ui.Warning("Nothing was created.");
+                return 1;
             }
         }
 
@@ -196,14 +199,16 @@ internal sealed class NewCommand : AsyncCommand<NewCommand.Settings>
 
         if (repository is not null)
         {
-            var templateCommit = await repository.GetMainCommitAsync(cancellationToken);
-            await AnsiConsole.Status().StartAsync("Generating solution...", async _ =>
-            {
-                var composition = await repository.ComposeAsync(templateCommit, patterns, cancellationToken);
-                await composition.RenderSolutionAsync(name, samples, output, cancellationToken);
-            });
+            var composition = await repository.ComposeAsync(templateCommit!, cancellationToken);
+            await AnsiConsole.Status().StartAsync("Generating solution...", _ =>
+                composition.RenderSolutionAsync(name, samples, resolution?.TemplateArguments ?? [], output, cancellationToken));
 
-            manifest = manifest with { TemplateRepo = repository.Source, TemplateCommit = templateCommit, Patterns = patterns };
+            manifest = manifest with
+            {
+                TemplateRepo = repository.Source,
+                TemplateCommit = templateCommit,
+                Options = [.. resolution?.Units.Select(OptionEntry.From) ?? []],
+            };
         }
         else
         {
@@ -231,9 +236,9 @@ internal sealed class NewCommand : AsyncCommand<NewCommand.Settings>
             extras.Add("sample features");
         }
 
-        if (patterns.Count > 0)
+        if (resolution is not null && OptionSelection.Titles(resolution) is { Length: > 0 } titles)
         {
-            extras.Add($"pattern(s): {string.Join(", ", patterns)}");
+            extras.Add(titles);
         }
 
         Ui.Success($"Created {name}{(extras.Count > 0 ? $" with {string.Join("; ", extras)}" : string.Empty)}");

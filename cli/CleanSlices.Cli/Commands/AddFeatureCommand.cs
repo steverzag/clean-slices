@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using CleanSlices.Cli.Catalog;
 using CleanSlices.Cli.Infrastructure;
 using Spectre.Console;
 using Spectre.Console.Cli;
@@ -52,6 +53,19 @@ internal sealed class AddFeatureCommand : AsyncCommand<AddFeatureCommand.Setting
 
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
     {
+        try
+        {
+            return await RunAsync(settings, cancellationToken);
+        }
+        catch (ToolException ex)
+        {
+            Ui.Failure(ex.Message, ex.Output);
+            return 1;
+        }
+    }
+
+    private static async Task<int> RunAsync(Settings settings, CancellationToken cancellationToken)
+    {
         var interactive = Ui.IsInteractive(settings.Yes);
         Ui.Header("add feature");
 
@@ -65,7 +79,7 @@ internal sealed class AddFeatureCommand : AsyncCommand<AddFeatureCommand.Setting
         AnsiConsole.MarkupLine($"[grey]Solution:[/] {Markup.Escape(solution.AppName)} [grey]({Markup.Escape(solution.Root)})[/]");
         AnsiConsole.WriteLine();
 
-        // Solutions that record their template version render features from that version + their patterns,
+        // Solutions that record their template version render features from that version with their options,
         // so e.g. a Result<T> solution gets Result<T>-style features. Others use the installed template.
         var manifest = solution.Manifest;
         string? templateSource = manifest.TemplateCommit is null ? null : TemplateRepository.ResolveSource(null, manifest);
@@ -126,18 +140,36 @@ internal sealed class AddFeatureCommand : AsyncCommand<AddFeatureCommand.Setting
         var slice = new SliceEntry(entity, plural);
         if (templateSource is not null)
         {
-            try
+            var rendered = await AnsiConsole.Status().StartAsync($"Adding {entity} feature...", async _ =>
             {
-                await AnsiConsole.Status().StartAsync($"Adding {entity} feature...", async _ =>
+                using var repository = await TemplateRepository.OpenAsync(templateSource, cancellationToken);
+
+                // Commits from before options existed have no catalog and take no option parameters.
+                IReadOnlyList<(string Name, string Value)> options = [];
+                if (await repository.ReadCatalogAsync(manifest.TemplateCommit!, cancellationToken) is { } catalog)
                 {
-                    using var repository = await TemplateRepository.OpenAsync(templateSource, cancellationToken);
-                    var composition = await repository.ComposeAsync(manifest.TemplateCommit!, manifest.Patterns, cancellationToken);
-                    await composition.RenderFeatureAsync(solution.AppName, slice, solution.Root, cancellationToken);
-                });
-            }
-            catch (ToolException ex)
+                    var resolution = Resolver.Resolve(catalog, manifest.OptionRequests, [], manifest.Samples);
+                    if (!resolution.IsResolved)
+                    {
+                        return resolution;
+                    }
+
+                    options = resolution.TemplateArguments;
+                }
+
+                var composition = await repository.ComposeAsync(manifest.TemplateCommit!, cancellationToken);
+                await composition.RenderFeatureAsync(solution.AppName, slice, options, solution.Root, cancellationToken);
+                return (Resolution?)null;
+            });
+
+            if (rendered is { } unresolved)
             {
-                Ui.Failure(ex.Message, ex.Output);
+                Ui.Error($"The options recorded in {ProjectManifest.FileName} don't resolve against their template version:");
+                foreach (var message in unresolved.Errors.Concat(unresolved.Unmet.Select(u => u.Message)))
+                {
+                    Ui.Hint(message);
+                }
+
                 return 1;
             }
         }
