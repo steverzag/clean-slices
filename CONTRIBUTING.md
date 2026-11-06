@@ -6,13 +6,14 @@ This repository is three things at once:
 |---|---|---|
 | Project template | repo root (`.template.config/`) | `dotnet new cleanslices`: the solution itself |
 | Feature template | `templates/cs-feature/` | `dotnet new cs-feature`: one vertical slice, written for a placeholder entity called `Widget` |
-| CLI | `cli/CleanSlices.Cli/` | the `cleanslices` tool, which drives both templates and applies patterns |
+| CLI | `cli/CleanSlices.Cli/` | the `cleanslices` tool, which drives both templates and applies options |
+| Catalog | `catalog.json` | the options the CLI offers and how they relate, validated by `catalog.schema.json` |
 
-`templates/`, `cli/`, `CleanSlices.Dev.slnx`, this file and [ROADMAP.md](ROADMAP.md) are excluded from the project template, so generated solutions don't get them. ROADMAP.md describes where the CLI is heading (a project configurator) and the design rules new options should follow.
+`templates/`, `cli/`, `CleanSlices.Dev.slnx`, the catalog files, this file, [ROADMAP.md](ROADMAP.md) and `docs/roadmap/` are excluded from the project template, so generated solutions don't get them. ROADMAP.md describes where the CLI is heading (a project configurator) and the design rules new options should follow.
 
 ## Solutions
 
-- **`CleanSlices.Dev.slnx`**: open this one while you work. It has the template projects, the CLI and the template configs.
+- **`CleanSlices.Dev.slnx`**: open this one while you work. It has the template projects, the CLI and its tests, the catalog and the template configs.
 - **`CleanSlices.slnx`**: the template's own solution. Every generated project gets a renamed copy, so it must never reference `cli/`.
 
 ## Testing changes locally
@@ -23,7 +24,13 @@ Run the tests with the dev solution. The repository root has two solution files,
 dotnet test --solution CleanSlices.Dev.slnx
 ```
 
-The integration tests (`tests/CleanSlices.Api.Tests`) need Docker running. Generated solutions have a single solution file, so plain `dotnet test` works there.
+The integration tests (`tests/CleanSlices.Api.Tests`) need Docker running. Generated solutions have a single solution file, so plain `dotnet test` works there. `cli/CleanSlices.Cli.Tests` tests the CLI, including the consistency tests that keep `catalog.json` and both `template.json` files in step.
+
+That runs the template **without options**. To build and test it with options, pass them as compiler symbols (see [How options work](#how-options-work)):
+
+```powershell
+dotnet test --solution CleanSlices.Dev.slnx -p:TemplateOptions=result
+```
 
 The CLI reads templates from git, not from your working folder, so **commit** before testing. Point it at your local clone so you don't have to push:
 
@@ -31,7 +38,7 @@ The CLI reads templates from git, not from your working folder, so **commit** be
 $env:CLEANSLICES_TEMPLATE_REPO = "C:\path\to\clean-slices"
 
 cd $env:TEMP
-dotnet run --project C:\path\to\clean-slices\cli\CleanSlices.Cli -- new Acme.Test --samples -y
+dotnet run --project C:\path\to\clean-slices\cli\CleanSlices.Cli -- new Acme.Test --samples --with result -y
 ```
 
 `dotnet run` always uses the current CLI code. To test the installed tool instead, bump `<Version>` in `cli/CleanSlices.Cli/CleanSlices.Cli.csproj`, then:
@@ -49,38 +56,64 @@ Plain `dotnet new` uses the templates installed from this folder. Reinstall them
 dotnet new install . --force
 ```
 
-## How patterns work
+## How options work
 
-A pattern is a branch named `pattern/<name>`, based on `main`, whose commits add the pattern. The CLI lists every `pattern/*` branch it finds, and shows the subject of the branch's first commit (minus a `type(scope): ` prefix) as the description. Later commits on the branch (fixes, docs) don't change it.
+Every option lives on `main`, as **template conditionals**. Three places describe it:
 
-To build a solution with patterns, the CLI checks out the template commit the solution came from (recorded in `.cleanslices.json`), cherry-picks each pattern branch's own commits on top, and renders the result. `add pattern` renders the solution before and after the pattern and merges the difference into the user's code with `git merge-tree`.
+| Where | Says |
+|---|---|
+| `catalog.json` | *what* the option is and how it relates to others: concept, group, choices, requires / provides / conflicts, sample support, license |
+| `.template.config/template.json` (and `templates/cs-feature/...` if features change) | *how* it renders: a parameter, and which files exist only with or without it |
+| the code | `#if (<option>)` blocks inside shared files |
 
-### Adding a pattern
+The CLI reads the catalog **at the template commit a solution came from**, resolves the user's selection (choice defaults, hidden units for requirements, groups, conflicts, glue units) and passes the result to `dotnet new` as parameters. `add <option>` renders the solution before and after, with the same template commit, and merges the difference into the user's code with `git merge-tree`.
 
-1. Branch from `main`: `git switch -c pattern/<name> main`.
-2. Make the change in the project template **and** in `templates/cs-feature/`, so features generated in a solution with the pattern match it.
-3. Commit with a subject that reads well in a list, e.g. `feat(pattern): Result<T> for expected failures`.
-4. Check that both a fresh solution and a solution with the pattern added later build:
+### Symbols
+
+- An option's template parameter is its id, with `-` replaced by `_` (`integration-events` → `integration_events`). It's a `bool` defaulting to `false`.
+- A choice is a `choice` parameter named `<option>_<choice>` (`cqrs_dispatcher`), plus one **computed bool per value**, named after the value: `"mediator": { "type": "computed", "value": "(cqrs_dispatcher == \"mediator\")" }`. Code tests the bool (`#if (mediator)`), because the compiler can't read string comparisons.
+- Ids, choice parameters and choice values share one namespace; `samples`, `name`, `app` and `plural` are reserved.
+- The feature template only declares the options its code depends on; the CLI passes each template just the parameters it defines.
+- `CatalogValidator` and `ConsistencyTests` (in `cli/CleanSlices.Cli.Tests`) fail when the catalog and the `template.json` files disagree, or when the catalog has a broken reference.
+
+### Writing conditional code
+
+- **Real `#if`, not `//#if`.** `#if (result)` is read by both the template engine and the compiler, so the repository can build every variant. `Directory.Build.props` has a block, removed from generated solutions, that adds `$(TemplateOptions)` to the compiler's symbols:
+  ```powershell
+  dotnet build CleanSlices.Dev.slnx -p:TemplateOptions=result
+  dotnet build CleanSlices.Dev.slnx "-p:TemplateOptions=result%3Bmediator"   # several: %3B, since , and ; split -p values
+  ```
+  `samples` is always defined there, because the sample code is always compiled in this repository. The sample blocks themselves stay `//#if (samples)`.
+- **Whole members.** When a member differs in more than one place, or its declaration differs, put the whole member in each branch: `#if (result)` *complete method* `#else` *complete method* `#endif`. Neighbouring members that differ can share one block. A single, contiguous difference keeps a small block. Each variant should read top to bottom.
+- **Whole files** that exist only with or without an option are excluded in `template.json`, not wrapped in `#if`: a wrapped file is still generated, empty. Wrap them in `#if` as well only so the repository build skips them (`Result.cs` is `#if (result)` … `#endif` *and* excluded when `!result`).
+- **The template engine removes every `#if` it sees**, including `#if DEBUG`, and keeps a block only if its condition is true for the template. Wrap a compiler directive that must survive in `//-:cnd:noEmit` … `//+:cnd:noEmit`.
+- **The feature template isn't compiled here.** Check it by generating a solution with a feature (below).
+- **Documentation** follows the same idea: text an option *replaces* is a whole file with a variant (`docs/error-handling.md` and `docs/error-handling.result.md`, picked and renamed by a conditional modifier in `template.json`); text an option *adds* is its own file. The README's options list uses one `<!--#if (option)-->` line per option.
+- **Never write the CLI's name (`cleanslices`) in a file the template processes.** `sourceName` renames it to the user's solution name. `docs/CLI.md` is copied unprocessed for that reason.
+
+### Adding an option
+
+1. Add the unit to `catalog.json`, using the format in `catalog.schema.json` (editors complete it). Order in the file is the order in prompts and in `cleanslices list`.
+2. Add the parameter (and choice parameters and computed values) to `.template.config/template.json`, and to `templates/cs-feature/.template.config/template.json` if features change. Add the file excludes.
+3. Write the code with `#if` blocks, in the project template, the feature template and the samples. The samples show how to use the option; set `"samples": false` only when it can't be shown meaningfully, and say why in its documentation.
+4. Check, before committing:
    ```powershell
-   cleanslices new Acme.A --samples --pattern <name> -y
-   cleanslices new Acme.B --samples -y; cd Acme.B; cleanslices add feature Product -y; git add -A; git commit -m wip; cleanslices add pattern <name> -y
+   dotnet test --solution CleanSlices.Dev.slnx                          # default + catalog consistency
+   dotnet test --solution CleanSlices.Dev.slnx -p:TemplateOptions=<id>  # the option
    ```
-5. Push the branch: `git push -u origin pattern/<name>`. It shows up in the CLI right away.
+5. Commit, then check the CLI flows against your clone (`$env:CLEANSLICES_TEMPLATE_REPO`): a new solution with the option, and the option added later to a solution that has a feature:
+   ```powershell
+   cleanslices new Acme.A --samples --with <id> -y; cd Acme.A; cleanslices add feature Product -y; dotnet test
+   cleanslices new Acme.B --samples -y; cd Acme.B; cleanslices add feature Product -y; git add -A; git commit -m wip; cleanslices add <id> -y; dotnet test
+   ```
+   With prompts (no `-y`), also look at how the option appears in the interactive list.
 
-A pattern that *replaces* something on `main` can be made by reverting a commit: `pattern/result` is a revert of the commit on `main` that removed `Result<T>`.
-
-### Keeping patterns healthy
-
-- After changing `main`, rebase each pattern onto it (`git switch pattern/<name>; git rebase main`), resolve any conflicts as the rebase stops on each commit, and push with `git push --force-with-lease`. Only the pattern's own commits are applied, so a stale branch still works as long as it applies cleanly.
-- **Don't merge `main` into a pattern branch.** The CLI cherry-picks the pattern's own commits (everything after its fork point from `main`), so the branch must stay a straight stack of commits on top of `main`. A merge commit can't be cherry-picked, and conflict fixes made in it never reach the CLI.
-- **Why the force-push:** rebasing gives the pattern's commits new IDs, so GitHub still has the old ones and a normal push is rejected. `--force-with-lease` replaces them only if the branch on GitHub is still what you last fetched; if someone pushed to it since, the push is refused instead of silently erasing their commits. Avoid plain `--force`, which skips that check. The check compares against your last fetch, so a fetch (yours or your IDE's) counts as having seen whatever it brought in. Before force-pushing, run `git status`: if the branch is `behind` by more than the commits you rebased, look at the extra ones first.
-- Patterns should add files rather than edit shared ones where they can. Every edited line is a possible conflict with the user's code or with other patterns.
-- Combinations are applied in the order the user chose them. If two patterns edit the same lines, the second one fails to apply, and the CLI reports it.
+Options should add files rather than edit shared ones where they can (rule 4 in ROADMAP.md): every edited line is a possible conflict with the user's code.
 
 ## Template rules worth knowing
 
 - `sourceName` is `CleanSlices`, so every `CleanSlices` and `cleanslices` in file names and contents gets the user's name. Aspire's `Projects.CleanSlices_Api` and the resource name `cleanslices-api` have their own derived symbols in `template.json`.
-- Sample-only code is wrapped in `//#if (samples)` … `//#endif` (C#) or `# #if (samples)` (in `.http` files). Using comment syntax keeps the template solution itself compiling.
+- Sample-only code is wrapped in `//#if (samples)` … `//#endif` (C#), `# #if (samples)` (`.http` files) or `<!--#if (samples)-->` (Markdown).
 - New features must be additive: no `DbSet` (use `context.Set<T>()` and `ToTable(...)`), and no registration edits (endpoints and handlers are found by reflection).
 - The CLI's default template repository is `TemplateRepository.DefaultSource` in `cli/CleanSlices.Cli/Infrastructure/TemplateRepository.cs`. Update it if the repository moves.
 

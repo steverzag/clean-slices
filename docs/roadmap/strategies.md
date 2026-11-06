@@ -28,6 +28,8 @@ Every strategy follows the same three steps, so strategies never touch each othe
 
 **Feature template.** The entity implements `ISoftDeletable` and has `DeletedAt`.
 
+**Samples.** *Proposed:* tasks and users are soft-deletable. Deleting a user still unassigns them (the domain event runs), and a test shows the API answers 404 as after a hard delete.
+
 **Interactions.** Audit records the soft delete as a `Modified` entry with `DeletedAt` set, so "who deleted it" comes for free. `WidgetDeleted` is still raised, so cache invalidation works unchanged.
 
 **Trade-offs to document.**
@@ -60,6 +62,8 @@ Every strategy follows the same three steps, so strategies never touch each othe
 - The JSON columns are plain strings, so they work on both database providers.
 
 **Feature template.** The entity implements `IAuditable`.
+
+**Samples.** *Proposed:* tasks and users are audited; a test reads a task's audit entries after a few updates.
 
 **Trade-offs to document.**
 

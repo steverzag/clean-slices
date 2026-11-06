@@ -4,8 +4,9 @@
 
 ```
 cleanslices                          create a new solution (interactive)
+cleanslices list                     list the options the template offers
+cleanslices add <option>...          merge options into the current solution
 cleanslices add feature              add a vertical slice to the current solution
-cleanslices add pattern              merge an optional pattern (e.g. Result<T>) into the current solution
 ```
 
 ## Install
@@ -23,6 +24,34 @@ To update it later, pull, bump `<Version>` in `cli/CleanSlices.Cli/CleanSlices.C
 
 You need the .NET 10 SDK and git. `dotnet-ef` is optional; it's only needed if you want `add feature` to create migrations for you.
 
+## Options
+
+Options are optional building blocks, such as `result` (Result&lt;T&gt; instead of exceptions). They're grouped by concept:
+
+| Concept | An option belongs here if it… | Choose |
+|---|---|---|
+| Patterns | changes how code is written | any number |
+| Infrastructure | picks which product sits behind a seam (database, queue, cache, …) | at most one per group |
+| Strategies | adds behavior to entities | any number |
+| Extras | adds files around the code | any number |
+
+Some options have **choices**, settings that only matter when the option is selected. An option is written `<id>`, or `<id>:<choice>=<value>[,<choice>=<value>]` to pick choices; choices not given get their default.
+
+The CLI makes the options work together:
+
+- Options that need something get it. Pieces several options share (for example the integration events behind the outbox and the queues) are added automatically, and the summary says why.
+- When an option needs another option and several could do it, the CLI asks which one, or tells you which `--with` to add.
+- Options that can't be combined, or two from the same group, are rejected before anything is generated, with the reason.
+- Options that use a commercial package or product print a notice, and their license key setting is generated empty.
+
+`cleanslices list` shows every option, with its choices and what it needs. Inside a solution it also marks the options the solution has.
+
+Available options:
+
+| Option | What it does |
+|---|---|
+| `result` | Domain methods return `Result` / `Result<T>` instead of throwing, endpoints compose them with `Map`/`Tap`, and `ResultExtensions` turn them into ProblemDetails responses. |
+
 ## Create a solution
 
 ```powershell
@@ -32,8 +61,8 @@ cleanslices
 You'll be asked for:
 
 1. **Solution name**, e.g. `Acme.Orders`. Projects become `Acme.Orders.Api`, `Acme.Orders.Core`, and so on.
-2. **Sample features**: whether to include the Tasks/Users example code (off by default).
-3. **Patterns**: optional building blocks to include from the start, such as `result` (Result&lt;T&gt; instead of exceptions).
+2. **Sample features**: whether to include the Tasks/Users example code (off by default). The samples show every option you pick, as a reference for your own features.
+3. **Options**, concept by concept, then the choices of the ones you picked. A summary shows what will be applied, and you confirm it.
 4. **Git**: whether to create a repository with an initial commit (on by default).
 
 The solution is created in `./<name>` and its packages are restored, so it builds straight away.
@@ -41,8 +70,8 @@ The solution is created in `./<name>` and its packages are restored, so it build
 Without prompts:
 
 ```powershell
-cleanslices new Acme.Orders -y                            # defaults: no samples, no patterns, git on
-cleanslices new Acme.Orders --samples --pattern result -y
+cleanslices new Acme.Orders -y                              # defaults: no samples, no options, git on
+cleanslices new Acme.Orders --samples --with result -y
 ```
 
 | Option | Meaning |
@@ -50,7 +79,7 @@ cleanslices new Acme.Orders --samples --pattern result -y
 | `[name]` | Solution name. Asked for when omitted. |
 | `-o, --output <DIR>` | Output folder (default `./<name>`). |
 | `--samples` / `--no-samples` | Include the Tasks/Users sample features. |
-| `-p, --pattern <NAME>` | Include a pattern. Repeat it to add several. |
+| `-w, --with <OPTION>` | Include an option: `<id>` or `<id>:<choice>=<value>`. Repeat it to add several. |
 | `--git` / `--no-git` | Create a git repository with an initial commit. |
 | `--no-restore` | Skip `dotnet restore`. |
 | `--template-repo <SOURCE>` | Take the templates from another repository (path or git URL). |
@@ -73,7 +102,7 @@ It generates a complete slice across the three projects, plus its tests:
 - **Api**: CRUD endpoints (`POST /products`, `GET /products` (paged, newest first), `GET /products/{id}`, `PATCH /products/{id}/name`, `DELETE /products/{id}`)
 - **Tests**: `ProductTests` for the entity and `ProductEndpointsTests` for the endpoints. Solutions created before test projects existed don't get them.
 
-Nothing existing is edited. Endpoints, event handlers and EF configurations are picked up automatically, and the entity is reached through `context.Set<Product>()`, so `AppDbContext` stays as it is. The generated code follows the solution's patterns: in a solution with `result`, the feature uses `Result<T>`.
+Nothing existing is edited. Endpoints, event handlers and EF configurations are picked up automatically, and the entity is reached through `context.Set<Product>()`, so `AppDbContext` stays as it is. The generated code follows the solution's options: in a solution with `result`, the feature uses `Result<T>`.
 
 | Option | Meaning |
 |---|---|
@@ -84,35 +113,36 @@ Nothing existing is edited. Endpoints, event handlers and EF configurations are 
 
 Names that clash with .NET types, such as `Task` or `Thread`, are rejected.
 
-## Add a pattern
+## Add options
 
-Patterns are optional pieces you can add to a solution after it was created:
+Options can also be added to a solution after it was created:
 
 ```powershell
-cleanslices add pattern              # pick from the list of available patterns
-cleanslices add pattern result
+cleanslices add                      # pick from the options the solution doesn't have yet
+cleanslices add result
+cleanslices add <option> <option>    # several options in one merge
 ```
 
-The solution must be a git repository with nothing uncommitted. The pattern is applied as a real git merge:
+`feature` is the one word that isn't an option: `cleanslices add feature` adds a feature.
 
-1. The CLI renders the solution twice: as the template produced it, and as it would look with the pattern. Both renders include your features.
+The solution must be a git repository with nothing uncommitted. The options are applied as a real git merge:
+
+1. The CLI renders the solution twice, from the template version it was created with: as it is now, and with the new options. Both renders include your features.
 2. It merges the difference into your code. Your own changes are kept, and the features you added are converted too.
-3. If nothing conflicts, the result is committed as `feat: apply <pattern> pattern`. Undo it with `git reset --hard HEAD~1`.
+3. If nothing conflicts, the result is committed as `feat: add <options>`. Undo it with `git reset --hard HEAD~1`.
 
-If one of your changes touches the same lines as the pattern, the affected files are listed and contain the usual `<<<<<<<` / `>>>>>>>` markers. Resolve them, then `git add -A` and `git commit`, or run `git reset --hard HEAD` to back out.
+If one of your changes touches the same lines as an option, the affected files are listed and contain the usual `<<<<<<<` / `>>>>>>>` markers. Resolve them, then `git add -A` and `git commit`, or run `git reset --hard HEAD` to back out.
+
+Picking an option from a group the solution already has an option in **replaces** it (for example another database provider). Migrations are specific to a database provider, so the CLI reminds you to recreate them.
+
+Options can't be removed, and their choices can't be changed after they're applied, yet.
 
 | Option | Meaning |
 |---|---|
-| `[pattern]` | Pattern name. Asked for when omitted. |
+| `[options]` | Options to add: `<id>` or `<id>:<choice>=<value>`. Asked for when omitted. |
 | `--no-commit` | Stage the changes without committing them. |
-| `--template-repo <SOURCE>` | Take the patterns from another repository. |
+| `--template-repo <SOURCE>` | Take the templates from another repository. |
 | `-y, --yes` | Don't ask. |
-
-Available patterns:
-
-| Pattern | What it does |
-|---|---|
-| `result` | Domain methods return `Result` / `Result<T>` instead of throwing, endpoints compose them with `Map`/`Tap`, and `ResultExtensions` turn them into ProblemDetails responses. |
 
 ## `.cleanslices.json`
 
@@ -120,26 +150,37 @@ Available patterns:
 
 ```json
 {
+  "manifestVersion": 2,
   "name": "Acme.Orders",
-  "options": { "samples": false },
+  "cliVersion": "0.3.0",
+  "samples": false,
   "templateRepo": "https://github.com/steverzag/clean-slices.git",
   "templateCommit": "a63f5be9d2a0…",
-  "patterns": [ "result" ],
+  "options": [ { "id": "result" } ],
   "slices": [ { "name": "Product", "plural": "Products" } ]
 }
 ```
 
-`add feature` and `add pattern` read it to render code from the same template version and with the same patterns, and they update it. Solutions created without the CLI also work: the first `add feature` detects the layout from the `.slnx` and creates the file.
+`options` is the resolved configuration: the options you picked with their choices (`{ "id": "cqrs", "dispatcher": "mediator" }`), and the pieces added automatically, with the options they were added for (`"addedBy": [ "outbox" ]`).
+
+`add feature` and `add <option>` read it to render code from the same template version with the same options, and they update it. Solutions created without the CLI also work: the first `add feature` detects the layout from the `.slnx` and creates the file.
+
+Older solutions:
+
+- **Created by cleanslices 0.1 or 0.2 without patterns**: the file is upgraded to the new format the next time a command writes it. Their template version predates options, so `add feature` works, but options can't be added to them.
+- **Created by 0.2 with a pattern** (`"patterns": [ "result" ]`): this version can't extend them. Use cleanslices 0.2.x, or create the solution again.
 
 ## Where the templates come from
 
-The CLI downloads the templates from this repository, so new patterns appear without updating the tool. The repository is chosen in this order:
+The CLI downloads the templates from this repository, so new options appear without updating the tool. The repository is chosen in this order:
 
 1. `--template-repo <path-or-url>` on the command
 2. `templateRepo` in `.cleanslices.json`
 3. the `CLEANSLICES_TEMPLATE_REPO` environment variable
 4. `https://github.com/steverzag/clean-slices.git`
 
-If GitHub can't be reached, `cleanslices new` falls back to locally installed templates (`dotnet new install <template-repo-folder>`), without patterns.
+If GitHub can't be reached, `cleanslices new` falls back to locally installed templates (`dotnet new install <template-repo-folder>`), without options.
+
+If the template repository uses a newer catalog format than your cleanslices understands, the CLI asks you to update it.
 
 Working on the templates or the CLI themselves? See [CONTRIBUTING.md](https://github.com/steverzag/clean-slices/blob/main/CONTRIBUTING.md).

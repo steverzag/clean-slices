@@ -9,10 +9,12 @@ A pattern changes *how code is written*: method signatures, control flow, how a 
 **Design.**
 
 - Our own `Result.cs`, no library (ErrorOr, FluentResults), so generated solutions have no extra dependency.
-- Rule: the same failure gives the same HTTP response with or without the pattern (already true on `main` and `pattern/result`).
-- Today it's the `pattern/result` branch. It moves to template conditionals: `Result.cs`, `Error.cs` and `ResultExtensions.cs` exist only with the pattern; `Exceptions.cs` and the exception mapping only without it; inline blocks cover entity methods and handler bodies.
+- Rule: the same failure gives the same HTTP response with or without the pattern. The API tests are the same for both variants and pass on both.
+- **Built (phase 2)** as template conditionals: `Result.cs`, `Error.cs`, `ResultExtensions.cs` and `ResultAssertions.cs` exist only with the option; `Exceptions.cs` and the exception mapping only without it; `#if (result)` blocks cover entity methods, handlers and the Core tests. `docs/error-handling.md` has a variant per option. The output was checked to be identical to the former `pattern/result` branch.
 
 **Feature template.** Entity methods return results; handlers chain them and call `ToProblem()`.
+
+**Samples.** Every sample entity and endpoint uses results. They show what Widget can't: business rules, conflicts (email in use), validation of several fields, and all-or-nothing chains (assign and unassign users).
 
 **Interactions.**
 
@@ -40,6 +42,8 @@ A pattern changes *how code is written*: method signatures, control flow, how a 
 
 **Feature template.** No change.
 
+**Samples.** *Proposed:* creating a user publishes a `UserCreated` integration event from a domain event handler, stored in the outbox; its handler logs a welcome email. A handler that fails shows the retries.
+
 **Interactions.** Requires integration events (added automatically). Queue options provide the dispatcher, with no glue. The inbox removes duplicates on the receiving side.
 
 **Trade-offs to document.** Delivery is asynchronous and **at least once**: integration event handlers must tolerate running twice, or the inbox must be selected.
@@ -56,6 +60,8 @@ A pattern changes *how code is written*: method signatures, control flow, how a 
 
 **Feature template.** No change.
 
+**Samples.** *Proposed:* the sample integration event handler is deduplicated; a test delivers the same message twice and checks it ran once.
+
 ## Repository / unit of work
 
 **What.** Handlers use repositories and a unit of work defined in Core instead of `AppDbContext`.
@@ -68,6 +74,8 @@ A pattern changes *how code is written*: method signatures, control flow, how a 
 - `IRepository<T>` has a paged list method. The base template's `PaginationList<T>` lives in Infrastructure, which Core can't reference, so this option adds a Core page type or moves it.
 
 **Feature template.** Generates an empty `IWidgetRepository` and `WidgetRepository`; handlers take the repository and `IUnitOfWork`.
+
+**Samples.** *Proposed:* `IUserRepository` with an email lookup (the `EmailInUse` check) and `ITaskItemRepository` loading assignments: what belongs in a specific repository, beyond the generic one.
 
 ```csharp
 public async Task<IResult> Handler(IWidgetRepository widgets, IUnitOfWork unitOfWork, Guid id, UpdateWidgetNameRequest request, CancellationToken cancellationToken)
@@ -110,6 +118,8 @@ public async Task<IResult> Handler(IWidgetRepository widgets, IUnitOfWork unitOf
 
 **Feature template.** Each slice file holds the request, the command or query, its handler and the endpoint.
 
+**Samples.** *Proposed:* every sample endpoint as a command or a query; assigning a user shows a command that loads two entities, and the lists show queries through `IReadDb`.
+
 **Interactions.**
 
 | With | Effect |
@@ -140,6 +150,8 @@ public async Task<IResult> Handler(IWidgetRepository widgets, IUnitOfWork unitOf
 
 **Feature template.** `.WithIdempotency()` on the Create endpoint.
 
+**Samples.** *Proposed:* `.WithIdempotency()` on the creates and on assigning a user, an action that isn't naturally idempotent.
+
 **Interactions.** Request validation runs first, so an invalid request stores no key.
 
 **Trade-offs to document.** In memory, keys are lost on a crash or restart, so a retry right after one runs again. With several instances behind Redis, two retries with the same key reaching different instances within milliseconds could both run. A database-backed store with the transactional guarantee is parked as a possible `store` sub-option.
@@ -157,5 +169,7 @@ public async Task<IResult> Handler(IWidgetRepository widgets, IUnitOfWork unitOf
 - Order on an endpoint: validation, then idempotency.
 
 **Feature template.** `CreateWidget` and `UpdateWidgetName` validate `Name`: required, at most `Widget.NameMaxLength`.
+
+**Samples.** *Proposed:* a validator for every sample request, including the email's shape, reusing the domain's length constants.
 
 **Trade-offs to document.** For simple CRUD on one entity it adds little; its value grows with requests that don't match an entity. MediatR users may expect a `ValidationBehavior`; this template doesn't use one, on purpose.

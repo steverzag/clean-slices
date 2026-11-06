@@ -88,10 +88,10 @@ Document: `ExecuteUpdate` and `ExecuteDelete` skip the save pipeline, so no stra
 
 ## CLI
 
-- Catalog and resolver: groups, `choices`, `requires` / `provides` / `conflicts`, hidden units, glue units, license notices.
-- `.cleanslices.json` records options with their choices.
-- Reject `--samples` with an invasive pattern or an authentication option.
-- Retire pattern branches once `result` uses conditionals.
+- **Done (phase 2).** Catalog and resolver: groups, `choices`, `requires` / `provides` / `conflicts`, hidden units, glue units, license notices.
+- **Done (phase 2).** `.cleanslices.json` (format 2) records options with their choices and what automatic units were added for.
+- **Done (phase 2).** Options declare whether the samples support them (`"samples"`, default true); `--samples` is rejected only with an option that declares `false`.
+- **Done (phase 2).** Pattern branches retired: `result` uses conditionals.
 
 ## Moved out of the base template
 

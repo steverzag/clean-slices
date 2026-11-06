@@ -10,7 +10,7 @@ A starter .NET 10 Web API that mixes Clean Architecture layering with vertical s
 
 ## Command-line tool
 
-A companion CLI creates solutions from this template, adds features to them, and merges optional patterns such as Result&lt;T&gt; into existing code. See **[docs/CLI.md](docs/CLI.md)** for installation and usage.
+A companion CLI creates solutions from this template with the options you pick, adds features that follow those options, and merges more options such as Result&lt;T&gt; into existing code. See **[docs/CLI.md](docs/CLI.md)** for installation and usage.
 
 ## Options in this solution
 

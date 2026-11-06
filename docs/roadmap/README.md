@@ -2,7 +2,9 @@
 
 Every option planned for the CLI, with the decisions taken for it. The vision, design rules and phases are in [ROADMAP.md](../../ROADMAP.md).
 
-Each option page uses the same headings: **What**, **Design**, **Sub-options**, **Feature template**, **Interactions** and **Trade-offs to document**.
+Each option page uses the same headings: **What**, **Design**, **Sub-options**, **Feature template**, **Samples**, **Interactions** and **Trade-offs to document**.
+
+**Feature template** is the minimum code `add feature` generates for the option. **Samples** is how the sample features show the option in use, as a reference users can copy (see [ROADMAP.md](../../ROADMAP.md#how-options-are-applied)). Samples entries for options not built yet are proposals, settled when the option is built.
 
 ## Base template
 
@@ -12,7 +14,7 @@ Changes to `main` that improve the default solution on their own: [base-template
 
 | Concept | Option | Group / sub-options | Status |
 |---|---|---|---|
-| Pattern | [Result&lt;T&gt;](patterns.md#resultt) | – | done (branch); moves to conditionals |
+| Pattern | [Result&lt;T&gt;](patterns.md#resultt) | – | **done** (conditionals) |
 | Pattern | [Outbox](patterns.md#outbox) | – | designed |
 | Pattern | [Inbox](patterns.md#inbox) | – | designed |
 | Pattern | [Repository / unit of work](patterns.md#repository--unit-of-work) | – | designed |

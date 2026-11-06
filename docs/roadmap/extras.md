@@ -20,6 +20,8 @@ Tests aren't an extra: they're part of every generated solution (see [base-templ
 
 **Feature template.** No change.
 
+**Samples.** No change.
+
 **Interactions.** Background work (outbox, queue consumers) keeps the original `traceId` through the stored `traceparent`.
 
 ## API reference (Scalar)
@@ -34,3 +36,5 @@ Tests aren't an extra: they're part of every generated solution (see [base-templ
 - Logins work with no glue: Scalar reads the security scheme each authentication option declares in the OpenAPI document.
 
 **Feature template.** No change; endpoint tags and names already group the page.
+
+**Samples.** No change.

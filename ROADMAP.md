@@ -6,7 +6,7 @@ The details of every option live in [docs/roadmap/](docs/roadmap/README.md).
 
 ## The goal
 
-Today the CLI creates a solution, adds features to it, and merges optional patterns into it. There is one pattern (`result`).
+Today the CLI creates a solution with options, adds features to it, and merges options into it later. Options are described in a catalog and applied as template conditionals; there is one so far (`result`).
 
 The goal is a **project configurator**: you describe the setup you want, choosing from several *concepts*, each with several *options*, and the CLI generates a solution where all the chosen options work together. Both lists, concepts and the options within them, should be able to grow without limit.
 
@@ -60,74 +60,89 @@ These rules are what make the goal achievable. A new option that breaks one of t
 All options use one mechanism: **template conditionals**.
 
 - **Whole files** are included only when an option is selected (`Result.cs`, `OutboxProcessor.cs`), or only when it isn't (`Exceptions.cs`).
-- **Inline `//#if (option)` blocks** cover the lines that differ inside shared files: a handler body, a registration call, an AppHost resource. The comment form keeps the template compiling in its default state.
+- **Inline `#if (option)` blocks** cover what differs inside shared files: an entity method, a handler, a registration call, an AppHost resource. They're real preprocessor directives, read by both the template engine and the compiler, so the template repository builds and tests every variant (`dotnet test -p:TemplateOptions=result`). A member that differs in more than one place is written whole on each side of the `#if`, so each variant reads top to bottom.
+- **Documentation** that an option replaces is a whole file per variant; documentation an option adds is its own file.
 
-Rule 4 keeps the inline blocks few. Pattern branches (`pattern/result`) are retired once `result` moves to conditionals.
+Rule 4 keeps the inline blocks few. How to write them is in [CONTRIBUTING.md](CONTRIBUTING.md#how-options-work).
 
-Adding an option *to an existing solution* doesn't depend on the mechanism: `add <option>` renders the solution before and after the option and merges the difference into the user's code with `git merge-tree`, as `add pattern` does today.
+Adding an option *to an existing solution* doesn't depend on the mechanism: `add <option>` renders the solution before and after the option, from the template commit it came from, and merges the difference into the user's code with `git merge-tree`.
 
-**The sample features (Tasks/Users) only come with the default setup.** `--samples` together with an invasive pattern or an authentication option is rejected. The feature template is the code that must support every option.
+**The sample features (Tasks/Users) are the reference implementation of every option.** The feature template generates the *minimum* each option needs; the samples show *how to use* it (an integration event published from a domain event handler, a cached query invalidated by tags, a notification when a task is assigned), so users can copy it into their own features. Options support the samples by default; an option that can't be shown meaningfully declares `"samples": false` and says why in its documentation, and the CLI then rejects it together with `--samples`. Each option page in [docs/roadmap/](docs/roadmap/README.md) has a **Samples** heading next to **Feature template**.
 
 ## The catalog
 
-Each option declares what it is and how it relates to others, in a catalog the CLI reads:
+Each option declares what it is and how it relates to others in `catalog.json`, at the repository root. `catalog.schema.json` validates the format and gives editors completion. The catalog says *what* exists and how it relates; the `template.json` files say *how* it renders, and consistency tests keep the two in step.
 
 ```jsonc
 {
-  "id": "cqrs",
-  "concept": "pattern",
-  "title": "CQRS",
-  "choices": {
-    "dispatcher": { "values": ["handlers", "mediator", "mediatr"], "default": "handlers" }
+  "$schema": "./catalog.schema.json",
+  "catalogVersion": 1,
+  "concepts": {                               // data too: concepts can grow
+    "pattern":        { "title": "Patterns",       "select": "many" },
+    "infrastructure": { "title": "Infrastructure", "select": "onePerGroup" }
   },
-  "requires": [],
-  "provides": [],
-  "conflicts": []
+  "groups": {
+    "database": { "title": "Database", "required": true, "default": "sqlserver" },
+    "queue":    { "title": "Queue",    "required": false }   // empty = the seam's default
+  },
+  "units": [
+    {
+      "id": "cqrs", "kind": "option", "concept": "pattern", "title": "CQRS", "description": "…",
+      "choices": {
+        "dispatcher": {
+          "default": "handlers",
+          "values": {
+            "handlers": { "title": "Own handlers" },
+            "mediator": { "title": "Mediator (source-generated, MIT)" },
+            "mediatr":  { "title": "MediatR", "license": { "notice": "…", "setting": "MediatR:LicenseKey" } }
+          }
+        }
+      }
+    },
+    {
+      "id": "rabbitmq", "kind": "option", "concept": "infrastructure", "group": "queue", "title": "RabbitMQ", "description": "…",
+      "requires": ["integration-events"],
+      "provides": ["message-dispatcher", "at-least-once-delivery"]
+    },
+    { "id": "integration-events", "kind": "hidden" },          // never picked by the user, added by the resolver
+    { "id": "signalr-redis", "kind": "glue", "when": ["signalr", "redis"] }
+  ]
 }
 ```
 
-```jsonc
-{
-  "id": "rabbitmq",
-  "concept": "infrastructure",
-  "group": "queue",                       // at most one option per group
-  "title": "RabbitMQ",
-  "requires": ["integration-events"],
-  "provides": ["message-dispatcher", "at-least-once-delivery"]
-}
-```
-
-```jsonc
-{
-  "id": "integration-events",
-  "hidden": true,                         // never picked by the user, added by the resolver
-  "provides": ["integration-events"]
-}
-```
-
-- **Groups and sub-options are both "pick one"**, with different meanings. A *sub-option* (`choices`) only matters when its parent is selected: the CQRS dispatcher. A *group* is a choice other options depend on: the database provider.
+- **Units** are `option` (picked by the user), `hidden` (added when a selected unit requires it) or `glue` (added when every unit in `when` is selected). Every unit provides its own id; `requires` and `conflicts` name ids or capabilities.
+- **Groups and choices are both "pick one"**, with different meanings. A *choice* (sub-option) only matters when its option is selected: the CQRS dispatcher. A *group* is a choice other options depend on: the database provider. Licenses sit on an option or on a choice value.
 - **Hidden units** are pieces several options need but no user picks directly, such as `integration-events`, required by the outbox and the queue options. The others are `current-user`, `model-rules` and `cache`; all of them are in [hidden-units.md](docs/roadmap/hidden-units.md).
+- **The order in the file** is the order of prompts and of `cleanslices list`.
 
-The CLI resolves the selection like a package manager:
+The CLI resolves the selection like a package manager, before generating anything:
 
 1. Collect the selected options and their choices (asking for, or defaulting, the choices not given).
-2. For each `requires` capability that no selected option provides, add the hidden unit or default that provides it, or ask.
-3. Reject conflicts and two options in the same group before generating anything, with a message that says why.
-4. Add the glue units whose conditions are met.
-5. Print the license notices.
-6. Apply everything in a deterministic order.
+2. Apply the groups: two options from one group are rejected, another option of a group replaces the solution's current one, and required groups get their default.
+3. For each `requires` that no selected unit provides:
+   - a **hidden unit** provides it: add it (it may require more),
+   - only **options** provide it (the inbox needs the outbox or a queue): never pick one for the user; ask which to add (or drop the option), or, without prompts, fail and list them,
+   - **nothing** provides it: a catalog error, caught by its tests before a release.
+4. Reject conflicts and options without sample support when the samples are selected, with a message that says why.
+5. Add the glue units whose conditions are met.
+6. Print the license notices, and confirm.
+7. Render once, with every unit as a template parameter, in catalog order.
 
-`.cleanslices.json` records the resolved configuration, choices included (`{ "id": "cqrs", "dispatcher": "mediator" }`), not just the options the user typed, so later commands see the same picture.
+Interactive lists show what an option still needs (*"Inbox (needs Outbox, RabbitMQ or Azure Service Bus)"*) instead of hiding it.
+
+`.cleanslices.json` records the resolved configuration, choices included (`{ "id": "cqrs", "dispatcher": "mediator" }`) and the units added automatically with what they were added for (`"addedBy": ["outbox"]`), not just the options the user typed, so later commands see the same picture.
 
 ## Testing
 
 **Generated solutions have tests.** The base template ships test projects, and `add feature` generates tests for each new slice (see [base-template.md](docs/roadmap/base-template.md)). So every generated solution runs tests for its own combination of options.
 
+**The template repository builds and tests every variant itself.** `dotnet test --solution CleanSlices.Dev.slnx -p:TemplateOptions=<options>` compiles the template with those options, samples included. The feature template isn't compiled there, so it's checked by generating solutions.
+
 **The template repository tests combinations in CI.** It must generate, build and test:
 
-- the base template with no options,
-- each option alone, and each value of each sub-option,
-- every **pair** of options (most interaction bugs involve two options),
+- the base template with no options, with and without samples,
+- each option alone, and each value of each sub-option, with samples and without (without catches code that only compiles because of the samples),
+- every **pair** of options, with samples (the samples cover more code than the feature template; most interaction bugs involve two options),
 - one solution with everything compatible selected.
 
 For each, it should: generate a new solution, add a feature with `add feature`, add each option later on a solution that has a feature, build, and run the tests.
@@ -137,8 +152,8 @@ Set this up before the catalog grows past about five options. Without it, combin
 ## Versioning
 
 - The template commit a solution came from is recorded in `.cleanslices.json`; options are applied against that commit. Keep it that way.
-- The catalog lives in the template repository, so it's versioned with the template.
-- When the catalog format changes, the CLI must still read older solutions' manifests, or say clearly that it can't.
+- The catalog lives in the template repository, so it's versioned with the template. A commit without a catalog predates options: the CLI renders it without option parameters and offers no options for it.
+- `catalogVersion` and `manifestVersion` number the two formats. A CLI that finds a newer one asks to be updated; newer CLIs must keep reading older ones, or say clearly that they can't (solutions from cleanslices 0.2 with a pattern branch are the one case it can't).
 
 ## Phases
 
@@ -147,8 +162,8 @@ Each phase ends with something usable. The order is a proposal.
 | Phase | What | Proves |
 |---|---|---|
 | 0, done | Patterns as git branches; `result` | Composing and merging options into existing code |
-| 1 | **Base template changes** ([backlog](docs/roadmap/base-template.md)): test projects (done), ordered save pipeline and domain events before the save (done), pagination (done), Aspire-managed database (done) | A better default solution, and the save pipeline options plug into |
-| 2 | **Conditionals**: move `result` from its branch to template conditionals; catalog and resolver in the CLI | One mechanism; requires / provides / conflicts / groups / choices |
+| 1, done | **Base template changes** ([backlog](docs/roadmap/base-template.md)): test projects, ordered save pipeline and domain events before the save, pagination, Aspire-managed database | A better default solution, and the save pipeline options plug into |
+| 2, done | **Conditionals**: `result` moved from its branch to template conditionals (identical output, checked against the branch); catalog, schema and resolver in the CLI; `new --with`, `add <option>`, `list`; manifest format 2 | One mechanism; requires / provides / conflicts / groups / choices |
 | 3 | **CI matrix** | Combinations stay working |
 | 4 | **Outbox, inbox, integration events** | Seams with defaults and hidden units |
 | 5 | **PostgreSQL** | Provider-neutral code |
@@ -173,8 +188,9 @@ Parked: discussed or proposed, deliberately not now.
 
 Open questions:
 
-- **Removing an option.** Today options can only be added. Is removal a goal?
-- **Upgrades.** Can a solution move to a newer template commit, and what happens to its options?
-- **Interactive UX.** With many options, the prompts need grouping by concept, sensible defaults, and follow-up questions for choices.
+- **Removing an option.** Today options can only be added. Is removal a goal? If so, the resolver's requirement rules answer what happens to dependents (removing the outbox orphans the inbox: refuse, or offer to remove it too), and `addedBy` says which automatic units can go.
+- **Changing a choice** of an applied option (CQRS `handlers` → `mediator`). Rejected today.
+- **Upgrades.** Can a solution move to a newer template commit, and what happens to its options? Solutions from before the catalog can only get options this way.
+- **Interactive UX.** The prompts are grouped by concept, with follow-up questions for choices and requirements; revisit once the catalog has a few dozen options (search, presets?).
 
 To verify before the docs for users are written: MediatR's and MassTransit's current license terms, and whether `HybridCache` skips the in-memory `IDistributedCache` as its second level.

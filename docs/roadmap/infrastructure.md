@@ -24,6 +24,8 @@ An infrastructure option picks *which product* sits behind a seam. Options are o
 
 **Feature template.** No change.
 
+**Samples.** *Proposed:* with PostgreSQL, the case-insensitive collation on `User.Email`, in its own model rule.
+
 **Trade-offs to document.**
 
 - Case sensitivity: the option makes `Email` case-insensitive, but other text the user makes unique, or compares, is case-sensitive on PostgreSQL. The docs show the same collation for their own columns.
@@ -53,6 +55,8 @@ An infrastructure option picks *which product* sits behind a seam. Options are o
 
 **Feature template.** No change.
 
+**Samples.** *Proposed:* the sample integration event goes through the broker, which the AppHost runs.
+
 **Trade-offs to document.** Without the outbox, an event is lost if the broker is down at the moment of sending. Integration events are public contracts: add fields, never rename or remove them.
 
 ## Cache
@@ -66,6 +70,8 @@ An infrastructure option picks *which product* sits behind a seam. Options are o
 - Aspire: `AddRedis("cache")`; the client is the Aspire StackExchange.Redis distributed-cache integration.
 
 **Feature template.** Caches nothing. Caching is a per-endpoint decision. The docs show reading through `HybridCache` with tags (`widget:{id}`, `widgets`) and invalidating from domain event handlers (`WidgetUpdated`, `WidgetDeleted`), which run in the same request.
+
+**Samples.** *Proposed:* `GetUserById` and the user list read through `HybridCache` with tags, invalidated from the user domain event handlers.
 
 **Trade-offs to document.** Redis changed its license in 2024 and added an AGPL option in 2025. The container is fine for development; the production choice is the user's. Valkey and Garnet speak the same protocol, are open source and supported by Aspire; only the AppHost line changes. Cache keys for per-user data must include the user ID.
 
@@ -84,9 +90,11 @@ An infrastructure option picks *which product* sits behind a seam. Options are o
 - Each option provides `ICurrentUser` from the claims, replacing the anonymous default of the [`current-user`](hidden-units.md#current-user) hidden unit.
 - Secure by default: a fallback policy requires an authenticated user on every endpoint. Health checks and the OpenAPI document opt out with `.AllowAnonymous()`. Roles and permissions are left to the user; the docs show a policy.
 - Each option describes its login fully in the OpenAPI document (OAuth2 flows for Keycloak and Entra ID, bearer for Identity), so the API reference UI can log in with no glue.
-- `--samples` is rejected with an authentication option: the sample `User` entity is a domain user, not a login account.
+- **Open (phase 7): the samples with authentication.** The sample `User` is a domain user, not a login account. Instead of rejecting `--samples`, design the link: the sample `User` as the profile of the authenticated user, matched by `ICurrentUser.UserId`.
 
 **Feature template.** No change; the fallback policy protects new endpoints.
+
+**Samples.** Open, see above. The sample endpoints are protected like any other, and the sample tests log in with the option's test user.
 
 **Interactions.** Idempotency keys become per user; audit and logging record the user; realtime targets users.
 
@@ -103,6 +111,8 @@ An infrastructure option picks *which product* sits behind a seam. Options are o
 - Several instances: one instance by default. With Redis selected, SignalR's Redis backplane is added as a **glue unit** (realtime × Redis). Azure SignalR Service may come later as a sub-option.
 
 **Feature template.** No change. The docs show a domain event handler notifying a user, for example "you were assigned to a task".
+
+**Samples.** *Proposed:* the assignee is notified when a task is assigned (targeting a user needs an authentication option; without one, a group per task).
 
 **Trade-offs to document.**
 
