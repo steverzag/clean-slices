@@ -1,4 +1,7 @@
 using CleanSlices.Api.Configuration.Endpoints;
+#if (result)
+using CleanSlices.Api.Extensions;
+#endif
 using CleanSlices.Infrastructure.Persistence;
 
 namespace CleanSlices.Api.Features.Users;
@@ -10,7 +13,11 @@ public class DeleteUser : IEndpoint
 		var user = await context.Users.FindAsync([id], cancellationToken);
 		if (user is null)
 		{
+#if (result)
+			return UserErrors.NotFound(id).ToProblem();
+#else
 			throw UserErrors.NotFound(id);
+#endif
 		}
 
 		user.Delete();

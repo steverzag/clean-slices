@@ -32,6 +32,12 @@
       "defaultValue": "false",
       "description": "Include the sample Tasks/Users features (domain, endpoints, EF configuration, event handlers)."
     },
+    "result": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "Result<T> pattern: domain methods return Result / Result<T> instead of throwing for expected failures."
+    },
     "aspireProjectsPrefix": {
       "type": "derived",
       "valueSource": "name",
@@ -86,6 +92,21 @@
             "tests/CleanSlices.Core.Tests/Domain/Users/**",
             "tests/CleanSlices.Api.Tests/Features/Tasks/**",
             "tests/CleanSlices.Api.Tests/Features/Users/**"
+          ]
+        },
+        {
+          "condition": "(!result)",
+          "exclude": [
+            "src/CleanSlices.Api/Extensions/ResultExtensions.cs",
+            "src/CleanSlices.Core/Shared/Error.cs",
+            "src/CleanSlices.Core/Shared/Result.cs",
+            "tests/CleanSlices.Core.Tests/ResultAssertions.cs"
+          ]
+        },
+        {
+          "condition": "(result)",
+          "exclude": [
+            "src/CleanSlices.Core/Shared/Exceptions.cs"
           ]
         }
       ]

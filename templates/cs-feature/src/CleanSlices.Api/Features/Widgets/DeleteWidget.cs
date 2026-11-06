@@ -1,4 +1,7 @@
 using CleanSlices.Api.Configuration.Endpoints;
+#if (result)
+using CleanSlices.Api.Extensions;
+#endif
 using CleanSlices.Core.Domain.Widgets;
 using CleanSlices.Infrastructure.Persistence;
 
@@ -11,7 +14,11 @@ public class DeleteWidget : IEndpoint
 		var entity = await context.Set<Widget>().FindAsync([id], cancellationToken);
 		if (entity is null)
 		{
+#if (result)
+			return WidgetErrors.NotFound(id).ToProblem();
+#else
 			throw WidgetErrors.NotFound(id);
+#endif
 		}
 
 		entity.Delete();

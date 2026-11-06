@@ -18,6 +18,53 @@ public class User : Entity
 		Email = email;
 	}
 
+#if (result)
+	public static Result<User> Create(string name, string email)
+	{
+		var errors = new[] { ValidateName(name), ValidateEmail(email) }
+			.OfType<FieldError>()
+			.ToList();
+
+		if (errors.TryGetValidationError(out var validationError))
+		{
+			return Result.Failure<User>(validationError!);
+		}
+
+		var user = new User(name, email);
+		user.Raise(new UserCreatedDomainEvent(user.Id));
+		return user;
+	}
+
+	public Result UpdateName(string name)
+	{
+		var errors = new[] { ValidateName(name) }
+			.OfType<FieldError>()
+			.ToList();
+
+		if (errors.TryGetValidationError(out var validationError))
+		{
+			return Result.Failure(validationError!);
+		}
+
+		Name = name;
+		return Result.Success();
+	}
+
+	public Result UpdateEmail(string email)
+	{
+		var errors = new[] { ValidateEmail(email) }
+			.OfType<FieldError>()
+			.ToList();
+
+		if (errors.TryGetValidationError(out var validationError))
+		{
+			return Result.Failure(validationError!);
+		}
+
+		Email = email;
+		return Result.Success();
+	}
+#else
 	public static User Create(string name, string email)
 	{
 		DomainValidationException.ThrowIfAny(ValidateName(name), ValidateEmail(email));
@@ -38,6 +85,7 @@ public class User : Entity
 		DomainValidationException.ThrowIfAny(ValidateEmail(email));
 		Email = email;
 	}
+#endif
 
 	public void Delete()
 	{

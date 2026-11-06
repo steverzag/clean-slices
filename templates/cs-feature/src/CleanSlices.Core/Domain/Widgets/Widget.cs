@@ -15,6 +15,38 @@ public class Widget : Entity
 		Name = name;
 	}
 
+#if (result)
+	public static Result<Widget> Create(string name)
+	{
+		var errors = new[] { ValidateName(name) }
+			.OfType<FieldError>()
+			.ToList();
+
+		if (errors.TryGetValidationError(out var validationError))
+		{
+			return Result.Failure<Widget>(validationError!);
+		}
+
+		var entity = new Widget(name);
+		entity.Raise(new WidgetCreatedDomainEvent(entity.Id));
+		return Result.Success(entity);
+	}
+
+	public Result UpdateName(string name)
+	{
+		var errors = new[] { ValidateName(name) }
+			.OfType<FieldError>()
+			.ToList();
+
+		if (errors.TryGetValidationError(out var validationError))
+		{
+			return Result.Failure(validationError!);
+		}
+
+		Name = name;
+		return Result.Success();
+	}
+#else
 	public static Widget Create(string name)
 	{
 		DomainValidationException.ThrowIfAny(ValidateName(name));
@@ -29,6 +61,7 @@ public class Widget : Entity
 		DomainValidationException.ThrowIfAny(ValidateName(name));
 		Name = name;
 	}
+#endif
 
 	public void Delete()
 	{

@@ -1,4 +1,7 @@
 using CleanSlices.Api.Configuration.Endpoints;
+#if (result)
+using CleanSlices.Api.Extensions;
+#endif
 using CleanSlices.Infrastructure.Persistence;
 
 namespace CleanSlices.Api.Features.Tasks;
@@ -10,7 +13,11 @@ public class DeleteTaskItem : IEndpoint
 		var task = await context.Tasks.FindAsync([id], cancellationToken);
 		if (task is null)
 		{
+#if (result)
+			return TaskItemErrors.NotFound(id).ToProblem();
+#else
 			throw TaskItemErrors.NotFound(id);
+#endif
 		}
 
 		task.Delete();

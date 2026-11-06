@@ -1,3 +1,4 @@
+#if (!result)
 namespace CleanSlices.Core.Shared;
 
 public abstract class DomainException(string code, string message) : Exception(message)
@@ -29,3 +30,4 @@ public sealed class BusinessRuleException(string code, string message) : DomainE
 public sealed class NotFoundException(string code, string message) : DomainException(code, message);
 
 public sealed class ConflictException(string code, string message) : DomainException(code, message);
+#endif

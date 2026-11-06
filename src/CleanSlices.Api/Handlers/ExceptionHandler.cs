@@ -1,5 +1,7 @@
 ﻿using CleanSlices.Api.Configuration;
+#if (!result)
 using CleanSlices.Core.Shared;
+#endif
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,6 +11,7 @@ public class ExceptionHandler(ILogger<ExceptionHandler> logger, IProblemDetailsS
 {
 	public async ValueTask<bool> TryHandleAsync(HttpContext httpContext, Exception exception, CancellationToken cancellationToken)
 	{
+#if (!result)
 		if (exception is DomainException domainException)
 		{
 			// Expected failures (validation, not found, conflict...): not an error from the server's point of view.
@@ -18,6 +21,7 @@ public class ExceptionHandler(ILogger<ExceptionHandler> logger, IProblemDetailsS
 			return await WriteAsync(httpContext, exception, ToProblemDetails(domainException));
 		}
 
+#endif
 		if (exception is BadHttpRequestException badHttpRequestException)
 		{
 			logger.LogWarning(exception, "Malformed request for {Method} {Path}",
@@ -43,6 +47,7 @@ public class ExceptionHandler(ILogger<ExceptionHandler> logger, IProblemDetailsS
 			Type = ProblemDetailsDefaults.RFC500Type
 		});
 	}
+#if (!result)
 
 	private static ProblemDetails ToProblemDetails(DomainException exception)
 	{
@@ -65,6 +70,7 @@ public class ExceptionHandler(ILogger<ExceptionHandler> logger, IProblemDetailsS
 
 		return problemDetails;
 	}
+#endif
 
 	private ValueTask<bool> WriteAsync(HttpContext httpContext, Exception exception, ProblemDetails problemDetails)
 	{

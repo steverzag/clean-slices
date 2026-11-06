@@ -46,6 +46,12 @@
       "replaces": "Widgets",
       "fileRename": "Widgets"
     },
+    "result": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "The solution uses the Result<T> pattern: the entity returns results and the endpoints compose them."
+    },
     "route": {
       "type": "derived",
       "valueSource": "pluralName",

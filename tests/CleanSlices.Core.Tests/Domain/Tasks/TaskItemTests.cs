@@ -1,5 +1,7 @@
 using CleanSlices.Core.Domain.Tasks;
+#if (!result)
 using CleanSlices.Core.Shared;
+#endif
 
 namespace CleanSlices.Core.Tests.Domain.Tasks;
 
@@ -8,7 +10,11 @@ public class TaskItemTests
 	[Fact]
 	public void Create_with_valid_input_starts_not_started_and_raises_created()
 	{
+#if (result)
+		var task = CreateTask();
+#else
 		var task = TaskItem.Create("Write tests", "Cover the domain");
+#endif
 
 		Assert.Equal(TaskItemStatus.NotStarted, task.Status);
 		Assert.Null(task.CompletedOn);
@@ -18,16 +24,27 @@ public class TaskItemTests
 	[Fact]
 	public void Create_reports_every_invalid_field()
 	{
+#if (result)
+		var errors = TaskItem.Create(" ", "").ShouldFailValidation();
+
+		Assert.Contains(errors, error => error.Field == nameof(TaskItem.Title));
+		Assert.Contains(errors, error => error.Field == nameof(TaskItem.Description));
+#else
 		var exception = Assert.Throws<DomainValidationException>(() => TaskItem.Create(" ", ""));
 
 		Assert.Contains(exception.Errors, error => error.Field == nameof(TaskItem.Title));
 		Assert.Contains(exception.Errors, error => error.Field == nameof(TaskItem.Description));
+#endif
 	}
 
 	[Fact]
 	public void Complete_sets_the_date_and_raises_completed_once()
 	{
+#if (result)
+		var task = CreateTask();
+#else
 		var task = TaskItem.Create("Write tests", "Cover the domain");
+#endif
 		task.ClearDomainEvents();
 
 		task.Complete();
@@ -41,7 +58,11 @@ public class TaskItemTests
 	[Fact]
 	public void Moving_back_from_completed_clears_the_date()
 	{
+#if (result)
+		var task = CreateTask();
+#else
 		var task = TaskItem.Create("Write tests", "Cover the domain");
+#endif
 		task.Complete();
 
 		task.MakeInProgress();
@@ -50,6 +71,44 @@ public class TaskItemTests
 		Assert.Null(task.CompletedOn);
 	}
 
+#if (result)
+	[Fact]
+	public void AssignUser_adds_the_user_once()
+	{
+		var task = CreateTask();
+		var userId = Guid.CreateVersion7();
+
+		task.AssignUser(userId).ShouldSucceed();
+		task.AssignUser(userId).ShouldSucceed();
+
+		Assert.Equal(userId, Assert.Single(task.UserIds));
+	}
+
+	[Fact]
+	public void UnassignUser_removes_only_that_user()
+	{
+		var task = CreateTask();
+		var ana = Guid.CreateVersion7();
+		var luis = Guid.CreateVersion7();
+		task.ApplyUsers([ana, luis]).ShouldSucceed();
+
+		task.UnassignUser(ana).ShouldSucceed();
+
+		Assert.Equal(luis, Assert.Single(task.UserIds));
+	}
+
+	[Fact]
+	public void ApplyUsers_with_an_empty_id_changes_nothing()
+	{
+		var task = CreateTask();
+		var ana = Guid.CreateVersion7();
+		task.AssignUser(ana).ShouldSucceed();
+
+		task.ApplyUsers([ana, Guid.Empty]).ShouldFailValidation();
+
+		Assert.Equal(ana, Assert.Single(task.UserIds));
+	}
+#else
 	[Fact]
 	public void AssignUser_adds_the_user_once()
 	{
@@ -86,4 +145,10 @@ public class TaskItemTests
 
 		Assert.Equal(ana, Assert.Single(task.UserIds));
 	}
+#endif
+#if (result)
+
+	private static TaskItem CreateTask() =>
+		TaskItem.Create("Write tests", "Cover the domain").ShouldSucceedWithValue();
+#endif
 }

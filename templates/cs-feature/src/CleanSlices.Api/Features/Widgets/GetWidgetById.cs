@@ -1,4 +1,7 @@
 using CleanSlices.Api.Configuration.Endpoints;
+#if (result)
+using CleanSlices.Api.Extensions;
+#endif
 using CleanSlices.Core.Domain.Widgets;
 using CleanSlices.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -18,7 +21,11 @@ public class GetWidgetById : IEndpoint
 			.FirstOrDefaultAsync(cancellationToken);
 
 		return entity is null
+#if (result)
+			? WidgetErrors.NotFound(id).ToProblem()
+#else
 			? throw WidgetErrors.NotFound(id)
+#endif
 			: Results.Ok(entity);
 	}
 

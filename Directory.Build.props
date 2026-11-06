@@ -7,4 +7,16 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
   </PropertyGroup>
+  <!--#if (false)-->
+  <!--
+    Template repository only (removed from generated solutions).
+    Option code is guarded by `#if (<option>)`. Build or test a variant by passing its options
+    as compiler symbols, e.g. -p:TemplateOptions=result (see CONTRIBUTING.md).
+    Separate several options with %3B: a plain comma or semicolon splits the -p value.
+    The sample features are always compiled here, so `samples` is always defined.
+  -->
+  <PropertyGroup>
+    <DefineConstants>$(DefineConstants);samples;$(TemplateOptions)</DefineConstants>
+  </PropertyGroup>
+  <!--#endif-->
 </Project>
