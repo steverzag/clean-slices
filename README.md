@@ -197,7 +197,7 @@ dotnet ef migrations add <Name> --project src/CleanSlices.Infrastructure
 dotnet ef database update --project src/CleanSlices.Infrastructure
 ```
 
-Migrations are in `src/CleanSlices.Infrastructure/Persistence/Migrations`. `.editorconfig` marks them as generated code, so the code-style rules don't apply to them.
+`dotnet ef` writes migrations to `src/CleanSlices.Infrastructure/Migrations`, EF's default folder. A new solution has none: the template doesn't ship migrations, because they depend on the database provider, so the first `migrations add` creates the folder. `.editorconfig` marks them as generated code, so the code-style rules don't apply to them.
 
 ### Run
 

@@ -74,7 +74,7 @@ The AppHost adds SQL Server (`AddSqlServer(...).AddDatabase("Database")`), so `d
 
 ### Smaller items
 
-- The README says migrations are in `Infrastructure/Persistence/Migrations`; the tracked ones are in `Infrastructure/Migrations`, the path `template.json` excludes.
+- **Done.** The README pointed to `Infrastructure/Persistence/Migrations`; migrations are in `Infrastructure/Migrations`, the path `template.json` excludes. The README now also says new solutions start without migrations.
 - Browser clients on another domain (for example with realtime) need CORS with credentials. Decide whether the base template configures it.
 
 ## CLI
