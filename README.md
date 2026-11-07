@@ -28,7 +28,10 @@ The options the solution was created with, each with its own documentation:
 <!--#if (inbox)-->
 - **Inbox**: each integration event handler runs once per event, even when it's delivered again. See [docs/inbox.md](docs/inbox.md).
 <!--#endif-->
-<!--#if (!samples && !result && !outbox && !inbox)-->
+<!--#if (postgresql)-->
+- **PostgreSQL** instead of SQL Server, with snake_case names. See [docs/database.md](docs/database.md).
+<!--#endif-->
+<!--#if (!samples && !result && !outbox && !inbox && !postgresql)-->
 - None: this is the default setup. Options can be added later with the CLI.
 <!--#endif-->
 
@@ -36,7 +39,11 @@ The options the solution was created with, each with its own documentation:
 
 - .NET 10 / C# 14 (extension blocks)
 - ASP.NET Core Minimal APIs, ProblemDetails, OpenAPI
+<!--#if (postgresql)-->
+- EF Core 10 + PostgreSQL (Npgsql)
+<!--#else-->
 - EF Core 10 + SQL Server
+<!--#endif-->
 - .NET Aspire 13 (AppHost + ServiceDefaults: OpenTelemetry, health checks, resilience)
 - Central Package Management
 
@@ -48,7 +55,7 @@ Directory.Build.props        shared build settings (net10.0, nullable, warnings 
 Directory.Packages.props     central package versions + transitive security pins
 global.json                  opts `dotnet test` in to Microsoft.Testing.Platform
 aspire/
-  CleanSlices.AppHost        Aspire orchestrator (runs SQL Server, the API, dashboard)
+  CleanSlices.AppHost        Aspire orchestrator (runs the database, the API, dashboard)
   CleanSlices.ServiceDefaults OpenTelemetry, health checks, service discovery, resilience
 src/
   CleanSlices.Core           domain: entities, domain events, domain errors
@@ -56,7 +63,7 @@ src/
   CleanSlices.Api            endpoints (vertical slices), error mapping
 tests/
   CleanSlices.Core.Tests     unit tests: entities, validators
-  CleanSlices.Api.Tests      integration tests: HTTP calls against the API and a real SQL Server
+  CleanSlices.Api.Tests      integration tests: HTTP calls against the API and a real database
 ```
 
 Dependencies point inwards: `Api → Infrastructure → Core`. Core has no package references.
@@ -126,7 +133,11 @@ Conventions:
   - **Handlers never call `SaveChanges`.** They only change tracked entities; the pipeline throws if a handler saves.
   - Handlers don't reach outside the app (emails, other services): a later failure would undo the data but not the email.
 - **Event handlers** (`EventHandlers/<Area>/`) implement `INotificationHandler<T>`. They are found by scanning the assembly and registered with `TryAddEnumerable`, so one event can have several handlers. A new feature gets logging handlers for its created and deleted events.
+<!--#if (postgresql)-->
+- **`EnrichNpgsqlDbContext`** (from Aspire) adds connection retries, a health check, tracing and metrics to the DbContext.
+<!--#else-->
 - **`EnrichSqlServerDbContext`** (from Aspire) adds connection retries, a health check, tracing and metrics to the DbContext.
+<!--#endif-->
 
 ## Endpoints
 
@@ -147,49 +158,16 @@ In Development the OpenAPI document is served at `/openapi/v1.json`, and `src/Cl
 ### Prerequisites
 
 - .NET 10 SDK
-- Docker (Docker Desktop or Podman): for SQL Server when you run the AppHost, and for the integration tests. Not needed for the AppHost if you use an existing server (below).
+- Docker (Docker Desktop or Podman): for the database when you run the AppHost, and for the integration tests. Not needed for the AppHost if you use an existing server (see [docs/database.md](docs/database.md)).
 - The EF Core CLI: `dotnet tool install -g dotnet-ef`, or `dotnet tool update -g dotnet-ef` to upgrade it
 
 ### Database
 
-The connection string is called `Database`. Where the database comes from depends on how you run the API.
-
-**With the AppHost (default): SQL Server in a container.** `dotnet run --project aspire/CleanSlices.AppHost` starts SQL Server and passes its connection string to the API.
-
-- It listens on `127.0.0.1,14330` (the port is fixed in `AppHost.cs`), and the database is called `CleanSlices`. Use `127.0.0.1`, not `localhost`: Aspire forwards the port only on IPv4, and `localhost` makes the SQL Server client try IPv6 first and fail. If another solution already uses port 14330, change the port in `AppHost.cs`.
-- The `sa` password is generated on the first run and kept in the AppHost's user secrets, as `Parameters:cleanslices-sql-password`.
-- A Docker volume keeps the data between runs.
-
-**With the AppHost and an existing server.** Set the connection string in the AppHost's user secrets; the AppHost then uses that server and starts no container:
-
-```powershell
-dotnet user-secrets set "ConnectionStrings:Database" "Server=localhost;Database=CleanSlices;Trusted_Connection=True;TrustServerCertificate=True" --project aspire/CleanSlices.AppHost
-```
-
-**The API on its own** (`dotnet run --project src/CleanSlices.Api`) reads `ConnectionStrings:Database` from its `appsettings.json`, which points to a local SQL Server with Windows authentication.
-
-### Migrations
-
-Migrations are **never applied on startup**. You create and apply them yourself with the EF CLI; a new container starts with an empty database.
-
-`dotnet ef` builds the DbContext through `AppDbContextFactory`. That factory reads the `ConnectionStrings__Database` environment variable, **not** appsettings. Set the variable to the database you want to change. For the container, take the password from the AppHost's user secrets (the AppHost must have run once):
-
-```powershell
-$password = (dotnet user-secrets list --project aspire/CleanSlices.AppHost |
-  Select-String '^Parameters:cleanslices-sql-password = (.+)$').Matches.Groups[1].Value
-$env:ConnectionStrings__Database = "Server=127.0.0.1,14330;Database=CleanSlices;User ID=sa;Password=$password;TrustServerCertificate=True"
-
-dotnet ef migrations add <Name> --project src/CleanSlices.Infrastructure
-dotnet ef database update --project src/CleanSlices.Infrastructure
-```
-
-For a local server, use its connection string instead, for example the one in `appsettings.json`.
-
-`dotnet ef` writes migrations to `src/CleanSlices.Infrastructure/Migrations`, EF's default folder. A new solution has none: the template doesn't ship migrations, because they depend on the database provider, so the first `migrations add` creates the folder. `.editorconfig` marks them as generated code, so the code-style rules don't apply to them.
+The connection string is called `Database`. With the AppHost, the database runs in a container, or the AppHost uses an existing server you configure. Migrations are never applied on startup: you create and apply them with the EF CLI. Both are described in [docs/database.md](docs/database.md).
 
 ### Run
 
-With Aspire (SQL Server in a container, dashboard, traces, metrics, logs):
+With Aspire (the database in a container, dashboard, traces, metrics, logs):
 
 ```
 dotnet run --project aspire/CleanSlices.AppHost
@@ -210,7 +188,7 @@ dotnet test
 ```
 
 - **`CleanSlices.Core.Tests`** are unit tests for the entities and validators. They need nothing else.
-- **`CleanSlices.Api.Tests`** call the API over HTTP. The API runs in memory (`WebApplicationFactory`) against a real SQL Server that Testcontainers starts in Docker, once for the whole run. The schema is created from the model with `EnsureCreated()`, so the tests don't depend on migrations. Each test creates its own data, so the database is never reset.
+- **`CleanSlices.Api.Tests`** call the API over HTTP. The API runs in memory (`WebApplicationFactory`) against a real database that Testcontainers starts in Docker, once for the whole run. The schema is created from the model with `EnsureCreated()`, so the tests don't depend on migrations. Each test creates its own data, so the database is never reset.
 
 The tests use xUnit v3 on Microsoft.Testing.Platform, which `global.json` turns on for `dotnet test`. Adding a feature with the CLI also generates tests for the new slice in both projects.
 

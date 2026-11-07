@@ -19,6 +19,9 @@ Use them as a reference for your own features, then delete them when you no long
 - **Type configurations** hold only what EF can't work out by convention:
   - maximum lengths, which reuse the domain constants (`TaskItem.TitleMaxLength`, ...)
   - a unique index on `User.Email`
+<!--#if (postgresql)-->
+  - with PostgreSQL, a case-insensitive collation on `User.Email`, so the index ignores case as on SQL Server: the model rule `UserEmailCollationRule` (see [database.md](database.md))
+<!--#endif-->
   - the composite key and the `UserId` index on assignments
 
   EF already finds backing fields and foreign keys on its own, so there is no `ToTable`, `Navigation` or `HasMany` for those.

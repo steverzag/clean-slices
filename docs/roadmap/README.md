@@ -22,10 +22,10 @@ Changes to `main` that improve the default solution on their own: [base-template
 | Pattern | [Idempotency keys](patterns.md#idempotency-keys) | – | designed |
 | Pattern | [Request validation](patterns.md#request-validation) | – | designed (FluentValidation) |
 | Hidden unit | [Current user](hidden-units.md#current-user) | – | designed |
-| Hidden unit | [Model rules](hidden-units.md#model-rules) | – | designed |
+| Hidden unit | [Model rules](hidden-units.md#model-rules) | – | **done** (phase 5, for PostgreSQL) |
 | Hidden unit | [Cache](hidden-units.md#cache) | – | designed |
 | Hidden unit | [Integration events](hidden-units.md#integration-events) | – | **done** (without the after-commit publisher, see its page) |
-| Infrastructure | [SQL Server](infrastructure.md#database), [PostgreSQL](infrastructure.md#database) | group `database` | SQL Server is the default |
+| Infrastructure | [SQL Server](infrastructure.md#database), [PostgreSQL](infrastructure.md#database) | group `database` (required) | **done**; SQL Server is the default |
 | Infrastructure | [RabbitMQ, Azure Service Bus](infrastructure.md#queue) | group `queue` | designed |
 | Infrastructure | [Redis](infrastructure.md#cache) | group `cache` | designed |
 | Infrastructure | [Keycloak, Entra ID, ASP.NET Core Identity](infrastructure.md#authentication) | group `auth` | designed |

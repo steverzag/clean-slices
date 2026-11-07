@@ -31,7 +31,11 @@ All optional, in `appsettings.json`:
 
 ## The table
 
+<!--#if (postgresql)-->
+The table, `outbox_messages`, is created by your migrations, like every other table:
+<!--#else-->
 `OutboxMessages` is created by your migrations, like every other table:
+<!--#endif-->
 
 ```powershell
 dotnet ef migrations add AddOutbox --project src/CleanSlices.Infrastructure
@@ -41,9 +45,15 @@ Until it exists, every save that publishes an event fails (and with it the reque
 
 Failed rows stay in the table, with the last error:
 
+<!--#if (postgresql)-->
+```sql
+SELECT id, name, attempts, last_error, created_at FROM outbox_messages WHERE failed_at IS NOT NULL ORDER BY created_at;
+```
+<!--#else-->
 ```sql
 SELECT Id, Name, Attempts, LastError, CreatedAt FROM OutboxMessages WHERE FailedAt IS NOT NULL ORDER BY CreatedAt;
 ```
+<!--#endif-->
 
 To retry one after fixing the cause, clear `FailedAt` and `NextAttemptAt` and set `Attempts` to 0.
 

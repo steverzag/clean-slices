@@ -158,16 +158,19 @@
           "exclude": [
             "src/CleanSlices.Infrastructure/Persistence/PostgreSql/**",
             "src/CleanSlices.Infrastructure/Persistence/Configuration/UserEmailCollationRule.cs",
-            "src/CleanSlices.Api/appsettings.postgresql.json"
+            "src/CleanSlices.Api/appsettings.postgresql.json",
+            "docs/database.postgresql.md"
           ]
         },
         {
           "condition": "(postgresql)",
           "exclude": [
-            "src/CleanSlices.Api/appsettings.json"
+            "src/CleanSlices.Api/appsettings.json",
+            "docs/database.md"
           ],
           "rename": {
-            "src/CleanSlices.Api/appsettings.postgresql.json": "src/CleanSlices.Api/appsettings.json"
+            "src/CleanSlices.Api/appsettings.postgresql.json": "src/CleanSlices.Api/appsettings.json",
+            "docs/database.postgresql.md": "docs/database.md"
           }
         },
         {

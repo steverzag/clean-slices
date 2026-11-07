@@ -6,30 +6,40 @@ An infrastructure option picks *which product* sits behind a seam. Options are o
 
 ## Database
 
-**Options.** SQL Server (default) and PostgreSQL. SQLite is left out: EF Core can't sort or compare `DateTimeOffset` on SQLite, and its schema changes are limited. Tests use the real provider instead.
+**Options.** SQL Server (default) and PostgreSQL, in the required group `database`. SQLite is left out: EF Core can't sort or compare `DateTimeOffset` on SQLite, and its schema changes are limited. Tests use the real provider instead.
 
-**Design.** The provider appears in four places, each a small conditional:
+**Built (phase 5).** Documented for users in `docs/database.md`, which has a whole-file PostgreSQL variant.
+
+**Design.** SQL Server is the plain side of every conditional: `#if (postgresql)` *Npgsql* `#else` *SQL Server* `#endif`. The `sqlserver` symbol exists (every unit has one) but no code uses it.
 
 | Place | SQL Server | PostgreSQL |
 |---|---|---|
-| `InfrastructureRegistration` | `UseSqlServer` + `EnrichSqlServerDbContext` | `UseNpgsql` + `EnrichNpgsqlDbContext` |
-| `AppDbContextFactory` | `UseSqlServer` and its fallback connection string | `UseNpgsql` and its fallback connection string |
-| Packages | EF Core SQL Server, Aspire SQL Server | Npgsql EF Core, Aspire Npgsql |
-| AppHost | `AddSqlServer(...).AddDatabase("Database")` | `AddPostgres(...).AddDatabase("Database")` |
+| `InfrastructureRegistration` | `UseSqlServer` + `EnrichSqlServerDbContext` | `UseNpgsql` + `UseSnakeCaseNamingConvention` + `EnrichNpgsqlDbContext` |
+| `AppDbContextFactory` | `UseSqlServer`, Windows-auth fallback | `UseNpgsql` + snake_case, `postgres`/`postgres` fallback |
+| Packages (`Directory.Packages.props`, 3 `.csproj`, XML conditionals) | EF Core SQL Server, Aspire SQL Server (client, hosting), Testcontainers.MsSql | Npgsql EF Core, EFCore.NamingConventions, Aspire Npgsql (client, hosting), Testcontainers.PostgreSql, and a pin of `Microsoft.EntityFrameworkCore.Relational` |
+| AppHost | `AddSqlServer("…-sql", port: 14330)` | `AddPostgres("…-postgres", port: 15432)`, database `cleanslices` |
+| `appsettings.json` | local SQL Server | whole-file variant `appsettings.postgresql.json`, renamed in (JSON conditionals don't work: the template engine can't uncomment, and the repo's JSON would be invalid) |
+| API tests | MsSql container | PostgreSQL container, Npgsql connection string builder |
 
 - The database is called `Database` with both, so the API's connection string name doesn't change.
-- PostgreSQL uses `snake_case` table and column names (`EFCore.NamingConventions`).
-- Type configurations stay provider-neutral (rule 8): no `HasColumnType`.
-- **Case-insensitive email.** SQL Server's default collation ignores case, so a second user with `ana@x.com` after `Ana@X.com` gets a 409; PostgreSQL compares with case and would accept it. The PostgreSQL option gives `User.Email` a case-insensitive ICU collation in its own model rule, so it behaves like SQL Server (rule 7) without changing the domain. The provider-specific line lives in the option, not in the shared type configuration. The test `Create_with_an_email_in_use_ignoring_case_returns_409` fails until this is in place.
+- **snake_case everywhere.** `UseSnakeCaseNamingConvention` renames columns, keys, indexes and conventional table names, but keeps names set with `ToTable(...)`. The model rule `SnakeCaseTableNames` renames those too, so type configurations stay provider-neutral (`ToTable("OutboxMessages")` becomes `outbox_messages`) and features added later are covered.
+- **Case-insensitive email** (rule 7: same behaviour as SQL Server). The model rule `CaseInsensitiveCollation` defines an ICU collation that ignores case but not accents; the sample rule `UserEmailCollationRule` gives it to `User.Email`. The shared type configuration doesn't change. The test `Create_with_an_email_in_use_ignoring_case_returns_409` passes on both providers.
+- PostgreSQL requires the [model rules](hidden-units.md#model-rules) hidden unit, built for it in phase 5.
+- **The Relational pin.** Npgsql depends on an older `Microsoft.EntityFrameworkCore.Relational` than the EF Core version the template pins, and a PostgreSQL-only solution failed at startup. The repository build didn't show it: it references both providers, and the SQL Server package pulled the newer version in. Package resolution is only tested in generated solutions.
+- Type configurations stay provider-neutral (rule 8): no `HasColumnType`. The outbox claim and `ExecuteUpdate` / `ExecuteDelete` translate on both.
 
-**Feature template.** No change.
+**Feature template.** No change. A feature's `ToTable("Products")` becomes `products` on PostgreSQL through the model rule.
 
-**Samples.** *Proposed:* with PostgreSQL, the case-insensitive collation on `User.Email`, in its own model rule.
+**Samples.** With PostgreSQL, `User.Email` is case-insensitive through `UserEmailCollationRule`.
 
-**Trade-offs to document.**
+**Replacing SQL Server** (`cleanslices add postgresql` on an existing solution): the code is merged like any option, and the CLI reminds the user to recreate migrations. Data isn't moved; `docs/database.md` says so and points to tools such as pgloader.
 
-- Case sensitivity: the option makes `Email` case-insensitive, but other text the user makes unique, or compares, is case-sensitive on PostgreSQL. The docs show the same collation for their own columns.
+**Trade-offs to document** (in `docs/database.md`):
+
+- Case sensitivity: only what a rule gives the collation ignores case. The docs show a rule for the user's own columns.
+- PostgreSQL can't use `LIKE` (`Contains`, `StartsWith`) on a column with a nondeterministic collation.
 - Npgsql stores `DateTimeOffset` as `timestamptz` and accepts only UTC. Times are always UTC.
+- No pgAdmin by default; `docs/database.md` shows `.WithPgAdmin()`.
 
 ## Queue
 

@@ -17,7 +17,11 @@ The guarantee covers what the handler saves through `AppDbContext`. An email sen
 
 ## The table
 
+<!--#if (postgresql)-->
+The table, `processed_messages`, is created by your migrations:
+<!--#else-->
 `ProcessedMessages` is created by your migrations:
+<!--#endif-->
 
 ```powershell
 dotnet ef migrations add AddInbox --project src/CleanSlices.Infrastructure
