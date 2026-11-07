@@ -50,6 +50,12 @@
       "defaultValue": "false",
       "description": "Outbox pattern: integration events are stored with the data and delivered by a background processor, with retries."
     },
+    "inbox": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "Inbox pattern: each integration event handler runs once per message, even when the message is delivered again."
+    },
     "aspireProjectsPrefix": {
       "type": "derived",
       "valueSource": "name",
@@ -131,6 +137,13 @@
           "exclude": [
             "src/CleanSlices.Infrastructure/Outbox/**",
             "tests/CleanSlices.Api.Tests/Outbox/**"
+          ]
+        },
+        {
+          "condition": "(!inbox)",
+          "exclude": [
+            "src/CleanSlices.Infrastructure/Inbox/**",
+            "tests/CleanSlices.Api.Tests/Inbox/**"
           ]
         },
         {

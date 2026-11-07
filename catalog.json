@@ -30,6 +30,16 @@
       "addsTables": true
     },
     {
+      "id": "inbox",
+      "kind": "option",
+      "concept": "pattern",
+      "title": "Inbox",
+      "description": "Each integration event handler runs once per message, even when the message is delivered again.",
+      "requires": ["integration-events", "at-least-once-delivery"],
+      "recommended": true,
+      "addsTables": true
+    },
+    {
       "id": "integration-events",
       "kind": "hidden"
     }

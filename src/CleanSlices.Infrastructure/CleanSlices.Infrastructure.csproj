@@ -14,7 +14,7 @@
     <ProjectReference Include="..\CleanSlices.Core\CleanSlices.Core.csproj" />
   </ItemGroup>
 
-  <!--#if (outbox)-->
+  <!--#if (outbox || inbox)-->
   <ItemGroup>
     <InternalsVisibleTo Include="CleanSlices.Api.Tests" />
   </ItemGroup>

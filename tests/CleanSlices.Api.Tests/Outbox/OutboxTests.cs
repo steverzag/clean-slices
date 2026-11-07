@@ -68,8 +68,13 @@ public class OutboxTests(ApiFactory factory)
 		Assert.Null(message.ProcessedAt);
 		Assert.Contains($"Failing on purpose for {testId}", message.LastError);
 
+#if (inbox)
+		// The other handler ran once: the inbox skips it on the retries, since it already succeeded.
+		Assert.Equal(1, RecordingHandler.DeliveriesOf(testId));
+#else
 		// The other handler still ran on every attempt: one failing handler doesn't stop the rest.
 		Assert.Equal(maxAttempts, RecordingHandler.DeliveriesOf(testId));
+#endif
 	}
 
 	[Fact]

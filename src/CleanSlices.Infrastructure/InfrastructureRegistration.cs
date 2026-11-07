@@ -1,4 +1,7 @@
 ﻿using CleanSlices.Core.Messages;
+#if (inbox)
+using CleanSlices.Infrastructure.Inbox;
+#endif
 #if (integration_events)
 using CleanSlices.Infrastructure.IntegrationEvents;
 #endif
@@ -35,6 +38,9 @@ public static class InfrastructureRegistration
 #endif
 #if (outbox)
 			services.AddOutbox();
+#endif
+#if (inbox)
+			services.AddInbox();
 #endif
 
 			services.AddDbContext<AppDbContext>((sp, o) =>

@@ -3,6 +3,9 @@ using CleanSlices.Api.Tests.Infrastructure;
 using CleanSlices.Api.Tests.Outbox;
 #endif
 using CleanSlices.Infrastructure;
+#if (inbox)
+using CleanSlices.Infrastructure.Inbox;
+#endif
 #if (outbox)
 using CleanSlices.Infrastructure.Outbox;
 #endif
@@ -59,6 +62,9 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 		builder.ConfigureTestServices(services =>
 		{
 			services.Remove(services.Single(d => d.ServiceType == typeof(IHostedService) && d.ImplementationType == typeof(OutboxWorker)));
+#if (inbox)
+			services.Remove(services.Single(d => d.ServiceType == typeof(IHostedService) && d.ImplementationType == typeof(InboxCleanupWorker)));
+#endif
 			OutboxTestServices.Add(services);
 		});
 #endif
