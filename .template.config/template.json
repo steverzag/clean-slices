@@ -38,6 +38,30 @@
       "defaultValue": "false",
       "description": "Repository / unit of work: handlers use repositories and IUnitOfWork defined in Core instead of AppDbContext."
     },
+    "cqrs": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "CQRS: endpoints send commands and queries to handlers in the slice; queries read through IReadDb without tracking."
+    },
+    "cqrs_dispatcher": {
+      "type": "parameter",
+      "datatype": "choice",
+      "defaultValue": "handlers",
+      "choices": [
+        { "choice": "handlers", "description": "Own handlers: a small dispatcher in the solution, no package." },
+        { "choice": "mediator", "description": "The source-generated Mediator package (MIT), with the same interfaces." }
+      ],
+      "description": "Which dispatcher sends commands and queries to their handlers (only with cqrs)."
+    },
+    "handlers": {
+      "type": "computed",
+      "value": "(cqrs_dispatcher == \"handlers\")"
+    },
+    "mediator": {
+      "type": "computed",
+      "value": "(cqrs_dispatcher == \"mediator\")"
+    },
     "idempotency": {
       "type": "parameter",
       "datatype": "bool",
@@ -198,6 +222,22 @@
             "src/CleanSlices.Infrastructure/Persistence/Repositories/**",
             "tests/CleanSlices.Api.Tests/Configuration/RepositoryRegistrationTests.cs",
             "docs/repository.md"
+          ]
+        },
+        {
+          "condition": "(!cqrs)",
+          "exclude": [
+            "src/CleanSlices.Api/Configuration/Cqrs/**",
+            "src/CleanSlices.Core/Domain/IReadDb.cs",
+            "docs/cqrs.md"
+          ]
+        },
+        {
+          "condition": "(!cqrs || !handlers)",
+          "exclude": [
+            "src/CleanSlices.Api/Configuration/Cqrs/Messages.cs",
+            "src/CleanSlices.Api/Configuration/Cqrs/Sender.cs",
+            "tests/CleanSlices.Api.Tests/Configuration/SenderTests.cs"
           ]
         },
         {

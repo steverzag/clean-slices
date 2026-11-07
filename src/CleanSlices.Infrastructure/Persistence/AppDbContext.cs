@@ -1,4 +1,4 @@
-﻿#if (repository)
+﻿#if (repository || cqrs)
 using CleanSlices.Core.Domain;
 #endif
 //#if (samples)
@@ -12,8 +12,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CleanSlices.Infrastructure.Persistence;
 
-#if (repository)
+#if (repository && cqrs)
+public class AppDbContext : DbContext, IUnitOfWork, IReadDb
+#elif (repository)
 public class AppDbContext : DbContext, IUnitOfWork
+#elif (cqrs)
+public class AppDbContext : DbContext, IReadDb
 #else
 public class AppDbContext : DbContext
 #endif
@@ -34,4 +38,8 @@ public class AppDbContext : DbContext
 		modelBuilder.ApplyModelRules();
 #endif
 	}
+#if (cqrs)
+
+	IQueryable<T> IReadDb.Query<T>() => Set<T>().AsNoTracking();
+#endif
 }

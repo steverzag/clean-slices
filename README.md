@@ -40,7 +40,10 @@ The options the solution was created with, each with its own documentation:
 <!--#if (repository)-->
 - **Repository / unit of work**: endpoints use a repository per entity and `IUnitOfWork`, defined in Core, instead of `AppDbContext`. See [docs/repository.md](docs/repository.md).
 <!--#endif-->
-<!--#if (!samples && !result && !outbox && !inbox && !postgresql && !validation && !idempotency && !repository)-->
+<!--#if (cqrs)-->
+- **CQRS**: endpoints send commands and queries to handlers in the slice; queries read without tracking. See [docs/cqrs.md](docs/cqrs.md).
+<!--#endif-->
+<!--#if (!samples && !result && !outbox && !inbox && !postgresql && !validation && !idempotency && !repository && !cqrs)-->
 - None: this is the default setup. Options can be added later with the CLI.
 <!--#endif-->
 

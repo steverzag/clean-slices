@@ -56,6 +56,7 @@ Available options:
 | `inbox` | Each integration event handler runs once per event, even when it's delivered again. Needs the outbox; recommended with it. |
 | `validation` | Request validation: FluentValidation validators next to the requests, run automatically before the handler; same error responses as the domain. |
 | `repository` | Repository / unit of work: endpoints use a repository per entity and `IUnitOfWork`, defined in Core, instead of `AppDbContext`. New features get their repository pair. |
+| `cqrs` | CQRS: endpoints send commands and queries to handlers in the slice; queries read through `IReadDb` without tracking. Choice `dispatcher`: `handlers` (default, a small dispatcher of its own) or `mediator` (the Mediator package, MIT): `--with cqrs:dispatcher=mediator`. |
 | `idempotency` | Idempotency keys: endpoints with `.WithIdempotency()` replay the stored response for a retry with the same `Idempotency-Key` header. The create endpoints of new features use it. |
 | `sqlserver` | SQL Server, the default database: in a container from the AppHost, or an existing server. |
 | `postgresql` | PostgreSQL instead of SQL Server, with snake_case names and case-insensitive emails. Added to an existing solution, it replaces SQL Server. |

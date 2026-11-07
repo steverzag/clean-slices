@@ -115,20 +115,26 @@ public async Task<IResult> Handler(IWidgetRepository widgets, IUnitOfWork unitOf
 
 **What.** Commands (change state) and queries (read) are separate classes with their own handlers, on the same database. A separate read store is out of scope.
 
+**Built (phase 6).** `Api/Configuration/Cqrs/`, `Core/Domain/IReadDb.cs`; documented for users in `docs/cqrs.md`. The first option with a choice.
+
 **Design.**
 
-- Handlers live in the slice file, next to the endpoint. There is no Application project.
-- Handlers are registered by scanning.
-- Commands return the new ID or nothing.
-- With Repository: commands use repositories and `IUnitOfWork`; queries use a read-only `IReadDb` (`IQueryable<T> Query<T>()`, always no-tracking) and keep their `Select(...)` projections. Without Repository: both use `AppDbContext`.
+- The command or query and its handler are **nested in the endpoint class**, next to the request (`UpdateWidgetName.UpdateWidgetNameCommand`, `UpdateWidgetName.UpdateWidgetNameHandler`). There is no Application project. Endpoints take only `ISender` plus their route and body values.
+- Handlers are registered by scanning (own handlers) or by Mediator's source generator, with a scoped lifetime (Mediator's default is singleton; handlers use the request's `AppDbContext`).
+- **Commands return `Unit`, or what the endpoint answers** (changed while building: the plan said "the new ID or nothing"). Creates return their response record, because `CreateTaskItemResponse` has `Status` and `CreatedAt`: returning only the ID would need a second read or change the response (rule 7).
+- **Queries always read through `IReadDb`** (`IQueryable<T> Query<T>()`, no tracking, implemented by `AppDbContext`), with or without the repository option (changed while building: the plan had queries on `AppDbContext` without Repository). Queries can't save by construction, and query handlers don't vary with Repository, which halves their variants. They keep their `Select(...)` projections. Commands use repositories and `IUnitOfWork` with Repository, `AppDbContext` without.
+- With `result`, handlers return `Result` / `Result<T>` (`Result.Failure(...)` for failures, since `Result` has no implicit conversion from an error) and endpoints map them as before; without it, handlers throw the same exceptions as before.
+- No decorators or pipeline behaviors (rule 10: nothing uses one). Request validation and idempotency stay at the endpoint.
 - Domain events are unchanged.
+- Slice shape: command record (`result` / not), four handler variants (`cqrs` × repository × `result`), and two endpoint members (`cqrs && result`, `cqrs`) at the top of the existing endpoint chain, all flat. Queries: two handler variants (by id) or one (lists). The command code was generated from the existing endpoint members by a script, then reviewed; the queries were written by hand.
+- Mediator's packages are XML conditionals, so in this repository its generator runs in every build; it generates nothing harmful when no message uses its interfaces. A message without a handler is a build error with Mediator (`MSG0005`, warnings as errors), a run-time error with own handlers.
 
 **Sub-options.** `dispatcher` (decided in phase 6, after a prototype):
 
 | Value | Handlers | Notes |
 |---|---|---|
 | `handlers` (default) | Our own `ICommand` / `ICommand<T>` / `ICommandHandler<…>` / `ISender.Send` / `Unit`, with **Mediator's vocabulary** and `ValueTask`, and a small `ISender` of our own | No package |
-| `mediator` | The same interfaces from the source-generated `Mediator` package (MIT) | Verify the license before the docs |
+| `mediator` | The same interfaces from the source-generated `Mediator` package (MIT) | MIT, checked in phase 6 (version 3.0.2) |
 
 **MediatR is dropped** for now: it's commercial since version 13, and its vocabulary (`IRequest`, `Task`) can't match the other two. Because own handlers and Mediator share one vocabulary, **slice code is identical for both**: slices name no dispatcher namespace, and one `global using` file per dispatcher picks it. The choice only changes that file, registration and the package.
 
@@ -143,15 +149,15 @@ public async Task<IResult> Handler(IWidgetRepository widgets, IUnitOfWork unitOf
 
 Both 8-shape versions contain the same duplicated code (8 handler bodies, the inherent cost of three options meeting in one handler); the single file keeps them side by side and needs no rename machinery. So: one file per slice, flat chains (see CONTRIBUTING, *Several options in one member*), and one file per combination only as a fallback. The matrix gets an explicit job for `result` + repository + CQRS.
 
-**Feature template.** Each slice file holds the request, the command or query, its handler and the endpoint.
+**Feature template.** Each slice file holds the request, the command or query, its handler and the endpoint: three commands (create, update name, delete) and two queries (by id, list).
 
-**Samples.** *Proposed:* every sample endpoint as a command or a query; assigning a user shows a command that loads two entities, and the lists show queries through `IReadDb`.
+**Samples.** Every sample endpoint is a command or a query (13 commands, 4 queries). `AssignUser` is a command whose handler uses two repositories (or `AppDbContext`); the lists and the reads by id are queries through `IReadDb`. Tests: `Api.Tests/Configuration/SenderTests.cs` checks the own dispatcher (command with and without a response, query, missing handler); every endpoint test runs through `ISender` with the option.
 
 **Interactions.**
 
 | With | Effect |
 |---|---|
-| Result | Handlers return results; decorators short-circuit with a failure instead of throwing. |
+| Result | Handlers return results; endpoints turn them into responses as before. |
 | Request validation | Runs at the endpoint, not as a decorator or pipeline behavior. |
 | Idempotency | Works at the endpoint, whatever the dispatcher. |
 

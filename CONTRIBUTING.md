@@ -75,6 +75,7 @@ The CLI reads the catalog **at the template commit a solution came from**, resol
 
 - An option's template parameter is its id, with `-` replaced by `_` (`integration-events` → `integration_events`). It's a `bool` defaulting to `false`.
 - A choice is a `choice` parameter named `<option>_<choice>` (`cqrs_dispatcher`), plus one **computed bool per value**, named after the value: `"mediator": { "type": "computed", "value": "(cqrs_dispatcher == \"mediator\")" }`. Code tests the bool (`#if (mediator)`), because the compiler can't read string comparisons.
+  The computed bool of the default value is true even when the option is off (`handlers` is true in a solution without CQRS), so always test it together with its option: `#if (cqrs && handlers)`, `"condition": "(!cqrs || !handlers)"`. In this repository, pass the option and the value: `-p:TemplateOptions=cqrs%3Bmediator`.
 - Ids, choice parameters and choice values share one namespace; `samples`, `name`, `app` and `plural` are reserved.
 - The feature template only declares the options its code depends on; the CLI passes each template just the parameters it defines.
 - `CatalogValidator` and `ConsistencyTests` (in `cli/CleanSlices.Cli.Tests`) fail when the catalog and the `template.json` files disagree, or when the catalog has a broken reference.

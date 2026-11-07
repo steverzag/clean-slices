@@ -56,6 +56,22 @@
       "description": "Handlers use a repository per entity and IUnitOfWork, defined in Core, instead of AppDbContext."
     },
     {
+      "id": "cqrs",
+      "kind": "option",
+      "concept": "pattern",
+      "title": "CQRS",
+      "description": "Endpoints send commands and queries to handlers in the slice; queries read without tracking.",
+      "choices": {
+        "dispatcher": {
+          "default": "handlers",
+          "values": {
+            "handlers": { "title": "Own handlers", "description": "A small dispatcher in the solution, no package." },
+            "mediator": { "title": "Mediator", "description": "The source-generated Mediator package (MIT), with the same interfaces." }
+          }
+        }
+      }
+    },
+    {
       "id": "idempotency",
       "kind": "option",
       "concept": "pattern",

@@ -35,7 +35,96 @@ public class UpdateName : IEndpoint
 	}
 #endif
 
-#if (repository && result)
+#if (cqrs && result)
+	public sealed record UpdateNameCommand(Guid Id, string Name) : ICommand<Result>;
+
+#elif (cqrs)
+	public sealed record UpdateNameCommand(Guid Id, string Name) : ICommand;
+
+#endif
+#if (cqrs && repository && result)
+	internal sealed class UpdateNameHandler(IUserRepository users, IUnitOfWork unitOfWork) : ICommandHandler<UpdateNameCommand, Result>
+	{
+		public async ValueTask<Result> Handle(UpdateNameCommand command, CancellationToken cancellationToken)
+		{
+			var user = await users.GetByIdAsync(command.Id, cancellationToken);
+			if (user is null)
+			{
+				return Result.Failure(UserErrors.NotFound(command.Id));
+			}
+
+			var result = await user.UpdateName(command.Name)
+				.TapAsync(async () => await unitOfWork.SaveChangesAsync(cancellationToken));
+
+			return result;
+		}
+	}
+#elif (cqrs && repository)
+	internal sealed class UpdateNameHandler(IUserRepository users, IUnitOfWork unitOfWork) : ICommandHandler<UpdateNameCommand>
+	{
+		public async ValueTask<Unit> Handle(UpdateNameCommand command, CancellationToken cancellationToken)
+		{
+			var user = await users.GetByIdAsync(command.Id, cancellationToken);
+			if (user is null)
+			{
+				throw UserErrors.NotFound(command.Id);
+			}
+
+			user.UpdateName(command.Name);
+			await unitOfWork.SaveChangesAsync(cancellationToken);
+
+			return Unit.Value;
+		}
+	}
+#elif (cqrs && result)
+	internal sealed class UpdateNameHandler(AppDbContext context) : ICommandHandler<UpdateNameCommand, Result>
+	{
+		public async ValueTask<Result> Handle(UpdateNameCommand command, CancellationToken cancellationToken)
+		{
+			var user = await context.Users.FindAsync([command.Id], cancellationToken);
+			if (user is null)
+			{
+				return Result.Failure(UserErrors.NotFound(command.Id));
+			}
+
+			var result = await user.UpdateName(command.Name)
+				.TapAsync(async () => await context.SaveChangesAsync(cancellationToken));
+
+			return result;
+		}
+	}
+#elif (cqrs)
+	internal sealed class UpdateNameHandler(AppDbContext context) : ICommandHandler<UpdateNameCommand>
+	{
+		public async ValueTask<Unit> Handle(UpdateNameCommand command, CancellationToken cancellationToken)
+		{
+			var user = await context.Users.FindAsync([command.Id], cancellationToken);
+			if (user is null)
+			{
+				throw UserErrors.NotFound(command.Id);
+			}
+
+			user.UpdateName(command.Name);
+			await context.SaveChangesAsync(cancellationToken);
+
+			return Unit.Value;
+		}
+	}
+#endif
+
+#if (cqrs && result)
+	public async Task<IResult> Handler(ISender sender, Guid id, UpdateUserNameRequest request, CancellationToken cancellationToken)
+	{
+		var result = await sender.Send(new UpdateNameCommand(id, request.Name), cancellationToken);
+		return result.ToNoContentOrProblem();
+	}
+#elif (cqrs)
+	public async Task<IResult> Handler(ISender sender, Guid id, UpdateUserNameRequest request, CancellationToken cancellationToken)
+	{
+		await sender.Send(new UpdateNameCommand(id, request.Name), cancellationToken);
+		return Results.NoContent();
+	}
+#elif (repository && result)
 	public async Task<IResult> Handler(IUserRepository users, IUnitOfWork unitOfWork, Guid id, UpdateUserNameRequest request, CancellationToken cancellationToken)
 	{
 		var user = await users.GetByIdAsync(id, cancellationToken);

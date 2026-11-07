@@ -188,6 +188,7 @@ Parked: discussed or proposed, deliberately not now.
 - **Multi-tenancy** strategy. EF Core named query filters make it compatible with soft delete later.
 - **Strongly typed IDs** pattern.
 - **MediatR** as a CQRS dispatcher: dropped in phase 6 (commercial since version 13, and a vocabulary the other dispatchers can't share). The docs can show how to switch.
+- **Rename the domain-event contracts** (base template) to `IDomainEventHandler<T>` and `IDomainEventPublisher`. Today they are `INotification`, `INotificationHandler<T>` and `IPublisher` in `Core/Messages`, the same names as the Mediator package's: no clash in generated code, but an Api file that imports both namespaces gets `CS0104` (found in phase 6, documented in `docs/cqrs.md`). The new names also say what they carry. Rejected alternative: using Mediator's contracts for domain events with the `mediator` choice (it would give Core a package dependency and tie the base's domain-event dispatch to the CQRS choice).
 - **SSE** as a second realtime option; **Azure SignalR Service** for scale-out.
 - **Database-backed idempotency store**, as a `store` sub-option, for teams that need the transactional guarantee.
 - **Public-only integration events** refinements, and a **separate read store** for CQRS.
@@ -200,4 +201,4 @@ Open questions:
 - **Upgrades.** Can a solution move to a newer template commit, and what happens to its options? Solutions from before the catalog can only get options this way.
 - **Interactive UX.** The prompts are grouped by concept, with follow-up questions for choices and requirements; revisit once the catalog has a few dozen options (search, presets?).
 
-To verify before the docs for users are written: the `Mediator` package's and MassTransit's current license terms, and whether `HybridCache` skips the in-memory `IDistributedCache` as its second level.
+To verify before the docs for users are written: MassTransit's current license terms (the `Mediator` package was checked in phase 6: MIT), and whether `HybridCache` skips the in-memory `IDistributedCache` as its second level.

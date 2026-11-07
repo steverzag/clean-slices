@@ -35,7 +35,96 @@ public class UpdateWidgetName : IEndpoint
 	}
 #endif
 
-#if (repository && result)
+#if (cqrs && result)
+	public sealed record UpdateWidgetNameCommand(Guid Id, string Name) : ICommand<Result>;
+
+#elif (cqrs)
+	public sealed record UpdateWidgetNameCommand(Guid Id, string Name) : ICommand;
+
+#endif
+#if (cqrs && repository && result)
+	internal sealed class UpdateWidgetNameHandler(IWidgetRepository widgets, IUnitOfWork unitOfWork) : ICommandHandler<UpdateWidgetNameCommand, Result>
+	{
+		public async ValueTask<Result> Handle(UpdateWidgetNameCommand command, CancellationToken cancellationToken)
+		{
+			var entity = await widgets.GetByIdAsync(command.Id, cancellationToken);
+			if (entity is null)
+			{
+				return Result.Failure(WidgetErrors.NotFound(command.Id));
+			}
+
+			var result = await entity.UpdateName(command.Name)
+				.TapAsync(async () => await unitOfWork.SaveChangesAsync(cancellationToken));
+
+			return result;
+		}
+	}
+#elif (cqrs && repository)
+	internal sealed class UpdateWidgetNameHandler(IWidgetRepository widgets, IUnitOfWork unitOfWork) : ICommandHandler<UpdateWidgetNameCommand>
+	{
+		public async ValueTask<Unit> Handle(UpdateWidgetNameCommand command, CancellationToken cancellationToken)
+		{
+			var entity = await widgets.GetByIdAsync(command.Id, cancellationToken);
+			if (entity is null)
+			{
+				throw WidgetErrors.NotFound(command.Id);
+			}
+
+			entity.UpdateName(command.Name);
+			await unitOfWork.SaveChangesAsync(cancellationToken);
+
+			return Unit.Value;
+		}
+	}
+#elif (cqrs && result)
+	internal sealed class UpdateWidgetNameHandler(AppDbContext context) : ICommandHandler<UpdateWidgetNameCommand, Result>
+	{
+		public async ValueTask<Result> Handle(UpdateWidgetNameCommand command, CancellationToken cancellationToken)
+		{
+			var entity = await context.Set<Widget>().FindAsync([command.Id], cancellationToken);
+			if (entity is null)
+			{
+				return Result.Failure(WidgetErrors.NotFound(command.Id));
+			}
+
+			var result = await entity.UpdateName(command.Name)
+				.TapAsync(async () => await context.SaveChangesAsync(cancellationToken));
+
+			return result;
+		}
+	}
+#elif (cqrs)
+	internal sealed class UpdateWidgetNameHandler(AppDbContext context) : ICommandHandler<UpdateWidgetNameCommand>
+	{
+		public async ValueTask<Unit> Handle(UpdateWidgetNameCommand command, CancellationToken cancellationToken)
+		{
+			var entity = await context.Set<Widget>().FindAsync([command.Id], cancellationToken);
+			if (entity is null)
+			{
+				throw WidgetErrors.NotFound(command.Id);
+			}
+
+			entity.UpdateName(command.Name);
+			await context.SaveChangesAsync(cancellationToken);
+
+			return Unit.Value;
+		}
+	}
+#endif
+
+#if (cqrs && result)
+	public async Task<IResult> Handler(ISender sender, Guid id, UpdateWidgetNameRequest request, CancellationToken cancellationToken)
+	{
+		var result = await sender.Send(new UpdateWidgetNameCommand(id, request.Name), cancellationToken);
+		return result.ToNoContentOrProblem();
+	}
+#elif (cqrs)
+	public async Task<IResult> Handler(ISender sender, Guid id, UpdateWidgetNameRequest request, CancellationToken cancellationToken)
+	{
+		await sender.Send(new UpdateWidgetNameCommand(id, request.Name), cancellationToken);
+		return Results.NoContent();
+	}
+#elif (repository && result)
 	public async Task<IResult> Handler(IWidgetRepository widgets, IUnitOfWork unitOfWork, Guid id, UpdateWidgetNameRequest request, CancellationToken cancellationToken)
 	{
 		var entity = await widgets.GetByIdAsync(id, cancellationToken);

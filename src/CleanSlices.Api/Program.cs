@@ -1,5 +1,8 @@
 using CleanSlices.Api.Configuration;
 using CleanSlices.Api.Configuration.Endpoints;
+#if (cqrs)
+using CleanSlices.Api.Configuration.Cqrs;
+#endif
 #if (idempotency)
 using CleanSlices.Api.Configuration.Idempotency;
 #endif
@@ -28,6 +31,9 @@ builder.Services.AddRequestValidation();
 #endif
 #if (idempotency)
 builder.Services.AddIdempotency();
+#endif
+#if (cqrs)
+builder.Services.AddCqrs();
 #endif
 
 var app = builder.Build();

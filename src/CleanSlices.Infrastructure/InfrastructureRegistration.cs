@@ -1,4 +1,7 @@
-﻿using CleanSlices.Core.Messages;
+﻿#if (cqrs)
+using CleanSlices.Core.Domain;
+#endif
+using CleanSlices.Core.Messages;
 #if (current_user)
 using CleanSlices.Infrastructure.CurrentUser;
 #endif
@@ -41,6 +44,9 @@ public static class InfrastructureRegistration
 			services.TryAddScoped<SaveChangesPipeline>();
 #if (repository)
 			services.AddRepositories();
+#endif
+#if (cqrs)
+			services.TryAddScoped<IReadDb>(sp => sp.GetRequiredService<AppDbContext>());
 #endif
 #if (current_user)
 			services.TryAddSingleton<ICurrentUser, AnonymousCurrentUser>();

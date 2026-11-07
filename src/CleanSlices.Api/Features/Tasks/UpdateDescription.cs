@@ -35,7 +35,96 @@ public class UpdateDescription : IEndpoint
 	}
 #endif
 
-#if (repository && result)
+#if (cqrs && result)
+	public sealed record UpdateDescriptionCommand(Guid Id, string Description) : ICommand<Result>;
+
+#elif (cqrs)
+	public sealed record UpdateDescriptionCommand(Guid Id, string Description) : ICommand;
+
+#endif
+#if (cqrs && repository && result)
+	internal sealed class UpdateDescriptionHandler(ITaskItemRepository tasks, IUnitOfWork unitOfWork) : ICommandHandler<UpdateDescriptionCommand, Result>
+	{
+		public async ValueTask<Result> Handle(UpdateDescriptionCommand command, CancellationToken cancellationToken)
+		{
+			var task = await tasks.GetByIdAsync(command.Id, cancellationToken);
+			if (task is null)
+			{
+				return Result.Failure(TaskItemErrors.NotFound(command.Id));
+			}
+
+			var result = await task.UpdateDescription(command.Description)
+				.TapAsync(async () => await unitOfWork.SaveChangesAsync(cancellationToken));
+
+			return result;
+		}
+	}
+#elif (cqrs && repository)
+	internal sealed class UpdateDescriptionHandler(ITaskItemRepository tasks, IUnitOfWork unitOfWork) : ICommandHandler<UpdateDescriptionCommand>
+	{
+		public async ValueTask<Unit> Handle(UpdateDescriptionCommand command, CancellationToken cancellationToken)
+		{
+			var task = await tasks.GetByIdAsync(command.Id, cancellationToken);
+			if (task is null)
+			{
+				throw TaskItemErrors.NotFound(command.Id);
+			}
+
+			task.UpdateDescription(command.Description);
+			await unitOfWork.SaveChangesAsync(cancellationToken);
+
+			return Unit.Value;
+		}
+	}
+#elif (cqrs && result)
+	internal sealed class UpdateDescriptionHandler(AppDbContext context) : ICommandHandler<UpdateDescriptionCommand, Result>
+	{
+		public async ValueTask<Result> Handle(UpdateDescriptionCommand command, CancellationToken cancellationToken)
+		{
+			var task = await context.Tasks.FindAsync([command.Id], cancellationToken);
+			if (task is null)
+			{
+				return Result.Failure(TaskItemErrors.NotFound(command.Id));
+			}
+
+			var result = await task.UpdateDescription(command.Description)
+				.TapAsync(async () => await context.SaveChangesAsync(cancellationToken));
+
+			return result;
+		}
+	}
+#elif (cqrs)
+	internal sealed class UpdateDescriptionHandler(AppDbContext context) : ICommandHandler<UpdateDescriptionCommand>
+	{
+		public async ValueTask<Unit> Handle(UpdateDescriptionCommand command, CancellationToken cancellationToken)
+		{
+			var task = await context.Tasks.FindAsync([command.Id], cancellationToken);
+			if (task is null)
+			{
+				throw TaskItemErrors.NotFound(command.Id);
+			}
+
+			task.UpdateDescription(command.Description);
+			await context.SaveChangesAsync(cancellationToken);
+
+			return Unit.Value;
+		}
+	}
+#endif
+
+#if (cqrs && result)
+	public async Task<IResult> Handler(ISender sender, Guid id, UpdateTaskItemDescriptionRequest request, CancellationToken cancellationToken)
+	{
+		var result = await sender.Send(new UpdateDescriptionCommand(id, request.Description), cancellationToken);
+		return result.ToNoContentOrProblem();
+	}
+#elif (cqrs)
+	public async Task<IResult> Handler(ISender sender, Guid id, UpdateTaskItemDescriptionRequest request, CancellationToken cancellationToken)
+	{
+		await sender.Send(new UpdateDescriptionCommand(id, request.Description), cancellationToken);
+		return Results.NoContent();
+	}
+#elif (repository && result)
 	public async Task<IResult> Handler(ITaskItemRepository tasks, IUnitOfWork unitOfWork, Guid id, UpdateTaskItemDescriptionRequest request, CancellationToken cancellationToken)
 	{
 		var task = await tasks.GetByIdAsync(id, cancellationToken);

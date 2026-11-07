@@ -47,7 +47,96 @@ public class CreateUser : IEndpoint
 	}
 #endif
 
-#if (repository && result)
+#if (cqrs && result)
+	public sealed record CreateUserCommand(string Name, string Email) : ICommand<Result<CreateUserResponse>>;
+
+#elif (cqrs)
+	public sealed record CreateUserCommand(string Name, string Email) : ICommand<CreateUserResponse>;
+
+#endif
+#if (cqrs && repository && result)
+	internal sealed class CreateUserHandler(IUserRepository users, IUnitOfWork unitOfWork) : ICommandHandler<CreateUserCommand, Result<CreateUserResponse>>
+	{
+		public async ValueTask<Result<CreateUserResponse>> Handle(CreateUserCommand command, CancellationToken cancellationToken)
+		{
+			if (await users.IsEmailInUseAsync(command.Email, cancellationToken))
+			{
+				return Result.Failure<CreateUserResponse>(UserErrors.EmailInUse(command.Email));
+			}
+
+			var result = await User.Create(command.Name, command.Email)
+				.Tap(u => users.Add(u))
+				.TapAsync(async _ => await unitOfWork.SaveChangesAsync(cancellationToken));
+
+			return result.Map(u => new CreateUserResponse(u.Id, u.Name, u.Email));
+		}
+	}
+#elif (cqrs && repository)
+	internal sealed class CreateUserHandler(IUserRepository users, IUnitOfWork unitOfWork) : ICommandHandler<CreateUserCommand, CreateUserResponse>
+	{
+		public async ValueTask<CreateUserResponse> Handle(CreateUserCommand command, CancellationToken cancellationToken)
+		{
+			if (await users.IsEmailInUseAsync(command.Email, cancellationToken))
+			{
+				throw UserErrors.EmailInUse(command.Email);
+			}
+
+			var user = User.Create(command.Name, command.Email);
+			users.Add(user);
+			await unitOfWork.SaveChangesAsync(cancellationToken);
+
+			return new CreateUserResponse(user.Id, user.Name, user.Email);
+		}
+	}
+#elif (cqrs && result)
+	internal sealed class CreateUserHandler(AppDbContext context) : ICommandHandler<CreateUserCommand, Result<CreateUserResponse>>
+	{
+		public async ValueTask<Result<CreateUserResponse>> Handle(CreateUserCommand command, CancellationToken cancellationToken)
+		{
+			if (await context.Users.AnyAsync(u => u.Email == command.Email, cancellationToken))
+			{
+				return Result.Failure<CreateUserResponse>(UserErrors.EmailInUse(command.Email));
+			}
+
+			var result = await User.Create(command.Name, command.Email)
+				.Tap(u => context.Users.Add(u))
+				.TapAsync(async _ => await context.SaveChangesAsync(cancellationToken));
+
+			return result.Map(u => new CreateUserResponse(u.Id, u.Name, u.Email));
+		}
+	}
+#elif (cqrs)
+	internal sealed class CreateUserHandler(AppDbContext context) : ICommandHandler<CreateUserCommand, CreateUserResponse>
+	{
+		public async ValueTask<CreateUserResponse> Handle(CreateUserCommand command, CancellationToken cancellationToken)
+		{
+			if (await context.Users.AnyAsync(u => u.Email == command.Email, cancellationToken))
+			{
+				throw UserErrors.EmailInUse(command.Email);
+			}
+
+			var user = User.Create(command.Name, command.Email);
+			context.Users.Add(user);
+			await context.SaveChangesAsync(cancellationToken);
+
+			return new CreateUserResponse(user.Id, user.Name, user.Email);
+		}
+	}
+#endif
+
+#if (cqrs && result)
+	public async Task<IResult> Handler(ISender sender, CreateUserRequest request, CancellationToken cancellationToken)
+	{
+		var result = await sender.Send(new CreateUserCommand(request.Name, request.Email), cancellationToken);
+		return result.ToCreatedAtRouteOrProblem(nameof(GetUserById), r => new { id = r.Id });
+	}
+#elif (cqrs)
+	public async Task<IResult> Handler(ISender sender, CreateUserRequest request, CancellationToken cancellationToken)
+	{
+		var response = await sender.Send(new CreateUserCommand(request.Name, request.Email), cancellationToken);
+		return Results.CreatedAtRoute(nameof(GetUserById), new { id = response.Id }, response);
+	}
+#elif (repository && result)
 	public async Task<IResult> Handler(IUserRepository users, IUnitOfWork unitOfWork, CreateUserRequest request, CancellationToken cancellationToken)
 	{
 		if (await users.IsEmailInUseAsync(request.Email, cancellationToken))

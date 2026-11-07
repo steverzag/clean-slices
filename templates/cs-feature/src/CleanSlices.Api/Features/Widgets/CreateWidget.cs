@@ -39,7 +39,76 @@ public class CreateWidget : IEndpoint
 #endif
 	public record CreateWidgetResponse(Guid Id, string Name);
 
-#if (repository && result)
+#if (cqrs && result)
+	public sealed record CreateWidgetCommand(string Name) : ICommand<Result<CreateWidgetResponse>>;
+
+#elif (cqrs)
+	public sealed record CreateWidgetCommand(string Name) : ICommand<CreateWidgetResponse>;
+
+#endif
+#if (cqrs && repository && result)
+	internal sealed class CreateWidgetHandler(IWidgetRepository widgets, IUnitOfWork unitOfWork) : ICommandHandler<CreateWidgetCommand, Result<CreateWidgetResponse>>
+	{
+		public async ValueTask<Result<CreateWidgetResponse>> Handle(CreateWidgetCommand command, CancellationToken cancellationToken)
+		{
+			var result = await Widget.Create(command.Name)
+				.Tap(e => widgets.Add(e))
+				.TapAsync(async _ => await unitOfWork.SaveChangesAsync(cancellationToken));
+
+			return result.Map(e => new CreateWidgetResponse(e.Id, e.Name));
+		}
+	}
+#elif (cqrs && repository)
+	internal sealed class CreateWidgetHandler(IWidgetRepository widgets, IUnitOfWork unitOfWork) : ICommandHandler<CreateWidgetCommand, CreateWidgetResponse>
+	{
+		public async ValueTask<CreateWidgetResponse> Handle(CreateWidgetCommand command, CancellationToken cancellationToken)
+		{
+			var entity = Widget.Create(command.Name);
+			widgets.Add(entity);
+			await unitOfWork.SaveChangesAsync(cancellationToken);
+
+			return new CreateWidgetResponse(entity.Id, entity.Name);
+		}
+	}
+#elif (cqrs && result)
+	internal sealed class CreateWidgetHandler(AppDbContext context) : ICommandHandler<CreateWidgetCommand, Result<CreateWidgetResponse>>
+	{
+		public async ValueTask<Result<CreateWidgetResponse>> Handle(CreateWidgetCommand command, CancellationToken cancellationToken)
+		{
+			var result = await Widget.Create(command.Name)
+				.Tap(e => context.Set<Widget>().Add(e))
+				.TapAsync(async _ => await context.SaveChangesAsync(cancellationToken));
+
+			return result.Map(e => new CreateWidgetResponse(e.Id, e.Name));
+		}
+	}
+#elif (cqrs)
+	internal sealed class CreateWidgetHandler(AppDbContext context) : ICommandHandler<CreateWidgetCommand, CreateWidgetResponse>
+	{
+		public async ValueTask<CreateWidgetResponse> Handle(CreateWidgetCommand command, CancellationToken cancellationToken)
+		{
+			var entity = Widget.Create(command.Name);
+			context.Set<Widget>().Add(entity);
+			await context.SaveChangesAsync(cancellationToken);
+
+			return new CreateWidgetResponse(entity.Id, entity.Name);
+		}
+	}
+#endif
+
+#if (cqrs && result)
+	public async Task<IResult> Handler(ISender sender, CreateWidgetRequest request, CancellationToken cancellationToken)
+	{
+		var result = await sender.Send(new CreateWidgetCommand(request.Name), cancellationToken);
+		return result.ToCreatedAtRouteOrProblem(nameof(GetWidgetById), r => new { id = r.Id });
+	}
+#elif (cqrs)
+	public async Task<IResult> Handler(ISender sender, CreateWidgetRequest request, CancellationToken cancellationToken)
+	{
+		var response = await sender.Send(new CreateWidgetCommand(request.Name), cancellationToken);
+		return Results.CreatedAtRoute(nameof(GetWidgetById), new { id = response.Id }, response);
+	}
+#elif (repository && result)
 	public async Task<IResult> Handler(IWidgetRepository widgets, IUnitOfWork unitOfWork, CreateWidgetRequest request, CancellationToken cancellationToken)
 	{
 		var result = await Widget.Create(request.Name)

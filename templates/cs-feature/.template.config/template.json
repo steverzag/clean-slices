@@ -29,6 +29,12 @@
       "defaultValue": "false",
       "description": "Repository / unit of work: the feature gets its repository pair and the endpoints use it with IUnitOfWork."
     },
+    "cqrs": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "CQRS: each endpoint sends a command or a query to its handler, in the slice file."
+    },
     "idempotency": {
       "type": "parameter",
       "datatype": "bool",

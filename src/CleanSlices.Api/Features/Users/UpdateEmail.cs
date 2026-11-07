@@ -39,7 +39,116 @@ public class UpdateEmail : IEndpoint
 	}
 #endif
 
-#if (repository && result)
+#if (cqrs && result)
+	public sealed record UpdateEmailCommand(Guid Id, string Email) : ICommand<Result>;
+
+#elif (cqrs)
+	public sealed record UpdateEmailCommand(Guid Id, string Email) : ICommand;
+
+#endif
+#if (cqrs && repository && result)
+	internal sealed class UpdateEmailHandler(IUserRepository users, IUnitOfWork unitOfWork) : ICommandHandler<UpdateEmailCommand, Result>
+	{
+		public async ValueTask<Result> Handle(UpdateEmailCommand command, CancellationToken cancellationToken)
+		{
+			var user = await users.GetByIdAsync(command.Id, cancellationToken);
+			if (user is null)
+			{
+				return Result.Failure(UserErrors.NotFound(command.Id));
+			}
+
+			if (await users.IsEmailInUseAsync(command.Email, command.Id, cancellationToken))
+			{
+				return Result.Failure(UserErrors.EmailInUse(command.Email));
+			}
+
+			var result = await user.UpdateEmail(command.Email)
+				.TapAsync(async () => await unitOfWork.SaveChangesAsync(cancellationToken));
+
+			return result;
+		}
+	}
+#elif (cqrs && repository)
+	internal sealed class UpdateEmailHandler(IUserRepository users, IUnitOfWork unitOfWork) : ICommandHandler<UpdateEmailCommand>
+	{
+		public async ValueTask<Unit> Handle(UpdateEmailCommand command, CancellationToken cancellationToken)
+		{
+			var user = await users.GetByIdAsync(command.Id, cancellationToken);
+			if (user is null)
+			{
+				throw UserErrors.NotFound(command.Id);
+			}
+
+			if (await users.IsEmailInUseAsync(command.Email, command.Id, cancellationToken))
+			{
+				throw UserErrors.EmailInUse(command.Email);
+			}
+
+			user.UpdateEmail(command.Email);
+			await unitOfWork.SaveChangesAsync(cancellationToken);
+
+			return Unit.Value;
+		}
+	}
+#elif (cqrs && result)
+	internal sealed class UpdateEmailHandler(AppDbContext context) : ICommandHandler<UpdateEmailCommand, Result>
+	{
+		public async ValueTask<Result> Handle(UpdateEmailCommand command, CancellationToken cancellationToken)
+		{
+			var user = await context.Users.FindAsync([command.Id], cancellationToken);
+			if (user is null)
+			{
+				return Result.Failure(UserErrors.NotFound(command.Id));
+			}
+
+			if (await context.Users.AnyAsync(u => u.Email == command.Email && u.Id != command.Id, cancellationToken))
+			{
+				return Result.Failure(UserErrors.EmailInUse(command.Email));
+			}
+
+			var result = await user.UpdateEmail(command.Email)
+				.TapAsync(async () => await context.SaveChangesAsync(cancellationToken));
+
+			return result;
+		}
+	}
+#elif (cqrs)
+	internal sealed class UpdateEmailHandler(AppDbContext context) : ICommandHandler<UpdateEmailCommand>
+	{
+		public async ValueTask<Unit> Handle(UpdateEmailCommand command, CancellationToken cancellationToken)
+		{
+			var user = await context.Users.FindAsync([command.Id], cancellationToken);
+			if (user is null)
+			{
+				throw UserErrors.NotFound(command.Id);
+			}
+
+			if (await context.Users.AnyAsync(u => u.Email == command.Email && u.Id != command.Id, cancellationToken))
+			{
+				throw UserErrors.EmailInUse(command.Email);
+			}
+
+			user.UpdateEmail(command.Email);
+			await context.SaveChangesAsync(cancellationToken);
+
+			return Unit.Value;
+		}
+	}
+#endif
+
+#if (cqrs && result)
+	public async Task<IResult> Handler(ISender sender, Guid id, UpdateUserEmailRequest request, CancellationToken cancellationToken)
+	{
+		var result = await sender.Send(new UpdateEmailCommand(id, request.Email), cancellationToken);
+		return result.ToNoContentOrProblem();
+	}
+#elif (cqrs)
+	public async Task<IResult> Handler(ISender sender, Guid id, UpdateUserEmailRequest request, CancellationToken cancellationToken)
+	{
+		await sender.Send(new UpdateEmailCommand(id, request.Email), cancellationToken);
+		return Results.NoContent();
+	}
+#elif (repository && result)
 	public async Task<IResult> Handler(IUserRepository users, IUnitOfWork unitOfWork, Guid id, UpdateUserEmailRequest request, CancellationToken cancellationToken)
 	{
 		var user = await users.GetByIdAsync(id, cancellationToken);
