@@ -66,6 +66,7 @@
             "**/obj/**",
             "**/*.user",
             ".git/**",
+            ".github/**",
             ".template.config/**",
             "templates/**",
             "cli/**",

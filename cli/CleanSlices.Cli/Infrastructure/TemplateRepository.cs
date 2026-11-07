@@ -15,10 +15,13 @@ internal sealed class TemplateRepository : IDisposable
 {
     public const string EnvironmentVariable = "CLEANSLICES_TEMPLATE_REPO";
 
+    /// <summary>The ref a new solution is rendered from when no <c>--template-ref</c> is given.</summary>
+    public const string RefEnvironmentVariable = "CLEANSLICES_TEMPLATE_REF";
+
     /// <summary>Used when nothing more specific is configured (option, solution manifest, environment variable).</summary>
     public const string DefaultSource = "https://github.com/steverzag/clean-slices.git";
 
-    private const string MainBranch = "origin/main";
+    public const string DefaultRef = "main";
 
     private readonly string _clone;
     private int _compositions;
@@ -52,6 +55,12 @@ internal sealed class TemplateRepository : IDisposable
     public static bool IsDefaultSource(string source) =>
         string.Equals(source, DefaultSource, StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>Precedence: explicit option → <see cref="RefEnvironmentVariable"/> → <see cref="DefaultRef"/>.</summary>
+    public static string ResolveRef(string? explicitRef) =>
+        new[] { explicitRef, Environment.GetEnvironmentVariable(RefEnvironmentVariable) }
+            .FirstOrDefault(r => !string.IsNullOrWhiteSpace(r))?.Trim()
+        ?? DefaultRef;
+
     public static async Task<TemplateRepository> OpenAsync(string source, CancellationToken cancellationToken)
     {
         var workRoot = Path.Combine(Path.GetTempPath(), "cleanslices", Path.GetRandomFileName().Replace(".", string.Empty, StringComparison.Ordinal)[..8]);
@@ -67,12 +76,6 @@ internal sealed class TemplateRepository : IDisposable
             {
                 throw new ToolException($"Couldn't fetch the template repository {source}.", clone.Output);
             }
-
-            var main = await Git.RunAsync(repository._clone, ["rev-parse", "--verify", MainBranch], cancellationToken);
-            if (!main.Succeeded)
-            {
-                throw new ToolException($"The template repository {source} has no 'main' branch.", main.Output);
-            }
         }
         catch
         {
@@ -83,8 +86,37 @@ internal sealed class TemplateRepository : IDisposable
         return repository;
     }
 
-    public Task<string> GetMainCommitAsync(CancellationToken cancellationToken) =>
-        Git.RunOrThrowAsync(_clone, ["rev-parse", MainBranch], cancellationToken);
+    /// <summary>
+    /// The commit a ref names: a branch of the template repository, a tag, a commit SHA, or <c>HEAD</c>
+    /// (what the template repository has checked out, for a local clone the branch being worked on).
+    /// </summary>
+    /// <exception cref="ToolException">Nothing in the repository has that name.</exception>
+    public async Task<string> ResolveCommitAsync(string templateRef, CancellationToken cancellationToken)
+    {
+        // Branches first, as origin/<branch>: a local clone has no local branches of its own besides HEAD's.
+        foreach (var candidate in new[] { $"origin/{templateRef}", templateRef })
+        {
+            var commit = await Git.RunAsync(_clone, ["rev-parse", "--verify", "--quiet", $"{candidate}^{{commit}}"], cancellationToken);
+            if (commit.Succeeded)
+            {
+                return commit.StandardOutput.Trim();
+            }
+        }
+
+        throw new ToolException($"The template repository {Source} has no branch, tag or commit '{templateRef}'.", string.Empty);
+    }
+
+    /// <summary>Resolves <paramref name="templateRef"/> and, unless it's the default, says which template is used.</summary>
+    public async Task<string> ResolveAndAnnounceAsync(string templateRef, CancellationToken cancellationToken)
+    {
+        var commit = await ResolveCommitAsync(templateRef, cancellationToken);
+        if (templateRef != DefaultRef)
+        {
+            Ui.Warning($"Template: {templateRef} ({commit[..7]}), not {DefaultRef}.");
+        }
+
+        return commit;
+    }
 
     /// <summary>
     /// The catalog at <paramref name="templateCommit"/>, or null for commits from before options existed

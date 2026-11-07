@@ -12,7 +12,7 @@ internal sealed class AddOptionCommand : AsyncCommand<AddOptionCommand.Settings>
     public sealed class Settings : CommandSettings
     {
         [CommandArgument(0, "[options]")]
-        [Description("Options to add: <id> or <id>:<choice>=<value>[,...]. Several can be added in one merge. Prompted for when omitted.")]
+        [Description("Options to add: <id> or <id>:<choice>=<value>[[,...]]. Several can be added in one merge. Prompted for when omitted.")]
         public string[] Options { get; init; } = [];
 
         [CommandOption("--template-repo <SOURCE>")]
@@ -80,9 +80,10 @@ internal sealed class AddOptionCommand : AsyncCommand<AddOptionCommand.Settings>
         var templateCommit = manifest.TemplateCommit;
         if (templateCommit is null)
         {
-            // Solutions made before the manifest tracked template versions: assume today's main.
-            templateCommit = await repository.GetMainCommitAsync(cancellationToken);
-            Ui.Warning($"{ProjectManifest.FileName} doesn't record which template version this solution came from; using main ({templateCommit[..7]}).");
+            // Solutions made before the manifest tracked template versions: assume today's template.
+            var templateRef = TemplateRepository.ResolveRef(explicitRef: null);
+            templateCommit = await repository.ResolveCommitAsync(templateRef, cancellationToken);
+            Ui.Warning($"{ProjectManifest.FileName} doesn't record which template version this solution came from; using {templateRef} ({templateCommit[..7]}).");
             Ui.Hint("If the solution was generated from an older template, expect extra (unrelated) differences.");
         }
 

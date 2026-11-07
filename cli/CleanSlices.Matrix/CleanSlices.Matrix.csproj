@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The template repository's CI matrix (development only; not packed, not part of generated solutions). -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>CleanSlices.Matrix</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CleanSlices.Cli\CleanSlices.Cli.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="CleanSlices.Cli.Tests" />
+  </ItemGroup>
+
+</Project>

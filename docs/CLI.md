@@ -83,6 +83,7 @@ cleanslices new Acme.Orders --samples --with result -y
 | `--git` / `--no-git` | Create a git repository with an initial commit. |
 | `--no-restore` | Skip `dotnet restore`. |
 | `--template-repo <SOURCE>` | Take the templates from another repository (path or git URL). |
+| `--template-ref <REF>` | Create the solution from a branch, tag, commit or `HEAD` of the template repository instead of `main` (see [below](#where-the-templates-come-from)). |
 | `-y, --yes` | Don't ask; use the defaults for anything not passed. |
 
 ## Add a feature
@@ -152,7 +153,7 @@ Options can't be removed, and their choices can't be changed after they're appli
 {
   "manifestVersion": 2,
   "name": "Acme.Orders",
-  "cliVersion": "0.3.0",
+  "cliVersion": "0.4.0",
   "samples": false,
   "templateRepo": "https://github.com/steverzag/clean-slices.git",
   "templateCommit": "a63f5be9d2a0…",
@@ -178,6 +179,10 @@ The CLI downloads the templates from this repository, so new options appear with
 2. `templateRepo` in `.cleanslices.json`
 3. the `CLEANSLICES_TEMPLATE_REPO` environment variable
 4. `https://github.com/steverzag/clean-slices.git`
+
+A new solution is created from the repository's `main`. To try another version of the templates, pass `--template-ref <ref>` to `new` or `list`, or set `CLEANSLICES_TEMPLATE_REF`. A ref is a branch, a tag, a commit, or `HEAD`: what the template repository has checked out, which with `CLEANSLICES_TEMPLATE_REPO` pointing at your clone is the branch you're working on (committed changes only). The CLI says which template it uses when it isn't `main`.
+
+The ref only chooses where a solution starts. `.cleanslices.json` records the commit, and every later command renders from that commit. A solution created from a branch therefore depends on that commit staying reachable in its template repository: if the branch is deleted, or was never pushed and the solution later uses GitHub, `add feature` and `add <option>` can't find its template anymore.
 
 If GitHub can't be reached, `cleanslices new` falls back to locally installed templates (`dotnet new install <template-repo-folder>`), without options.
 

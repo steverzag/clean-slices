@@ -147,7 +147,9 @@ Interactive lists show what an option still needs (*"Inbox (needs Outbox, Rabbit
 
 For each, it should: generate a new solution, add a feature with `add feature`, add each option later on a solution that has a feature, build, and run the tests.
 
-Set this up before the catalog grows past about five options. Without it, combinations break silently.
+This runs on GitHub Actions (`.github/workflows/ci.yml`, see [CONTRIBUTING.md](CONTRIBUTING.md#ci)). The combinations are derived from the catalog through the resolver by `cli/CleanSlices.Matrix`, so the matrix grows with the catalog and skips what can't exist. Pull requests run the default and each option alone; pushes to `main`, the nightly run and manual runs add every pair and everything together. Every CI job can be run locally with the same command.
+
+Without it, combinations break silently. GitHub's limit of 256 jobs per matrix is reached at around 20 options; before then, pairs should be limited to options that touch the same files.
 
 ## Versioning
 
@@ -164,7 +166,7 @@ Each phase ends with something usable. The order is a proposal.
 | 0, done | Patterns as git branches; `result` | Composing and merging options into existing code |
 | 1, done | **Base template changes** ([backlog](docs/roadmap/base-template.md)): test projects, ordered save pipeline and domain events before the save, pagination, Aspire-managed database | A better default solution, and the save pipeline options plug into |
 | 2, done | **Conditionals**: `result` moved from its branch to template conditionals (identical output, checked against the branch); catalog, schema and resolver in the CLI; `new --with`, `add <option>`, `list`; manifest format 2 | One mechanism; requires / provides / conflicts / groups / choices |
-| 3 | **CI matrix** | Combinations stay working |
+| 3, done | **CI matrix**: combinations from the catalog through the resolver; template ref (`--template-ref`, `CLEANSLICES_TEMPLATE_REF`, `HEAD`) so CI tests the commit under test | Combinations stay working |
 | 4 | **Outbox, inbox, integration events** | Seams with defaults and hidden units |
 | 5 | **PostgreSQL** | Provider-neutral code |
 | 6 | **Repository, CQRS, request validation, idempotency keys** | Several invasive patterns in one feature template |

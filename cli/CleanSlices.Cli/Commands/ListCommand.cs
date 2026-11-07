@@ -14,6 +14,10 @@ internal sealed class ListCommand : AsyncCommand<ListCommand.Settings>
         [CommandOption("--template-repo <SOURCE>")]
         [Description($"Template repository (local path or git URL). Defaults to the solution's, then ${TemplateRepository.EnvironmentVariable}, then {TemplateRepository.DefaultSource}.")]
         public string? TemplateRepo { get; init; }
+
+        [CommandOption("--template-ref <REF>")]
+        [Description($"Outside a solution: branch, tag, commit or HEAD of the template repository to list. Defaults to ${TemplateRepository.RefEnvironmentVariable}, then {TemplateRepository.DefaultRef}.")]
+        public string? TemplateRef { get; init; }
     }
 
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
@@ -40,7 +44,8 @@ internal sealed class ListCommand : AsyncCommand<ListCommand.Settings>
 
         using var repository = await AnsiConsole.Status().StartAsync("Fetching templates...", _ =>
             TemplateRepository.OpenAsync(source, cancellationToken));
-        var commit = manifest?.TemplateCommit ?? await repository.GetMainCommitAsync(cancellationToken);
+        var commit = manifest?.TemplateCommit
+            ?? await repository.ResolveAndAnnounceAsync(TemplateRepository.ResolveRef(settings.TemplateRef), cancellationToken);
 
         if (await repository.ReadCatalogAsync(commit, cancellationToken) is not { } catalog)
         {

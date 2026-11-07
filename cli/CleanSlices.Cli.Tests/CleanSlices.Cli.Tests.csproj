@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CleanSlices.Cli\CleanSlices.Cli.csproj" />
+    <ProjectReference Include="..\CleanSlices.Matrix\CleanSlices.Matrix.csproj" />
   </ItemGroup>
 
 </Project>

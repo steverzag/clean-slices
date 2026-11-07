@@ -19,8 +19,12 @@
   <Folder Name="/cli/">
     <Project Path="cli/CleanSlices.Cli/CleanSlices.Cli.csproj" />
     <Project Path="cli/CleanSlices.Cli.Tests/CleanSlices.Cli.Tests.csproj" />
+    <Project Path="cli/CleanSlices.Matrix/CleanSlices.Matrix.csproj" />
     <File Path="cli/Directory.Build.props" />
     <File Path="cli/Directory.Packages.props" />
+  </Folder>
+  <Folder Name="/.github/">
+    <File Path=".github/workflows/ci.yml" />
   </Folder>
   <Folder Name="/templates/">
     <File Path=".template.config/template.json" />

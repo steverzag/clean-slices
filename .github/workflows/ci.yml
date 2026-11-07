@@ -1,0 +1,90 @@
+# The template repository's CI. The combinations come from catalog.json through the CLI's resolver
+# (cli/CleanSlices.Matrix), so new options are tested without editing this file.
+# Reproduce any job locally: dotnet run --project cli/CleanSlices.Matrix -- run <job>
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 3 * * *" # nightly, 03:00 UTC: the full matrix
+  workflow_dispatch:
+    inputs:
+      tier:
+        description: "push: the default and each option alone; full: also every pair and everything together"
+        type: choice
+        options: [full, push]
+        default: full
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: "1"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+
+jobs:
+  repository:
+    name: Template repository
+    runs-on: ubuntu-latest # Docker is needed for the API tests' SQL Server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Test (template without options, CLI, catalog consistency)
+        run: dotnet test --solution CleanSlices.Dev.slnx
+
+  plan:
+    name: Plan the matrix
+    runs-on: ubuntu-latest
+    outputs:
+      jobs: ${{ steps.list.outputs.jobs }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Build the matrix tool
+        run: dotnet build cli/CleanSlices.Matrix -v q
+      - name: List the jobs
+        id: list
+        env:
+          # Pull requests run the push tier; pushes to main, the nightly run and manual runs (unless told otherwise) run everything.
+          TIER: ${{ github.event_name == 'pull_request' && 'push' || (github.event_name == 'workflow_dispatch' && inputs.tier) || 'full' }}
+        run: |
+          dotnet run --project cli/CleanSlices.Matrix --no-build -- list --tier "$TIER"
+          echo "jobs=$(dotnet run --project cli/CleanSlices.Matrix --no-build -- list --tier "$TIER" --json)" >> "$GITHUB_OUTPUT"
+
+  combination:
+    name: ${{ matrix.job.title }}
+    needs: plan
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        job: ${{ fromJSON(needs.plan.outputs.jobs) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the CLI clones this checkout and renders HEAD from it
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Run ${{ matrix.job.id }}
+        run: dotnet run --project cli/CleanSlices.Matrix -- run "${{ matrix.job.id }}"
+
+  # One fixed name to require in branch protection; the matrix jobs' names change with the catalog.
+  passed:
+    name: CI passed
+    if: always()
+    needs: [repository, combination]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every job succeeded
+        run: |
+          test "${{ needs.repository.result }}" = "success"
+          test "${{ needs.combination.result }}" = "success"

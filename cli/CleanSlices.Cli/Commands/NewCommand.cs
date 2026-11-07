@@ -27,7 +27,7 @@ internal sealed class NewCommand : AsyncCommand<NewCommand.Settings>
         public bool NoSamples { get; init; }
 
         [CommandOption("-w|--with <OPTION>")]
-        [Description("Include an option (repeatable): <id> or <id>:<choice>=<value>[,...], e.g. --with result. See `cleanslices list`.")]
+        [Description("Include an option (repeatable): <id> or <id>:<choice>=<value>[[,...]], e.g. --with result. See `cleanslices list`.")]
         public string[] With { get; init; } = [];
 
         [CommandOption("--git")]
@@ -45,6 +45,10 @@ internal sealed class NewCommand : AsyncCommand<NewCommand.Settings>
         [CommandOption("--template-repo <SOURCE>")]
         [Description($"Template repository (local path or git URL). Defaults to ${TemplateRepository.EnvironmentVariable}, then {TemplateRepository.DefaultSource}.")]
         public string? TemplateRepo { get; init; }
+
+        [CommandOption("--template-ref <REF>")]
+        [Description($"Branch, tag, commit or HEAD of the template repository to create the solution from. Defaults to ${TemplateRepository.RefEnvironmentVariable}, then {TemplateRepository.DefaultRef}.")]
+        public string? TemplateRef { get; init; }
 
         [CommandOption("-y|--yes")]
         [Description("Accept defaults for everything not passed explicitly; never prompt.")]
@@ -127,7 +131,7 @@ internal sealed class NewCommand : AsyncCommand<NewCommand.Settings>
         OptionCatalog? catalog = null;
         if (repository is not null)
         {
-            templateCommit = await repository.GetMainCommitAsync(cancellationToken);
+            templateCommit = await repository.ResolveAndAnnounceAsync(TemplateRepository.ResolveRef(settings.TemplateRef), cancellationToken);
             catalog = await repository.ReadCatalogAsync(templateCommit, cancellationToken);
             if (catalog is null && requested.Count > 0)
             {

@@ -32,14 +32,17 @@ That runs the template **without options**. To build and test it with options, p
 dotnet test --solution CleanSlices.Dev.slnx -p:TemplateOptions=result
 ```
 
-The CLI reads templates from git, not from your working folder, so **commit** before testing. Point it at your local clone so you don't have to push:
+The CLI reads templates from git, not from your working folder, so **commit** before testing. Point it at your local clone so you don't have to push, and at `HEAD` so it uses the branch you're on instead of `main`:
 
 ```powershell
 $env:CLEANSLICES_TEMPLATE_REPO = "C:\path\to\clean-slices"
+$env:CLEANSLICES_TEMPLATE_REF = "HEAD"
 
 cd $env:TEMP
 dotnet run --project C:\path\to\clean-slices\cli\CleanSlices.Cli -- new Acme.Test --samples --with result -y
 ```
+
+The CI jobs below do exactly this, and can be run locally too.
 
 `dotnet run` always uses the current CLI code. To test the installed tool instead, bump `<Version>` in `cli/CleanSlices.Cli/CleanSlices.Cli.csproj`, then:
 
@@ -101,14 +104,44 @@ The CLI reads the catalog **at the template commit a solution came from**, resol
    dotnet test --solution CleanSlices.Dev.slnx                          # default + catalog consistency
    dotnet test --solution CleanSlices.Dev.slnx -p:TemplateOptions=<id>  # the option
    ```
-5. Commit, then check the CLI flows against your clone (`$env:CLEANSLICES_TEMPLATE_REPO`): a new solution with the option, and the option added later to a solution that has a feature:
+5. Commit, then run the option's CI jobs locally (see [CI](#ci)): the new jobs appear in `list` by themselves.
    ```powershell
-   cleanslices new Acme.A --samples --with <id> -y; cd Acme.A; cleanslices add feature Product -y; dotnet test
-   cleanslices new Acme.B --samples -y; cd Acme.B; cleanslices add feature Product -y; git add -A; git commit -m wip; cleanslices add <id> -y; dotnet test
+   dotnet run --project cli/CleanSlices.Matrix -- list
+   dotnet run --project cli/CleanSlices.Matrix -- run <id>-samples
+   dotnet run --project cli/CleanSlices.Matrix -- run <id>-later
    ```
-   With prompts (no `-y`), also look at how the option appears in the interactive list.
+   With prompts, also look at how the option appears in the interactive list (`cleanslices new Acme.Try` with `CLEANSLICES_TEMPLATE_REF=HEAD`).
 
 Options should add files rather than edit shared ones where they can (rule 4 in ROADMAP.md): every edited line is a possible conflict with the user's code.
+
+## CI
+
+`.github/workflows/ci.yml` tests the template repository on GitHub Actions, on Linux (the API tests need Docker):
+
+- **Template repository**: `dotnet test --solution CleanSlices.Dev.slnx`, the template without options, the CLI tests and the catalog consistency tests.
+- **The matrix**: one job per combination of options. `cli/CleanSlices.Matrix` derives the combinations from `catalog.json` through the CLI's resolver, so a new option is tested without touching the workflow. Combinations that can't exist (conflicts, two of a group, no sample support) are skipped with the resolver's reason; an option that needs another gets its first provider; combinations that resolve to the same configuration run once.
+
+| Tier | Jobs | When |
+|---|---|---|
+| push | the default with and without samples; each option alone, and each value of each choice, with and without samples; each option added later to a solution with a feature | pull requests |
+| full | push, plus every pair (with samples) and everything that fits together | pushes to `main`, nightly, and **Run workflow** (tier selectable) |
+
+A job generates a solution with the CLI built from source and the template at the commit under test, adds a feature, and runs the solution's tests. For one job per set of options it also runs the template repository's tests with those options (`-p:TemplateOptions=…`).
+
+Every job runs locally the same way, with Docker running:
+
+```powershell
+dotnet run --project cli/CleanSlices.Matrix -- list                 # what CI would run, and what it skips and why
+dotnet run --project cli/CleanSlices.Matrix -- list --tier push
+dotnet run --project cli/CleanSlices.Matrix -- run result-later     # one job; the solution stays in %TEMP%\cleanslices-matrix\<job>
+dotnet run --project cli/CleanSlices.Matrix -- run result --ref main
+```
+
+`run` uses the template at `HEAD` (committed changes) unless `--ref` says otherwise.
+
+GitHub runs at most 256 jobs per matrix. With every pair that's reached at around 20 options; before then, the full tier should only pair options that touch the same files.
+
+The last job, **CI passed**, succeeds only when the repository job and every matrix job did. Checks don't block merges by themselves: to require them, add a branch protection rule (or ruleset) for `main` in the repository's GitHub settings that requires *CI passed*. It's one fixed name, while the matrix jobs change with the catalog.
 
 ## Template rules worth knowing
 
