@@ -248,6 +248,38 @@ public class ResolverTests
         Assert.Contains("doesn't know", Assert.Single(Resolve(existing: ["gone"], requested: []).Errors));
     }
 
+    [Theory]
+    [InlineData("outbox")]
+    [InlineData("rabbitmq")]
+    public void A_recommended_option_is_suggested_once_the_selection_meets_its_requirements(string provider)
+    {
+        var resolution = Resolve(provider);
+
+        Assert.Equal(["inbox"], resolution.Suggestions.Select(s => s.Id));
+        Assert.DoesNotContain("inbox", Ids(resolution));
+    }
+
+    [Fact]
+    public void Nothing_is_suggested_when_requirements_arent_met_or_it_is_selected()
+    {
+        Assert.Empty(Resolve("result").Suggestions);
+        Assert.Empty(Resolve("outbox", "inbox").Suggestions);
+        Assert.Empty(Resolve(existing: ["outbox", "inbox"], requested: ["result"]).Suggestions);
+    }
+
+    [Fact]
+    public void A_solution_that_already_meets_the_requirements_gets_the_suggestion_again()
+    {
+        // Declining isn't recorded, so a later add offers it again.
+        Assert.Equal(["inbox"], Resolve(existing: ["outbox"], requested: ["result"]).Suggestions.Select(s => s.Id));
+    }
+
+    [Fact]
+    public void A_configuration_with_errors_gets_no_suggestions()
+    {
+        Assert.Empty(Resolve("outbox", "rabbitmq", "servicebus").Suggestions);
+    }
+
     [Fact]
     public void Missing_for_annotates_options_that_need_another_option()
     {

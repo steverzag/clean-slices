@@ -43,5 +43,8 @@ public class CatalogTests
         Assert.True(catalog.Find("result")!.Samples);
         Assert.False(catalog.Find("legacy")!.Samples);
         Assert.Equal("integration_events", catalog.Find("integration-events")!.Symbol);
+        Assert.True(catalog.Find("inbox")!.Recommended);
+        Assert.True(catalog.Find("outbox")!.AddsTables);
+        Assert.False(catalog.Find("result")!.Recommended || catalog.Find("result")!.AddsTables);
     }
 }

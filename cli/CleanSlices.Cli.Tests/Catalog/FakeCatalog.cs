@@ -19,9 +19,9 @@ internal static class FakeCatalog
         [
           { "id": "result", "kind": "option", "concept": "pattern", "title": "Result<T>", "description": "d" },
           { "id": "outbox", "kind": "option", "concept": "pattern", "title": "Outbox", "description": "d",
-            "requires": ["integration-events"], "provides": ["at-least-once-delivery"] },
+            "requires": ["integration-events"], "provides": ["at-least-once-delivery"], "addsTables": true },
           { "id": "inbox", "kind": "option", "concept": "pattern", "title": "Inbox", "description": "d",
-            "requires": ["at-least-once-delivery"] },
+            "requires": ["at-least-once-delivery"], "recommended": true, "addsTables": true },
           { "id": "cqrs", "kind": "option", "concept": "pattern", "title": "CQRS", "description": "d",
             "choices": { "dispatcher": { "default": "handlers", "values": {
               "handlers": { "title": "Own handlers" },

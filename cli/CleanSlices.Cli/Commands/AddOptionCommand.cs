@@ -126,7 +126,7 @@ internal sealed class AddOptionCommand : AsyncCommand<AddOptionCommand.Settings>
             return 0;
         }
 
-        if (!OptionSelection.ConfirmPlan(after, applied, interactive))
+        if (!OptionSelection.ConfirmPlan(after, applied, interactive, howToAdd: "cleanslices add"))
         {
             Ui.Warning("Nothing was changed.");
             return 1;
@@ -158,6 +158,7 @@ internal sealed class AddOptionCommand : AsyncCommand<AddOptionCommand.Settings>
 
         PrintChanges(outcome);
         WarnAboutReplacements(after);
+        WarnAboutNewTables(after, applied, solution.InfrastructureProjectPath);
 
         var subject = $"feat: add {titles}";
         if (outcome.HasConflicts)
@@ -204,6 +205,26 @@ internal sealed class AddOptionCommand : AsyncCommand<AddOptionCommand.Settings>
             }
         }
     }
+
+    /// <summary>Migrations are generated on the user's side (rule 5), so new tables need one before the app runs.</summary>
+    private static void WarnAboutNewTables(Resolution resolution, IReadOnlySet<string> applied, string infrastructureProject)
+    {
+        var withTables = resolution.Units
+            .Where(u => u.Unit.AddsTables && !applied.Contains(u.Unit.Id))
+            .Select(u => u.Unit)
+            .ToList();
+        if (withTables.Count == 0)
+        {
+            return;
+        }
+
+        Ui.Warning($"{string.Join(" and ", withTables.Select(u => u.DisplayName))} {(withTables.Count == 1 ? "adds" : "add")} database tables. Create a migration:");
+        Ui.Hint($"dotnet ef migrations add {MigrationName(withTables)} --project {infrastructureProject}");
+    }
+
+    /// <summary><c>Add</c> plus the ids in PascalCase: outbox + inbox → <c>AddOutboxInbox</c>.</summary>
+    internal static string MigrationName(IEnumerable<Unit> units) =>
+        "Add" + string.Concat(units.SelectMany(u => u.Id.Split('-')).Select(part => char.ToUpperInvariant(part[0]) + part[1..]));
 
     private static void PrintChanges(MergeOutcome outcome)
     {

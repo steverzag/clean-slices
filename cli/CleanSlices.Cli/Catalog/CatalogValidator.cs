@@ -116,6 +116,12 @@ internal static class CatalogValidator
             }
         }
 
+        // Recommended means "offered once its requirements are met"; without requirements it would be offered always.
+        if (unit.Recommended && unit.Requires.Count == 0)
+        {
+            errors.Add($"{where} is recommended but requires nothing, so it would be offered with every selection.");
+        }
+
         foreach (var id in unit.When)
         {
             if (catalog.Find(id) is null)

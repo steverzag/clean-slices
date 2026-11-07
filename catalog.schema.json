@@ -151,6 +151,16 @@
           "default": true
         },
         "license": { "$ref": "#/$defs/license" },
+        "recommended": {
+          "description": "Options only: offered (never added silently) when the selection meets its requirements, e.g. the inbox once the outbox or a queue is selected. Needs `requires`.",
+          "type": "boolean",
+          "default": false
+        },
+        "addsTables": {
+          "description": "The unit adds database tables: after `cleanslices add`, the CLI reminds the user to create a migration.",
+          "type": "boolean",
+          "default": false
+        },
         "when": {
           "description": "Glue units only: applied when every listed unit is selected.",
           "$ref": "#/$defs/names",
@@ -167,13 +177,13 @@
         },
         {
           "if": { "properties": { "kind": { "const": "hidden" } } },
-          "then": { "not": { "anyOf": [ { "required": [ "concept" ] }, { "required": [ "group" ] }, { "required": [ "when" ] } ] } }
+          "then": { "not": { "anyOf": [ { "required": [ "concept" ] }, { "required": [ "group" ] }, { "required": [ "when" ] }, { "required": [ "recommended" ] } ] } }
         },
         {
           "if": { "properties": { "kind": { "const": "glue" } } },
           "then": {
             "required": [ "when" ],
-            "not": { "anyOf": [ { "required": [ "concept" ] }, { "required": [ "group" ] }, { "required": [ "choices" ] } ] }
+            "not": { "anyOf": [ { "required": [ "concept" ] }, { "required": [ "group" ] }, { "required": [ "choices" ] }, { "required": [ "recommended" ] } ] }
           }
         }
       ]

@@ -37,12 +37,17 @@ internal sealed record UnmetRequirement(string Capability, IReadOnlyList<Unit> R
 
 internal sealed record LicenseNotice(string Subject, License License);
 
+/// <param name="Suggestions">
+/// Recommended options that aren't selected but now could be: the selection provides what they require and adding
+/// them still resolves. The CLI offers them; the resolver never adds them.
+/// </param>
 internal sealed record Resolution(
     IReadOnlyList<ResolvedUnit> Units,
     IReadOnlyList<Unit> Replaced,
     IReadOnlyList<UnmetRequirement> Unmet,
     IReadOnlyList<string> Errors,
-    IReadOnlyList<LicenseNotice> Licenses)
+    IReadOnlyList<LicenseNotice> Licenses,
+    IReadOnlyList<Unit> Suggestions)
 {
     /// <summary>Nothing is wrong and nothing is missing: the configuration can be generated.</summary>
     public bool IsResolved => Errors.Count == 0 && Unmet.Count == 0;
@@ -72,7 +77,15 @@ internal static class Resolver
         OptionCatalog catalog,
         IReadOnlyList<OptionRequest> existing,
         IReadOnlyList<OptionRequest> requested,
-        bool samples)
+        bool samples) =>
+        Resolve(catalog, existing, requested, samples, suggest: true);
+
+    private static Resolution Resolve(
+        OptionCatalog catalog,
+        IReadOnlyList<OptionRequest> existing,
+        IReadOnlyList<OptionRequest> requested,
+        bool samples,
+        bool suggest)
     {
         var errors = new List<string>();
         var replaced = new List<Unit>();
@@ -251,13 +264,25 @@ internal static class Resolver
             .ToList();
 
         var licenses = resolved.SelectMany(LicensesOf).ToList();
+        var unmetRequirements = unmet.Select(m => new UnmetRequirement(m.Key, m.Value.RequiredBy.Distinct().ToList(), m.Value.Providers)).ToList();
 
-        return new Resolution(
-            resolved,
-            replaced,
-            [.. unmet.Select(m => new UnmetRequirement(m.Key, m.Value.RequiredBy.Distinct().ToList(), m.Value.Providers))],
-            errors,
-            licenses);
+        // Only for a configuration that resolves: suggestions are about what else fits, not about what's wrong.
+        List<Unit> suggestions = [];
+        if (suggest && errors.Count == 0 && unmetRequirements.Count == 0)
+        {
+            var provided = resolved.SelectMany(r => r.Unit.Capabilities).ToHashSet(StringComparer.Ordinal);
+            var selection = resolved.Where(r => r.Unit.Kind == UnitKind.Option).Select(r => new OptionRequest(r.Unit.Id, r.Choices)).ToList();
+            suggestions =
+            [
+                .. catalog.Units.Where(candidate =>
+                    candidate is { Kind: UnitKind.Option, Recommended: true }
+                    && !selected.ContainsKey(candidate.Id)
+                    && candidate.Requires.All(provided.Contains)
+                    && Resolve(catalog, [], [.. selection, OptionRequest.Of(candidate.Id)], samples, suggest: false).IsResolved),
+            ];
+        }
+
+        return new Resolution(resolved, replaced, unmetRequirements, errors, licenses, suggestions);
     }
 
     /// <summary>
@@ -270,7 +295,8 @@ internal static class Resolver
             catalog,
             [.. selectedIds.Where(id => id != unit.Id).Select(id => new OptionRequest(id, new Dictionary<string, string>()))],
             [new OptionRequest(unit.Id, new Dictionary<string, string>())],
-            samples: false);
+            samples: false,
+            suggest: false);
 
         return [.. resolution.Unmet.Where(m => m.RequiredBy.Contains(unit))];
     }

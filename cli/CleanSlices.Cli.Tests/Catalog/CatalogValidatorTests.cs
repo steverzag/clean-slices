@@ -116,6 +116,12 @@ public class CatalogValidatorTests
     }
 
     [Fact]
+    public void A_recommended_option_must_require_something()
+    {
+        Assert.Contains("would be offered with every selection", Error($$"""[{ "id": "a", {{Option}}, "concept": "pattern", "recommended": true }]"""));
+    }
+
+    [Fact]
     public void Template_parameters_are_reserved()
     {
         Assert.Contains("reserved by the template", Error($$"""[{ "id": "samples", {{Option}}, "concept": "pattern" }]"""));

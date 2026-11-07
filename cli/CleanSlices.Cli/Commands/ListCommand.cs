@@ -100,6 +100,16 @@ internal sealed class ListCommand : AsyncCommand<ListCommand.Settings>
                     details.Add($"[yellow]needs {Markup.Escape(Resolver.JoinOr(needs.Select(n => n.Id)))}[/]");
                 }
 
+                if (unit.Recommended && needs.Count > 0)
+                {
+                    details.Add($"[green]recommended with {Markup.Escape(Resolver.JoinOr(needs.Select(n => n.Id)))}[/]");
+                }
+
+                if (unit.AddsTables)
+                {
+                    details.Add("adds database tables");
+                }
+
                 if (!unit.Samples)
                 {
                     details.Add("[yellow]not with the samples[/]");

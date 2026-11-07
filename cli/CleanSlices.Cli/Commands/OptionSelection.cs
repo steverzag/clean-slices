@@ -142,6 +142,8 @@ internal static class OptionSelection
         bool samples,
         bool interactive)
     {
+        // Each recommended option is offered at most once per command; a "no" isn't recorded anywhere.
+        var offered = new HashSet<string>(StringComparer.Ordinal);
         while (true)
         {
             var resolution = Resolver.Resolve(catalog, existing, requests, samples);
@@ -157,7 +159,16 @@ internal static class OptionSelection
 
             if (resolution.Unmet.Count == 0)
             {
-                return resolution;
+                var accepted = interactive
+                    ? resolution.Suggestions.Where(s => offered.Add(s.Id) && OfferRecommended(s)).ToList()
+                    : [];
+                if (accepted.Count == 0)
+                {
+                    return resolution;
+                }
+
+                requests = [.. requests, .. accepted.Select(s => AskChoices(catalog, new OptionRequest(s.Id, new Dictionary<string, string>())))];
+                continue;
             }
 
             if (!interactive)
@@ -191,11 +202,17 @@ internal static class OptionSelection
         }
     }
 
+    private static bool OfferRecommended(Unit unit) =>
+        AnsiConsole.Confirm(
+            $"Your selection makes [bold]{Markup.Escape(unit.DisplayName)}[/] available: {Markup.Escape(unit.Description ?? string.Empty)} Add it? [grey](recommended)[/]",
+            defaultValue: true);
+
     /// <summary>
     /// What will be applied, why, and the licenses that come with it. Printed even when it's empty, so a selection
     /// that didn't register (Enter without Space in a multi-select) is visible before anything is generated.
     /// </summary>
-    public static void PrintPlan(Resolution resolution, IReadOnlyCollection<string> applied)
+    /// <param name="howToAdd">How the command adds an option, for tips about recommended ones (<c>--with</c>, <c>cleanslices add</c>); null prints none.</param>
+    public static void PrintPlan(Resolution resolution, IReadOnlyCollection<string> applied, string? howToAdd = null)
     {
         var adding = resolution.Units.Where(u => !applied.Contains(u.Unit.Id)).ToList();
 
@@ -205,6 +222,7 @@ internal static class OptionSelection
             AnsiConsole.MarkupLine(applied.Count == 0
                 ? "[bold]Options:[/] none [grey](the default setup)[/]"
                 : "[bold]Options:[/] nothing new");
+            PrintTips(resolution, howToAdd);
             return;
         }
 
@@ -237,12 +255,30 @@ internal static class OptionSelection
                 Ui.Hint($"Set {setting} (generated empty) before running the app.");
             }
         }
+
+        PrintTips(resolution, howToAdd);
+    }
+
+    /// <summary>Without prompts nobody was asked about recommended options, so the plan mentions them.</summary>
+    private static void PrintTips(Resolution resolution, string? howToAdd)
+    {
+        if (howToAdd is null)
+        {
+            return;
+        }
+
+        foreach (var suggestion in resolution.Suggestions)
+        {
+            AnsiConsole.MarkupLine(
+                $"  [aqua]Tip:[/] {Markup.Escape(suggestion.DisplayName)} is recommended with this selection: [aqua]{Markup.Escape($"{howToAdd} {suggestion.Id}")}[/]");
+        }
     }
 
     /// <summary>Prints the plan and, when prompting, asks to go ahead. True when there's nothing to confirm.</summary>
-    public static bool ConfirmPlan(Resolution resolution, IReadOnlyCollection<string> applied, bool interactive)
+    /// <param name="howToAdd">See <see cref="PrintPlan"/>; tips are printed only without prompts (with prompts, the user was asked).</param>
+    public static bool ConfirmPlan(Resolution resolution, IReadOnlyCollection<string> applied, bool interactive, string? howToAdd = null)
     {
-        PrintPlan(resolution, applied);
+        PrintPlan(resolution, applied, interactive ? null : howToAdd);
         var anything = resolution.Replaced.Count > 0 || resolution.Units.Any(u => !applied.Contains(u.Unit.Id));
         return !interactive || !anything || AnsiConsole.Confirm("Go ahead?", defaultValue: true);
     }

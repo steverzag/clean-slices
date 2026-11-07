@@ -179,7 +179,7 @@ internal sealed class NewCommand : AsyncCommand<NewCommand.Settings>
                 return 1;
             }
 
-            if (!OptionSelection.ConfirmPlan(resolution, applied: [], interactive))
+            if (!OptionSelection.ConfirmPlan(resolution, applied: [], interactive, howToAdd: "--with"))
             {
                 Ui.Warning("Nothing was created.");
                 return 1;

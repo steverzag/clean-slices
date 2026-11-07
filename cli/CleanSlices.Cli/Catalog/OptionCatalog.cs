@@ -119,6 +119,12 @@ internal sealed record Unit
 
     public License? License { get; init; }
 
+    /// <summary>Offered (never added silently) when the selection meets this option's requirements.</summary>
+    public bool Recommended { get; init; }
+
+    /// <summary>The unit adds database tables, so adding it to a solution needs a migration.</summary>
+    public bool AddsTables { get; init; }
+
     /// <summary>Glue units: applied when every listed unit is selected.</summary>
     public IReadOnlyList<string> When { get; init; } = [];
 

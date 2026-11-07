@@ -58,6 +58,30 @@ public sealed class OptionSelectionTests : IDisposable
         Assert.Contains("space selects, enter confirms", _console.Output);
     }
 
+    [Theory]
+    [InlineData("y", true)]
+    [InlineData("n", false)]
+    public void A_recommended_option_is_offered_and_added_only_on_yes(string answer, bool added)
+    {
+        _console.Input.PushTextWithEnter(answer);
+
+        var resolution = OptionSelection.Resolve(FakeCatalog.World, [], [OptionRequest.Of("outbox")], samples: false, interactive: true);
+
+        Assert.Contains("makes Inbox available", _console.Output);
+        Assert.Equal(added, resolution!.Units.Any(u => u.Unit.Id == "inbox"));
+    }
+
+    [Fact]
+    public void Without_prompts_a_recommended_option_is_a_tip_and_not_added()
+    {
+        var resolution = OptionSelection.Resolve(FakeCatalog.World, [], [OptionRequest.Of("outbox")], samples: false, interactive: false);
+
+        OptionSelection.ConfirmPlan(resolution!, applied: [], interactive: false, howToAdd: "--with");
+
+        Assert.DoesNotContain(resolution!.Units, u => u.Unit.Id == "inbox");
+        Assert.Contains("Tip: Inbox is recommended with this selection: --with inbox", _console.Output);
+    }
+
     [Fact]
     public void An_empty_plan_is_printed_too()
     {
