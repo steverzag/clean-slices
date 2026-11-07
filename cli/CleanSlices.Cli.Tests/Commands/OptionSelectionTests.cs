@@ -40,6 +40,42 @@ public sealed class OptionSelectionTests : IDisposable
         Assert.Equal("result", Assert.Single(requests).Id);
     }
 
+    private static readonly OptionCatalog Databases = FakeCatalog.Build(
+        units: """
+        [
+          { "id": "sqlserver", "kind": "option", "concept": "infrastructure", "group": "database", "title": "SQL Server", "description": "d" },
+          { "id": "postgresql", "kind": "option", "concept": "infrastructure", "group": "database", "title": "PostgreSQL", "description": "d" }
+        ]
+        """,
+        groups: """{ "database": { "title": "Database", "required": true, "default": "sqlserver" } }""");
+
+    [Fact]
+    public void A_groups_default_is_first_so_enter_keeps_it()
+    {
+        _console.Input.PushKey(ConsoleKey.Enter);
+
+        Assert.Empty(OptionSelection.Ask(Databases, samples: false, applied: []));
+        Assert.Contains("Database", _console.Output);
+    }
+
+    [Fact]
+    public void Another_option_of_a_group_can_be_picked()
+    {
+        _console.Input.PushKey(ConsoleKey.DownArrow);
+        _console.Input.PushKey(ConsoleKey.Enter);
+
+        Assert.Equal("postgresql", Assert.Single(OptionSelection.Ask(Databases, samples: false, applied: [])).Id);
+    }
+
+    [Fact]
+    public void A_solutions_current_option_is_offered_first_so_it_can_be_kept()
+    {
+        _console.Input.PushKey(ConsoleKey.Enter);
+
+        Assert.Empty(OptionSelection.Ask(Databases, samples: false, applied: ["postgresql"]));
+        Assert.Contains("(current)", _console.Output);
+    }
+
     [Fact]
     public void Enter_alone_accepts_an_empty_selection()
     {
