@@ -154,35 +154,15 @@ public class OutboxTests(ApiFactory factory)
 	}
 
 	private Task<OutboxMessage> ProcessUntilAsync(Guid testId, Func<OutboxMessage, bool> done) =>
-		ProcessUntilAsync(m => m.Payload.Contains(testId.ToString()), done);
+		factory.ProcessOutboxUntilAsync(m => m.Payload.Contains(testId.ToString()), done, Ct);
 
-	// Other tests process the same table at the same time, so whoever's batch picks the row up, this waits for its state.
-	private async Task<OutboxMessage> ProcessUntilAsync(System.Linq.Expressions.Expression<Func<OutboxMessage, bool>> which, Func<OutboxMessage, bool> done)
-	{
-		var processor = factory.Services.GetRequiredService<OutboxProcessor>();
-		for (var round = 0; round < 50; round++)
-		{
-			await processor.ProcessBatchAsync(Ct);
-			var message = await FindOrDefaultAsync(which);
-			if (message is not null && done(message))
-			{
-				return message;
-			}
-		}
-
-		throw new TimeoutException("The outbox row never reached the expected state.");
-	}
+	private Task<OutboxMessage> ProcessUntilAsync(System.Linq.Expressions.Expression<Func<OutboxMessage, bool>> which, Func<OutboxMessage, bool> done) =>
+		factory.ProcessOutboxUntilAsync(which, done, Ct);
 
 	private async Task<OutboxMessage> FindAsync(Guid testId) =>
 		await FindOrDefaultAsync(testId) ?? throw new InvalidOperationException($"No outbox row for {testId}.");
 
 	private Task<OutboxMessage?> FindOrDefaultAsync(Guid testId) =>
-		FindOrDefaultAsync(m => m.Payload.Contains(testId.ToString()));
-
-	private async Task<OutboxMessage?> FindOrDefaultAsync(System.Linq.Expressions.Expression<Func<OutboxMessage, bool>> which)
-	{
-		await using var scope = factory.Services.CreateAsyncScope();
-		return await scope.ServiceProvider.GetRequiredService<AppDbContext>().Set<OutboxMessage>().AsNoTracking().SingleOrDefaultAsync(which, Ct);
-	}
+		factory.FindOutboxMessageAsync(m => m.Payload.Contains(testId.ToString()), Ct);
 }
 #endif

@@ -1,14 +1,16 @@
 #if (outbox)
+using System.Net;
 using CleanSlices.Api.Features.Users;
 using CleanSlices.Api.Tests.Infrastructure;
+using CleanSlices.Api.Tests.Outbox;
 #if (inbox)
 using CleanSlices.Infrastructure.Inbox;
 using CleanSlices.Infrastructure.IntegrationEvents.Users;
-#endif
-using CleanSlices.Infrastructure.Outbox;
 using CleanSlices.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+#endif
+using CleanSlices.Infrastructure.Outbox;
 
 namespace CleanSlices.Api.Tests.Features.Users;
 
@@ -39,7 +41,8 @@ public class UserIntegrationEventsTests(ApiFactory factory)
 		var response = await _client.Post("/users", new CreateUser.CreateUserRequest("Luis", email));
 		var user = await response.Content.ReadAsAsync<CreateUser.CreateUserResponse>();
 
-		await _client.Delete($"/users/{user.Id}");
+		var deleted = await _client.Delete($"/users/{user.Id}");
+		Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
 
 		var message = await ProcessUntilAsync(user.Id, "users.deleted.v1");
 		Assert.DoesNotContain(email, message.Payload);
@@ -71,23 +74,7 @@ public class UserIntegrationEventsTests(ApiFactory factory)
 	}
 #endif
 
-	private async Task<OutboxMessage> ProcessUntilAsync(Guid userId, string name)
-	{
-		var processor = factory.Services.GetRequiredService<OutboxProcessor>();
-		for (var round = 0; round < 50; round++)
-		{
-			await processor.ProcessBatchAsync(Ct);
-
-			await using var scope = factory.Services.CreateAsyncScope();
-			var message = await scope.ServiceProvider.GetRequiredService<AppDbContext>().Set<OutboxMessage>().AsNoTracking()
-				.SingleOrDefaultAsync(m => m.Name == name && m.Payload.Contains(userId.ToString()), Ct);
-			if (message?.ProcessedAt is not null)
-			{
-				return message;
-			}
-		}
-
-		throw new TimeoutException($"The {name} event for user {userId} was never processed.");
-	}
+	private Task<OutboxMessage> ProcessUntilAsync(Guid userId, string name) =>
+		factory.ProcessOutboxUntilAsync(m => m.Name == name && m.Payload.Contains(userId.ToString()), m => m.ProcessedAt is not null, Ct);
 }
 #endif
