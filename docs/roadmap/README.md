@@ -17,7 +17,7 @@ Changes to `main` that improve the default solution on their own: [base-template
 | Pattern | [Result&lt;T&gt;](patterns.md#resultt) | – | **done** (conditionals) |
 | Pattern | [Outbox](patterns.md#outbox) | – | **done** |
 | Pattern | [Inbox](patterns.md#inbox) | – | **done** (recommended with the outbox) |
-| Pattern | [Repository / unit of work](patterns.md#repository--unit-of-work) | – | designed |
+| Pattern | [Repository / unit of work](patterns.md#repository--unit-of-work) | – | **done** |
 | Pattern | [CQRS](patterns.md#cqrs) | `dispatcher`: handlers (default, Mediator vocabulary), mediator | designed; MediatR dropped (phase 6) |
 | Pattern | [Idempotency keys](patterns.md#idempotency-keys) | – | **done** (in-memory store) |
 | Pattern | [Request validation](patterns.md#request-validation) | – | **done** (FluentValidation) |

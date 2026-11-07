@@ -9,12 +9,19 @@ using CleanSlices.Core.Domain.Users;
 #if (result)
 using CleanSlices.Core.Shared;
 #endif
+#if (repository)
+using CleanSlices.Core.Domain;
+#endif
+#if (!repository)
 using CleanSlices.Infrastructure.Persistence;
+#endif
 #if (validation)
 using FluentValidation;
 using UserFieldErrors = CleanSlices.Core.Domain.Users.UserErrors;
 #endif
+#if (!repository)
 using Microsoft.EntityFrameworkCore;
+#endif
 
 namespace CleanSlices.Api.Features.Users;
 
@@ -40,7 +47,38 @@ public class CreateUser : IEndpoint
 	}
 #endif
 
-#if (result)
+#if (repository && result)
+	public async Task<IResult> Handler(IUserRepository users, IUnitOfWork unitOfWork, CreateUserRequest request, CancellationToken cancellationToken)
+	{
+		if (await users.IsEmailInUseAsync(request.Email, cancellationToken))
+		{
+			return UserErrors.EmailInUse(request.Email).ToProblem();
+		}
+
+		var result = await User.Create(request.Name, request.Email)
+			.Tap(u => users.Add(u))
+			.TapAsync(async _ => await unitOfWork.SaveChangesAsync(cancellationToken));
+
+		return result
+			.Map(u => new CreateUserResponse(u.Id, u.Name, u.Email))
+			.ToCreatedAtRouteOrProblem(nameof(GetUserById), r => new { id = r.Id });
+	}
+#elif (repository)
+	public async Task<IResult> Handler(IUserRepository users, IUnitOfWork unitOfWork, CreateUserRequest request, CancellationToken cancellationToken)
+	{
+		if (await users.IsEmailInUseAsync(request.Email, cancellationToken))
+		{
+			throw UserErrors.EmailInUse(request.Email);
+		}
+
+		var user = User.Create(request.Name, request.Email);
+		users.Add(user);
+		await unitOfWork.SaveChangesAsync(cancellationToken);
+
+		var response = new CreateUserResponse(user.Id, user.Name, user.Email);
+		return Results.CreatedAtRoute(nameof(GetUserById), new { id = response.Id }, response);
+	}
+#elif (result)
 	public async Task<IResult> Handler(AppDbContext context, CreateUserRequest request, CancellationToken cancellationToken)
 	{
 		if (await context.Users.AnyAsync(u => u.Email == request.Email, cancellationToken))

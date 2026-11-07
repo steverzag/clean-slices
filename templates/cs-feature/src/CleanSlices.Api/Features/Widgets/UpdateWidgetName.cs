@@ -6,7 +6,12 @@ using CleanSlices.Core.Domain.Widgets;
 #if (result)
 using CleanSlices.Core.Shared;
 #endif
+#if (repository)
+using CleanSlices.Core.Domain;
+#endif
+#if (!repository)
 using CleanSlices.Infrastructure.Persistence;
+#endif
 #if (validation)
 using FluentValidation;
 using WidgetFieldErrors = CleanSlices.Core.Domain.Widgets.WidgetErrors;
@@ -30,7 +35,35 @@ public class UpdateWidgetName : IEndpoint
 	}
 #endif
 
-#if (result)
+#if (repository && result)
+	public async Task<IResult> Handler(IWidgetRepository widgets, IUnitOfWork unitOfWork, Guid id, UpdateWidgetNameRequest request, CancellationToken cancellationToken)
+	{
+		var entity = await widgets.GetByIdAsync(id, cancellationToken);
+		if (entity is null)
+		{
+			return WidgetErrors.NotFound(id).ToProblem();
+		}
+
+		var result = await entity.UpdateName(request.Name)
+			.TapAsync(async () => await unitOfWork.SaveChangesAsync(cancellationToken));
+
+		return result.ToNoContentOrProblem();
+	}
+#elif (repository)
+	public async Task<IResult> Handler(IWidgetRepository widgets, IUnitOfWork unitOfWork, Guid id, UpdateWidgetNameRequest request, CancellationToken cancellationToken)
+	{
+		var entity = await widgets.GetByIdAsync(id, cancellationToken);
+		if (entity is null)
+		{
+			throw WidgetErrors.NotFound(id);
+		}
+
+		entity.UpdateName(request.Name);
+		await unitOfWork.SaveChangesAsync(cancellationToken);
+
+		return Results.NoContent();
+	}
+#elif (result)
 	public async Task<IResult> Handler(AppDbContext context, Guid id, UpdateWidgetNameRequest request, CancellationToken cancellationToken)
 	{
 		var entity = await context.Set<Widget>().FindAsync([id], cancellationToken);

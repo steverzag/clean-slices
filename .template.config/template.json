@@ -32,6 +32,12 @@
       "defaultValue": "false",
       "description": "Request validation: FluentValidation validators check the shape of requests before the handler; the domain stays the authority."
     },
+    "repository": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "Repository / unit of work: handlers use repositories and IUnitOfWork defined in Core instead of AppDbContext."
+    },
     "idempotency": {
       "type": "parameter",
       "datatype": "bool",
@@ -158,6 +164,8 @@
             "tests/CleanSlices.Api.Tests/Features/Users/**",
             "src/CleanSlices.Infrastructure/IntegrationEvents/TaskItems/**",
             "src/CleanSlices.Infrastructure/IntegrationEvents/Users/**",
+            "src/CleanSlices.Infrastructure/Persistence/Repositories/TaskItemRepository.cs",
+            "src/CleanSlices.Infrastructure/Persistence/Repositories/UserRepository.cs",
             "docs/samples.md"
           ]
         },
@@ -177,6 +185,19 @@
             "src/CleanSlices.Api/Configuration/Validation/**",
             "tests/CleanSlices.Api.Tests/Configuration/RequestValidationTests.cs",
             "docs/request-validation.md"
+          ]
+        },
+        {
+          "condition": "(!repository)",
+          "exclude": [
+            "src/CleanSlices.Core/Domain/IRepository.cs",
+            "src/CleanSlices.Core/Domain/IUnitOfWork.cs",
+            "src/CleanSlices.Core/Shared/Page.cs",
+            "src/CleanSlices.Core/Domain/Users/IUserRepository.cs",
+            "src/CleanSlices.Core/Domain/Tasks/ITaskItemRepository.cs",
+            "src/CleanSlices.Infrastructure/Persistence/Repositories/**",
+            "tests/CleanSlices.Api.Tests/Configuration/RepositoryRegistrationTests.cs",
+            "docs/repository.md"
           ]
         },
         {

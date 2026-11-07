@@ -9,7 +9,12 @@ using CleanSlices.Core.Domain.Tasks;
 #if (result)
 using CleanSlices.Core.Shared;
 #endif
+#if (repository)
+using CleanSlices.Core.Domain;
+#endif
+#if (!repository)
 using CleanSlices.Infrastructure.Persistence;
+#endif
 #if (validation)
 using FluentValidation;
 using TaskItemFieldErrors = CleanSlices.Core.Domain.Tasks.TaskItemErrors;
@@ -38,9 +43,30 @@ public class CreateTaskItem : IEndpoint
 	}
 #endif
 
+#if (repository && result)
+	public async Task<IResult> Handler(ITaskItemRepository tasks, IUnitOfWork unitOfWork, CreateTaskItemRequest request, CancellationToken cancellationToken)
+	{
+		var result = await TaskItem.Create(request.Title, request.Description)
+			.Tap(t => tasks.Add(t))
+			.TapAsync(async _ => await unitOfWork.SaveChangesAsync(cancellationToken));
+
+		return result
+			.Map(t => new CreateTaskItemResponse(t.Id, t.Title, t.Description, t.Status, t.CreatedAt))
+			.ToCreatedAtRouteOrProblem(nameof(GetTaskItemById), r => new { id = r.Id });
+	}
+#elif (repository)
+	public async Task<IResult> Handler(ITaskItemRepository tasks, IUnitOfWork unitOfWork, CreateTaskItemRequest request, CancellationToken cancellationToken)
+	{
+		var task = TaskItem.Create(request.Title, request.Description);
+		tasks.Add(task);
+		await unitOfWork.SaveChangesAsync(cancellationToken);
+
+		var response = new CreateTaskItemResponse(task.Id, task.Title, task.Description, task.Status, task.CreatedAt);
+		return Results.CreatedAtRoute(nameof(GetTaskItemById), new { id = response.Id }, response);
+	}
+#elif (result)
 	public async Task<IResult> Handler(AppDbContext context, CreateTaskItemRequest request, CancellationToken cancellationToken)
 	{
-#if (result)
 		var result = await TaskItem.Create(request.Title, request.Description)
 			.Tap(t => context.Tasks.Add(t))
 			.TapAsync(async _ => await context.SaveChangesAsync(cancellationToken));
@@ -48,15 +74,18 @@ public class CreateTaskItem : IEndpoint
 		return result
 			.Map(t => new CreateTaskItemResponse(t.Id, t.Title, t.Description, t.Status, t.CreatedAt))
 			.ToCreatedAtRouteOrProblem(nameof(GetTaskItemById), r => new { id = r.Id });
+	}
 #else
+	public async Task<IResult> Handler(AppDbContext context, CreateTaskItemRequest request, CancellationToken cancellationToken)
+	{
 		var task = TaskItem.Create(request.Title, request.Description);
 		context.Tasks.Add(task);
 		await context.SaveChangesAsync(cancellationToken);
 
 		var response = new CreateTaskItemResponse(task.Id, task.Title, task.Description, task.Status, task.CreatedAt);
 		return Results.CreatedAtRoute(nameof(GetTaskItemById), new { id = response.Id }, response);
-#endif
 	}
+#endif
 
 	public void Register(IEndpointRouteBuilder app)
 	{

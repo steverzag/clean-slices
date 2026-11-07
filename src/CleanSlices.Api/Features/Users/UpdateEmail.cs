@@ -3,13 +3,22 @@
 using CleanSlices.Api.Extensions;
 using CleanSlices.Core.Shared;
 #endif
-using CleanSlices.Infrastructure.Persistence;
-#if (validation)
+#if (repository)
+using CleanSlices.Core.Domain;
+#endif
+#if (repository || validation)
 using CleanSlices.Core.Domain.Users;
+#endif
+#if (!repository)
+using CleanSlices.Infrastructure.Persistence;
+#endif
+#if (validation)
 using FluentValidation;
 using UserFieldErrors = CleanSlices.Core.Domain.Users.UserErrors;
 #endif
+#if (!repository)
 using Microsoft.EntityFrameworkCore;
+#endif
 
 namespace CleanSlices.Api.Features.Users;
 
@@ -30,7 +39,45 @@ public class UpdateEmail : IEndpoint
 	}
 #endif
 
-#if (result)
+#if (repository && result)
+	public async Task<IResult> Handler(IUserRepository users, IUnitOfWork unitOfWork, Guid id, UpdateUserEmailRequest request, CancellationToken cancellationToken)
+	{
+		var user = await users.GetByIdAsync(id, cancellationToken);
+		if (user is null)
+		{
+			return UserErrors.NotFound(id).ToProblem();
+		}
+
+		if (await users.IsEmailInUseAsync(request.Email, id, cancellationToken))
+		{
+			return UserErrors.EmailInUse(request.Email).ToProblem();
+		}
+
+		var result = await user.UpdateEmail(request.Email)
+			.TapAsync(async () => await unitOfWork.SaveChangesAsync(cancellationToken));
+
+		return result.ToNoContentOrProblem();
+	}
+#elif (repository)
+	public async Task<IResult> Handler(IUserRepository users, IUnitOfWork unitOfWork, Guid id, UpdateUserEmailRequest request, CancellationToken cancellationToken)
+	{
+		var user = await users.GetByIdAsync(id, cancellationToken);
+		if (user is null)
+		{
+			throw UserErrors.NotFound(id);
+		}
+
+		if (await users.IsEmailInUseAsync(request.Email, id, cancellationToken))
+		{
+			throw UserErrors.EmailInUse(request.Email);
+		}
+
+		user.UpdateEmail(request.Email);
+		await unitOfWork.SaveChangesAsync(cancellationToken);
+
+		return Results.NoContent();
+	}
+#elif (result)
 	public async Task<IResult> Handler(AppDbContext context, Guid id, UpdateUserEmailRequest request, CancellationToken cancellationToken)
 	{
 		var user = await context.Users.FindAsync([id], cancellationToken);

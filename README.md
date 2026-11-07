@@ -37,7 +37,10 @@ The options the solution was created with, each with its own documentation:
 <!--#if (idempotency)-->
 - **Idempotency keys**: a retry with the same `Idempotency-Key` header gets the stored response instead of running again. See [docs/idempotency.md](docs/idempotency.md).
 <!--#endif-->
-<!--#if (!samples && !result && !outbox && !inbox && !postgresql && !validation && !idempotency)-->
+<!--#if (repository)-->
+- **Repository / unit of work**: endpoints use a repository per entity and `IUnitOfWork`, defined in Core, instead of `AppDbContext`. See [docs/repository.md](docs/repository.md).
+<!--#endif-->
+<!--#if (!samples && !result && !outbox && !inbox && !postgresql && !validation && !idempotency && !repository)-->
 - None: this is the default setup. Options can be added later with the CLI.
 <!--#endif-->
 

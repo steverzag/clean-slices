@@ -1,4 +1,7 @@
-﻿//#if (samples)
+﻿#if (repository)
+using CleanSlices.Core.Domain;
+#endif
+//#if (samples)
 using CleanSlices.Core.Domain.Tasks;
 using CleanSlices.Core.Domain.Users;
 //#endif
@@ -9,7 +12,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CleanSlices.Infrastructure.Persistence;
 
+#if (repository)
+public class AppDbContext : DbContext, IUnitOfWork
+#else
 public class AppDbContext : DbContext
+#endif
 {
 	//#if (samples)
 	public DbSet<User> Users => Set<User>();

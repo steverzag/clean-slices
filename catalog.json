@@ -49,6 +49,13 @@
       "description": "FluentValidation validators check the shape of requests before the handler runs; the domain stays the authority."
     },
     {
+      "id": "repository",
+      "kind": "option",
+      "concept": "pattern",
+      "title": "Repository / unit of work",
+      "description": "Handlers use a repository per entity and IUnitOfWork, defined in Core, instead of AppDbContext."
+    },
+    {
       "id": "idempotency",
       "kind": "option",
       "concept": "pattern",

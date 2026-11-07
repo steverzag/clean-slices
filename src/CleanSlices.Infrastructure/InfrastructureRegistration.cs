@@ -13,6 +13,9 @@ using CleanSlices.Infrastructure.Messages;
 using CleanSlices.Infrastructure.Outbox;
 #endif
 using CleanSlices.Infrastructure.Persistence;
+#if (repository)
+using CleanSlices.Infrastructure.Persistence.Repositories;
+#endif
 using CleanSlices.Infrastructure.Persistence.SaveChanges;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -36,6 +39,9 @@ public static class InfrastructureRegistration
 			services.AddNotificationHandlers();
 			services.AddSaveChangesSteps();
 			services.TryAddScoped<SaveChangesPipeline>();
+#if (repository)
+			services.AddRepositories();
+#endif
 #if (current_user)
 			services.TryAddSingleton<ICurrentUser, AnonymousCurrentUser>();
 #endif

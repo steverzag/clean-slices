@@ -23,6 +23,12 @@
       "defaultValue": "false",
       "description": "Request validation: FluentValidation validators check the shape of requests before the handler; the domain stays the authority."
     },
+    "repository": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "Repository / unit of work: the feature gets its repository pair and the endpoints use it with IUnitOfWork."
+    },
     "idempotency": {
       "type": "parameter",
       "datatype": "bool",
@@ -71,6 +77,19 @@
       "replaces": "widgets"
     }
   },
+  "sources": [
+    {
+      "modifiers": [
+        {
+          "condition": "(!repository)",
+          "exclude": [
+            "src/CleanSlices.Core/Domain/Widgets/IWidgetRepository.cs",
+            "src/CleanSlices.Infrastructure/Persistence/Repositories/WidgetRepository.cs"
+          ]
+        }
+      ]
+    }
+  ],
   "postActions": [
     {
       "description": "Next steps",
