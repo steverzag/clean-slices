@@ -78,6 +78,39 @@ public class OutboxTests(ApiFactory factory)
 	}
 
 	[Fact]
+	public async Task Processors_claiming_at_the_same_time_handle_each_message_once()
+	{
+		var testIds = Enumerable.Range(0, 100).Select(_ => Guid.NewGuid()).ToList();
+		await using (var scope = factory.Services.CreateAsyncScope())
+		{
+			var publisher = scope.ServiceProvider.GetRequiredService<IIntegrationEventPublisher>();
+			foreach (var testId in testIds)
+			{
+				await publisher.Publish(new OutboxTestEvent(testId), Ct);
+			}
+
+			await scope.ServiceProvider.GetRequiredService<AppDbContext>().SaveChangesAsync(Ct);
+		}
+
+		// Like several API instances: processors claiming batches in parallel until nothing is left.
+		// Whether two claims really overlap depends on timing, so this can't prove the claim is safe; it catches gross mistakes.
+		var processor = factory.Services.GetRequiredService<OutboxProcessor>();
+		await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => Task.Run(async () =>
+		{
+			while (await processor.ProcessBatchAsync(Ct) > 0)
+			{
+			}
+		}, Ct)));
+
+		foreach (var testId in testIds)
+		{
+			await ProcessUntilAsync(testId, m => m.ProcessedAt is not null);
+		}
+
+		Assert.All(testIds, testId => Assert.Equal(1, RecordingHandler.DeliveriesOf(testId)));
+	}
+
+	[Fact]
 	public async Task An_unknown_event_is_marked_failed_without_retrying()
 	{
 		var name = $"Deleted{Guid.NewGuid():N}";

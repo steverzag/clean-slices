@@ -34,13 +34,20 @@ internal sealed class OutboxProcessor(
 		var now = DateTimeOffset.UtcNow;
 		var claim = Guid.NewGuid().ToString("N");
 
-		// Claimed in one statement on every provider, so two instances never take the same row.
-		var claimed = await messages
-			.Where(m => m.ProcessedAt == null && m.FailedAt == null
-				&& (m.LockedUntil == null || m.LockedUntil < now)
-				&& (m.NextAttemptAt == null || m.NextAttemptAt <= now))
-			.OrderBy(m => m.CreatedAt)
-			.Take(settings.BatchSize)
+		var pending = messages.Where(m => m.ProcessedAt == null && m.FailedAt == null
+			&& (m.LockedUntil == null || m.LockedUntil < now)
+			&& (m.NextAttemptAt == null || m.NextAttemptAt <= now));
+
+		var candidates = await pending.OrderBy(m => m.CreatedAt).Take(settings.BatchSize).Select(m => m.Id).ToListAsync(ct);
+		if (candidates.Count == 0)
+		{
+			return 0;
+		}
+
+		// The pending conditions are part of the update itself, so the database checks them again on each locked row:
+		// a row another instance claimed in between is skipped, and no row is handled twice.
+		var claimed = await pending
+			.Where(m => candidates.Contains(m.Id))
 			.ExecuteUpdateAsync(set => set
 				.SetProperty(m => m.LockedUntil, now + settings.LeaseDuration)
 				.SetProperty(m => m.LockedBy, claim), ct);
