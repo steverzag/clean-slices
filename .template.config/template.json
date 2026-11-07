@@ -132,6 +132,7 @@
           "condition": "(!integration_events)",
           "exclude": [
             "src/CleanSlices.Infrastructure/IntegrationEvents/**",
+            "docs/integration-events.md",
             "src/CleanSlices.Infrastructure/EventHandlers/TaskItems/PublishTaskCompletedHandler.cs",
             "src/CleanSlices.Infrastructure/EventHandlers/Users/PublishUserCreatedHandler.cs",
             "src/CleanSlices.Infrastructure/EventHandlers/Users/PublishUserDeletedHandler.cs"
@@ -141,6 +142,7 @@
           "condition": "(!outbox)",
           "exclude": [
             "src/CleanSlices.Infrastructure/Outbox/**",
+            "docs/outbox.md",
             "tests/CleanSlices.Api.Tests/Outbox/**",
             "tests/CleanSlices.Api.Tests/Features/Tasks/TaskIntegrationEventsTests.cs",
             "tests/CleanSlices.Api.Tests/Features/Users/UserIntegrationEventsTests.cs"
@@ -150,6 +152,7 @@
           "condition": "(!inbox)",
           "exclude": [
             "src/CleanSlices.Infrastructure/Inbox/**",
+            "docs/inbox.md",
             "tests/CleanSlices.Api.Tests/Inbox/**"
           ]
         },

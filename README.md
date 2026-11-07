@@ -22,7 +22,13 @@ The options the solution was created with, each with its own documentation:
 <!--#if (result)-->
 - **Result&lt;T&gt;**: expected failures are results instead of exceptions. See [docs/error-handling.md](docs/error-handling.md).
 <!--#endif-->
-<!--#if (!samples && !result)-->
+<!--#if (outbox)-->
+- **Outbox**: integration events are stored with the data and delivered in the background, with retries. See [docs/outbox.md](docs/outbox.md) and [docs/integration-events.md](docs/integration-events.md).
+<!--#endif-->
+<!--#if (inbox)-->
+- **Inbox**: each integration event handler runs once per event, even when it's delivered again. See [docs/inbox.md](docs/inbox.md).
+<!--#endif-->
+<!--#if (!samples && !result && !outbox && !inbox)-->
 - None: this is the default setup. Options can be added later with the CLI.
 <!--#endif-->
 

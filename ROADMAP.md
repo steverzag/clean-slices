@@ -130,6 +130,11 @@ The CLI resolves the selection like a package manager, before generating anythin
 
 Interactive lists show what an option still needs (*"Inbox (needs Outbox, RabbitMQ or Azure Service Bus)"*) instead of hiding it.
 
+Two more flags on a unit:
+
+- **`recommended`**: once the selection meets the option's requirements, the CLI offers it (asked interactively, yes by default; a tip without prompts). It's never added silently, and declining isn't recorded. The inbox is recommended with the outbox.
+- **`addsTables`**: after `add`, the CLI prints the migration to create (`dotnet ef migrations add AddOutbox …`), since migrations are generated on the user's side (rule 5).
+
 `.cleanslices.json` records the resolved configuration, choices included (`{ "id": "cqrs", "dispatcher": "mediator" }`) and the units added automatically with what they were added for (`"addedBy": ["outbox"]`), not just the options the user typed, so later commands see the same picture.
 
 ## Testing
@@ -167,7 +172,7 @@ Each phase ends with something usable. The order is a proposal.
 | 1, done | **Base template changes** ([backlog](docs/roadmap/base-template.md)): test projects, ordered save pipeline and domain events before the save, pagination, Aspire-managed database | A better default solution, and the save pipeline options plug into |
 | 2, done | **Conditionals**: `result` moved from its branch to template conditionals (identical output, checked against the branch); catalog, schema and resolver in the CLI; `new --with`, `add <option>`, `list`; manifest format 2 | One mechanism; requires / provides / conflicts / groups / choices |
 | 3, done | **CI matrix**: combinations from the catalog through the resolver; template ref (`--template-ref`, `CLEANSLICES_TEMPLATE_REF`, `HEAD`) so CI tests the commit under test | Combinations stay working |
-| 4 | **Outbox, inbox, integration events** | Seams with defaults and hidden units |
+| 4, done | **Outbox, inbox, integration events**: the first hidden unit, `requires` / `provides` between real options (the inbox gets the outbox), `recommended` and `addsTables`, three sample integration events. The CI matrix found a concurrency bug in the outbox's claim before release | Seams with defaults and hidden units |
 | 5 | **PostgreSQL** | Provider-neutral code |
 | 6 | **Repository, CQRS, request validation, idempotency keys** | Several invasive patterns in one feature template |
 | 7 | **Queue, cache, authentication, realtime** | Zero-glue combinations, and the first glue units |

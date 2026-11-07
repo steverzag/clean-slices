@@ -25,6 +25,18 @@ Use them as a reference for your own features, then delete them when you no long
 - **Event handlers**:
   - logging handlers for the created, completed and deleted events
   - `UnassignDeletedUserFromTasksHandler`, which removes a deleted user from every task it was assigned to, in the same save as the delete
+<!--#if (integration_events)-->
+
+## Integration events
+
+Three domain events are turned into integration events (see [integration-events.md](integration-events.md)), each by a `Publish…Handler` in `EventHandlers/`. Their handlers log what a real email or notification provider would do.
+
+| Domain event | Integration event | Handler | Shows |
+|---|---|---|---|
+| `UserCreatedDomainEvent` | `UserCreatedIntegrationEvent(UserId, Name, Email)` | `SendWelcomeEmailHandler` | The basic case: a side effect after the save. The event carries what the handler needs, so it never reads a user who may have changed since. |
+| `TaskItemCompletedDomainEvent` | `TaskCompletedIntegrationEvent(TaskId, Title, AssigneeIds)` | `NotifyAssigneesHandler` | Several recipients, and a snapshot: the assignees when the task was completed. |
+| `UserDeletedDomainEvent` | `UserDeletedIntegrationEvent(UserId)`, named `users.deleted.v1` | `ForgetUserHandler` | A deliberate name for other services, and an event with only the id, so other systems forget the user without receiving their data again. |
+<!--#endif-->
 
 ## Endpoints
 

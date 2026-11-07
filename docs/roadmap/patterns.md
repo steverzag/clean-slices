@@ -28,39 +28,51 @@ A pattern changes *how code is written*: method signatures, control flow, how a 
 
 **What.** Integration events are stored as rows in an `OutboxMessages` table **in the same transaction** as the data, and a background `OutboxProcessor` delivers them. Without the outbox, an integration event is sent right after the commit and is lost if the process dies at that moment.
 
+**Built (phase 4).** `Infrastructure/Outbox/`; documented for users in `docs/outbox.md`.
+
 **Design.**
 
-- `IIntegrationEventPublisher` (from the [integration events](hidden-units.md#integration-events) unit) writes an outbox row instead of buffering the event.
-- The processor reads pending rows and hands each one to `IMessageDispatcher`: in-process by default, the broker with a queue option.
-- Serialization: JSON plus a type *name* resolved through a registry built at startup. Never `Type.GetType` on a string from the database. Events are plain records.
-- Several API instances: each row is claimed with a lease (`LockedUntil`) through EF `ExecuteUpdate`, which works on every provider. No `UPDLOCK READPAST` / `SKIP LOCKED`, which would need glue per database.
-- Failures: retries with backoff, `Attempts` and `LastError` kept; after `MaxAttempts` (default 5) the row is marked failed and left for inspection.
-- Clean-up: processed rows are deleted after `Retention` (default 7 days).
-- The `traceparent` is stored, so processing links back to the original request in the Aspire dashboard.
-- Settings: `Outbox:PollInterval`, `BatchSize`, `MaxAttempts`, `Retention`.
-- Migrations stay on the user's side (rule 5).
+- `OutboxPublisher` implements `IIntegrationEventPublisher` (from the [integration events](hidden-units.md#integration-events) unit): it adds an `OutboxMessage` row to the current save, with `Activity.Current?.Id` as the traceparent. Publishing from a domain event handler (which runs before the commit) puts the row in the same transaction as the data.
+- `OutboxProcessor` hands each row to `IMessageDispatcher`: in-process by default, the broker with a queue option. `OutboxWorker` is the background loop that calls it; tests remove the worker and call the processor themselves.
+- **Claiming, provider-neutral** (no `UPDLOCK READPAST` / `SKIP LOCKED`): select the ids of up to `BatchSize` pending rows, then `ExecuteUpdate` the rows *that are still pending* among them, setting `LockedUntil` / `LockedBy`. The pending conditions must be in the update's own `WHERE`, where the database re-checks them on each locked row. A single `ExecuteUpdate` with `OrderBy` + `Take` doesn't work: EF translates it as an update joined to a `TOP n` subquery, which checks the conditions only in the subquery, and two processors could claim the same row (found by the CI matrix, fixed in phase 4).
+- Failures: `Attempts` and `LastError` kept, retried after `RetryDelay × 2^(attempt−1)`; after `MaxAttempts` the row is marked failed and left for inspection. An unknown event name or an unreadable payload fails at once, since retrying can't fix it.
+- Clean-up: processed rows are deleted after `Retention`, hourly.
+- Tracing: processing starts a consumer activity parented to the stored traceparent, from an `ActivitySource` named after the application, the source ServiceDefaults already exports. No ServiceDefaults edit; the same convention serves later options.
+- Settings, defaults in code: `Outbox:PollInterval` (2 s), `BatchSize` (20), `MaxAttempts` (5), `RetryDelay` (5 s), `LeaseDuration` (2 min), `Retention` (7 days).
+- Catalog: requires `integration-events`, provides `at-least-once-delivery`, `addsTables` (the CLI prints the migration after `add outbox`). Migrations stay on the user's side (rule 5).
 
 **Feature template.** No change.
 
-**Samples.** *Proposed:* creating a user publishes a `UserCreated` integration event from a domain event handler, stored in the outbox; its handler logs a welcome email. A handler that fails shows the retries.
+**Samples.** Three integration events, published from the samples' domain events: `UserCreated` (a welcome email), `TaskCompleted` (notifying the assignees it had then) and `users.deleted.v1` (an id-only event with a deliberate name). See `docs/samples.md` in a generated solution. Tests check what's published and processed.
 
-**Interactions.** Requires integration events (added automatically). Queue options provide the dispatcher, with no glue. The inbox removes duplicates on the receiving side.
+**Tests.** `tests/…Api.Tests/Outbox/`, with a test-only event and handlers: a pending row with the trace, nothing without a save, delivered once, retried then failed (other handlers keep running), an unknown event failed at once, retention, and parallel processors handling each message once (a sanity check: it couldn't reproduce the claim race, which depends on timing).
 
-**Trade-offs to document.** Delivery is asynchronous and **at least once**: integration event handlers must tolerate running twice, or the inbox must be selected.
+**Interactions.** Requires integration events (added automatically). Queue options provide the dispatcher, with no glue. The inbox removes duplicates on the receiving side and is recommended with the outbox.
+
+**Trade-offs to document.** Delivery is asynchronous and **at least once**: integration event handlers must tolerate running twice, or the inbox must be selected. No ordering guarantee once a row is retried. Polling queries the table every `PollInterval`. Later idea: outbox metrics (pending and failed rows).
 
 ## Inbox
 
 **What.** Makes integration event handlers run once per message, even when a message is delivered twice.
 
+**Built (phase 4).** `Infrastructure/Inbox/`; documented for users in `docs/inbox.md`.
+
 **Design.**
 
-- A decorator records `(MessageId, Handler)` in a `ProcessedMessages` table and skips messages already processed.
-- The record is committed **together with the handler's own changes**, so it's exactly-once in effect.
-- Only available when something delivers at least once: the outbox or a queue option provides that capability. Selected by default when available.
+- `InboxFilter`, an `IIntegrationEventHandlerFilter` (the integration events unit's hook around every handler call), records `(MessageId, Handler)` in `ProcessedMessages`.
+- Per handler: if the record exists, the handler is skipped. Otherwise the record is added to the handler's `DbContext` *before* it runs, and saved *with* its changes after. No explicit transaction (Aspire's retrying execution strategy makes them awkward); the rule "an integration event handler saves at most once, at the end" makes one unnecessary.
+- One record per handler, so a redelivery after one handler failed skips those that succeeded.
+- Concurrent duplicates (an expired lease): the primary key makes the second save fail, and the filter asks again whether the record exists. Provider-neutral, no error numbers.
+- Clean-up: records older than `Inbox:Retention` (7 days) are deleted hourly by `InboxCleanupWorker`. Not in the original design; without it the table grows forever.
+- Catalog: requires `integration-events` and `at-least-once-delivery` (the outbox or a queue option), `recommended` (offered when the selection makes it available, never added silently), `addsTables`.
 
 **Feature template.** No change.
 
-**Samples.** *Proposed:* the sample integration event handler is deduplicated; a test delivers the same message twice and checks it ran once.
+**Samples.** No code of its own: it deduplicates the samples' integration event handlers. A sample test delivers the welcome email's event again and checks `SendWelcomeEmailHandler` is recorded once.
+
+**Tests.** `tests/…Api.Tests/Inbox/`: a message delivered twice is handled once, a redelivery retries only the handler that failed, two simultaneous deliveries record once without failing, retention. With the inbox, the outbox's retry test expects the succeeding handler to run once instead of on every attempt.
+
+**Phase 7 notes.** When a queue provides at-least-once delivery without the outbox: the inbox tests reuse the outbox's test event, and the test host removes the inbox's clean-up worker inside the outbox's `#if`. Both must stand on their own then.
 
 ## Repository / unit of work
 

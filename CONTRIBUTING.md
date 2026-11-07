@@ -91,12 +91,13 @@ The CLI reads the catalog **at the template commit a solution came from**, resol
 - **Whole files** that exist only with or without an option are excluded in `template.json`, not wrapped in `#if`: a wrapped file is still generated, empty. Wrap them in `#if` as well only so the repository build skips them (`Result.cs` is `#if (result)` … `#endif` *and* excluded when `!result`).
 - **The template engine removes every `#if` it sees**, including `#if DEBUG`, and keeps a block only if its condition is true for the template. Wrap a compiler directive that must survive in `//-:cnd:noEmit` … `//+:cnd:noEmit`.
 - **The feature template isn't compiled here.** Check it by generating a solution with a feature (below).
+- **Background services in tests.** An option with a hosted worker (the outbox) removes it in `ApiFactory` and lets tests call the work directly, so the tests are deterministic.
 - **Documentation** follows the same idea: text an option *replaces* is a whole file with a variant (`docs/error-handling.md` and `docs/error-handling.result.md`, picked and renamed by a conditional modifier in `template.json`); text an option *adds* is its own file. The README's options list uses one `<!--#if (option)-->` line per option.
 - **Never write the CLI's name (`cleanslices`) in a file the template processes.** `sourceName` renames it to the user's solution name. `docs/CLI.md` is copied unprocessed for that reason.
 
 ### Adding an option
 
-1. Add the unit to `catalog.json`, using the format in `catalog.schema.json` (editors complete it). Order in the file is the order in prompts and in `cleanslices list`.
+1. Add the unit to `catalog.json`, using the format in `catalog.schema.json` (editors complete it). Order in the file is the order in prompts and in `cleanslices list`. Set `addsTables` if it brings entity configurations, and `recommended` if it should be offered once its requirements are met.
 2. Add the parameter (and choice parameters and computed values) to `.template.config/template.json`, and to `templates/cs-feature/.template.config/template.json` if features change. Add the file excludes.
 3. Write the code with `#if` blocks, in the project template, the feature template and the samples. The samples show how to use the option; set `"samples": false` only when it can't be shown meaningfully, and say why in its documentation.
 4. Check, before committing:

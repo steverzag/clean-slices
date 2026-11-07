@@ -15,8 +15,8 @@ Changes to `main` that improve the default solution on their own: [base-template
 | Concept | Option | Group / sub-options | Status |
 |---|---|---|---|
 | Pattern | [Result&lt;T&gt;](patterns.md#resultt) | – | **done** (conditionals) |
-| Pattern | [Outbox](patterns.md#outbox) | – | designed |
-| Pattern | [Inbox](patterns.md#inbox) | – | designed |
+| Pattern | [Outbox](patterns.md#outbox) | – | **done** |
+| Pattern | [Inbox](patterns.md#inbox) | – | **done** (recommended with the outbox) |
 | Pattern | [Repository / unit of work](patterns.md#repository--unit-of-work) | – | designed |
 | Pattern | [CQRS](patterns.md#cqrs) | `dispatcher`: handlers (default), mediator, mediatr | designed |
 | Pattern | [Idempotency keys](patterns.md#idempotency-keys) | – | designed |
@@ -24,7 +24,7 @@ Changes to `main` that improve the default solution on their own: [base-template
 | Hidden unit | [Current user](hidden-units.md#current-user) | – | designed |
 | Hidden unit | [Model rules](hidden-units.md#model-rules) | – | designed |
 | Hidden unit | [Cache](hidden-units.md#cache) | – | designed |
-| Hidden unit | [Integration events](hidden-units.md#integration-events) | – | designed |
+| Hidden unit | [Integration events](hidden-units.md#integration-events) | – | **done** (without the after-commit publisher, see its page) |
 | Infrastructure | [SQL Server](infrastructure.md#database), [PostgreSQL](infrastructure.md#database) | group `database` | SQL Server is the default |
 | Infrastructure | [RabbitMQ, Azure Service Bus](infrastructure.md#queue) | group `queue` | designed |
 | Infrastructure | [Redis](infrastructure.md#cache) | group `cache` | designed |

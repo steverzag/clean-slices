@@ -41,6 +41,7 @@ The CLI makes the options work together:
 
 - Options that need something get it. Pieces several options share (for example the integration events behind the outbox and the queues) are added automatically, and the summary says why.
 - When an option needs another option and several could do it, the CLI asks which one, or tells you which `--with` to add.
+- Some options are **recommended** once your selection makes them possible: picking the outbox makes the inbox available. The CLI asks whether to add it (yes by default), or without prompts prints a tip. It never adds one silently.
 - Options that can't be combined, or two from the same group, are rejected before anything is generated, with the reason.
 - Options that use a commercial package or product print a notice, and their license key setting is generated empty.
 
@@ -51,6 +52,8 @@ Available options:
 | Option | What it does |
 |---|---|
 | `result` | Domain methods return `Result` / `Result<T>` instead of throwing, endpoints compose them with `Map`/`Tap`, and `ResultExtensions` turn them into ProblemDetails responses. |
+| `outbox` | Integration events are stored with the data, in the same save, and delivered by a background processor with retries. Brings integration events with it. |
+| `inbox` | Each integration event handler runs once per event, even when it's delivered again. Needs the outbox; recommended with it. |
 
 ## Create a solution
 
@@ -135,6 +138,8 @@ The solution must be a git repository with nothing uncommitted. The options are 
 If one of your changes touches the same lines as an option, the affected files are listed and contain the usual `<<<<<<<` / `>>>>>>>` markers. Resolve them, then `git add -A` and `git commit`, or run `git reset --hard HEAD` to back out.
 
 Picking an option from a group the solution already has an option in **replaces** it (for example another database provider). Migrations are specific to a database provider, so the CLI reminds you to recreate them.
+
+Options that add database tables (the outbox, the inbox) print the migration to create after the merge, for example `dotnet ef migrations add AddOutbox --project src/Acme.Orders.Infrastructure`. The CLI doesn't run it for you.
 
 Options can't be removed, and their choices can't be changed after they're applied, yet.
 
