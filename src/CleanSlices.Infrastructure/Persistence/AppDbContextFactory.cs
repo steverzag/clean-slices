@@ -11,9 +11,15 @@ internal class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbContext>
 	{
 		var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
 		// Try to get connection string from environment variable (ASP.NET Core format)
+#if (postgresql)
+		var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__Database")
+			?? "Host=localhost;Database=cleanslices;Username=postgres;Password=postgres";
+		optionsBuilder.UseNpgsql(connectionString).UseSnakeCaseNamingConvention();
+#else
 		var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__Database")
 			?? "Server=localhost;Database=CleanSlices;Trusted_Connection=True;TrustServerCertificate=True";
 		optionsBuilder.UseSqlServer(connectionString);
+#endif
 
 		return new AppDbContext(optionsBuilder.Options);
 	}

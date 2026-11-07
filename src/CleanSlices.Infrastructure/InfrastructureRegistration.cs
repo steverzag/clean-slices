@@ -43,11 +43,20 @@ public static class InfrastructureRegistration
 			services.AddInbox();
 #endif
 
+#if (postgresql)
+			services.AddDbContext<AppDbContext>((sp, o) =>
+				o.UseNpgsql(builder.Configuration.GetConnectionString(DatabaseConnectionName))
+					.UseSnakeCaseNamingConvention()
+					.AddInterceptors(sp.GetRequiredService<SaveChangesPipeline>()));
+
+			builder.EnrichNpgsqlDbContext<AppDbContext>();
+#else
 			services.AddDbContext<AppDbContext>((sp, o) =>
 				o.UseSqlServer(builder.Configuration.GetConnectionString(DatabaseConnectionName))
 					.AddInterceptors(sp.GetRequiredService<SaveChangesPipeline>()));
 
 			builder.EnrichSqlServerDbContext<AppDbContext>();
+#endif
 
 			return builder;
 		}

@@ -38,6 +38,24 @@
       "defaultValue": "false",
       "description": "Result<T> pattern: domain methods return Result / Result<T> instead of throwing for expected failures."
     },
+    "sqlserver": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "SQL Server (the default database): the code uses it unless another database is selected."
+    },
+    "postgresql": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "PostgreSQL instead of SQL Server, with snake_case names."
+    },
+    "model_rules": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "Model rules (added by the CLI when an option needs them): rules applied to the whole EF model."
+    },
     "integration_events": {
       "type": "parameter",
       "datatype": "bool",
@@ -109,6 +127,7 @@
             "src/CleanSlices.Infrastructure/Persistence/Configuration/TaskItemTypeConfiguration.cs",
             "src/CleanSlices.Infrastructure/Persistence/Configuration/TaskItemUserAssignmentTypeConfiguration.cs",
             "src/CleanSlices.Infrastructure/Persistence/Configuration/UserTypeConfiguration.cs",
+            "src/CleanSlices.Infrastructure/Persistence/Configuration/UserEmailCollationRule.cs",
             "tests/CleanSlices.Core.Tests/Domain/Tasks/**",
             "tests/CleanSlices.Core.Tests/Domain/Users/**",
             "tests/CleanSlices.Api.Tests/Features/Tasks/**",
@@ -127,6 +146,29 @@
             "tests/CleanSlices.Core.Tests/ResultAssertions.cs",
             "docs/error-handling.result.md"
           ]
+        },
+        {
+          "condition": "(!model_rules)",
+          "exclude": [
+            "src/CleanSlices.Infrastructure/Persistence/ModelRules/**"
+          ]
+        },
+        {
+          "condition": "(!postgresql)",
+          "exclude": [
+            "src/CleanSlices.Infrastructure/Persistence/PostgreSql/**",
+            "src/CleanSlices.Infrastructure/Persistence/Configuration/UserEmailCollationRule.cs",
+            "src/CleanSlices.Api/appsettings.postgresql.json"
+          ]
+        },
+        {
+          "condition": "(postgresql)",
+          "exclude": [
+            "src/CleanSlices.Api/appsettings.json"
+          ],
+          "rename": {
+            "src/CleanSlices.Api/appsettings.postgresql.json": "src/CleanSlices.Api/appsettings.json"
+          }
         },
         {
           "condition": "(!integration_events)",

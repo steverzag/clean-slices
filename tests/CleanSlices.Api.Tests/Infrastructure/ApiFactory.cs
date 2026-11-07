@@ -15,24 +15,35 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 #endif
 using Microsoft.AspNetCore.Mvc.Testing;
+#if (!postgresql)
 using Microsoft.Data.SqlClient;
+#endif
 using Microsoft.Extensions.DependencyInjection;
 #if (outbox)
 using Microsoft.Extensions.Hosting;
 #endif
+#if (postgresql)
+using Npgsql;
+using Testcontainers.PostgreSql;
+#else
 using Testcontainers.MsSql;
+#endif
 
 [assembly: AssemblyFixture(typeof(ApiFactory))]
 
 namespace CleanSlices.Api.Tests.Infrastructure;
 
 /// <summary>
-/// Runs the API in memory against a SQL Server container, shared by every test in the run.
+/// Runs the API in memory against a database container, shared by every test in the run.
 /// Tests create their own data and never reset the database, so they don't depend on each other.
 /// </summary>
 public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
+#if (postgresql)
+	private readonly PostgreSqlContainer _database = new PostgreSqlBuilder("postgres:17").Build();
+#else
 	private readonly MsSqlContainer _database = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest").Build();
+#endif
 
 	public async ValueTask InitializeAsync()
 	{
@@ -72,10 +83,17 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
 	private void UseDatabase(IWebHostBuilder builder, string databaseName)
 	{
+#if (postgresql)
+		var connectionString = new NpgsqlConnectionStringBuilder(_database.GetConnectionString())
+		{
+			Database = databaseName.ToLowerInvariant()
+		};
+#else
 		var connectionString = new SqlConnectionStringBuilder(_database.GetConnectionString())
 		{
 			InitialCatalog = databaseName
 		};
+#endif
 
 		builder.UseSetting(
 			$"ConnectionStrings:{InfrastructureRegistration.DatabaseConnectionName}",

@@ -10,13 +10,25 @@
 
   <ItemGroup Label="Entity Framework Core">
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.14" />
+    <!--#if (postgresql)-->
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+    <PackageVersion Include="EFCore.NamingConventions" Version="10.0.1" />
+    <!-- Npgsql depends on an older EF Core relational package; keep it in step with EF Core above. -->
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.14" />
+    <!--#else-->
     <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.14" />
+    <!--#endif-->
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.14" />
   </ItemGroup>
 
   <ItemGroup Label="Aspire integrations">
+    <!--#if (postgresql)-->
+    <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="13.6.1" />
+    <PackageVersion Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="13.6.1" />
+    <!--#else-->
     <PackageVersion Include="Aspire.Hosting.SqlServer" Version="13.6.1" />
     <PackageVersion Include="Aspire.Microsoft.EntityFrameworkCore.SqlServer" Version="13.6.1" />
+    <!--#endif-->
   </ItemGroup>
 
   <ItemGroup Label="Aspire / Service Defaults">
@@ -34,7 +46,11 @@
 
   <ItemGroup Label="Testing">
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.14" />
+    <!--#if (postgresql)-->
+    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.16.0" />
+    <!--#else-->
     <PackageVersion Include="Testcontainers.MsSql" Version="4.16.0" />
+    <!--#endif-->
     <PackageVersion Include="xunit.v3" Version="4.0.2" />
   </ItemGroup>
 

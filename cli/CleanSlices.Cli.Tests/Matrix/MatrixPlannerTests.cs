@@ -71,6 +71,23 @@ public class MatrixPlannerTests
     }
 
     [Fact]
+    public void Adding_a_group_default_later_isnt_a_job()
+    {
+        // Every solution already has the default database, so adding it later would add nothing.
+        Assert.DoesNotContain("sqlserver-later", Ids);
+        Assert.Contains("postgresql-later", Ids);
+    }
+
+    [Fact]
+    public void Everything_prefers_a_groups_alternative_to_its_default()
+    {
+        var everything = Job("everything").Options.Select(o => o.Id).ToList();
+
+        Assert.Contains("postgresql", everything);
+        Assert.DoesNotContain("sqlserver", everything);
+    }
+
+    [Fact]
     public void Everything_holds_every_option_that_fits_and_drops_the_rest()
     {
         var everything = Job("everything").Options.Select(o => o.Id).ToList();

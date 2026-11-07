@@ -2,6 +2,9 @@
 using CleanSlices.Core.Domain.Tasks;
 using CleanSlices.Core.Domain.Users;
 //#endif
+#if (model_rules)
+using CleanSlices.Infrastructure.Persistence.ModelRules;
+#endif
 using Microsoft.EntityFrameworkCore;
 
 namespace CleanSlices.Infrastructure.Persistence;
@@ -20,5 +23,8 @@ public class AppDbContext : DbContext
 	protected override void OnModelCreating(ModelBuilder modelBuilder)
 	{
 		modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+#if (model_rules)
+		modelBuilder.ApplyModelRules();
+#endif
 	}
 }

@@ -9,7 +9,9 @@
     "extra": { "title": "Extras", "select": "many" }
   },
 
-  "groups": {},
+  "groups": {
+    "database": { "title": "Database", "required": true, "default": "sqlserver" }
+  },
 
   "units": [
     {
@@ -40,7 +42,28 @@
       "addsTables": true
     },
     {
+      "id": "sqlserver",
+      "kind": "option",
+      "concept": "infrastructure",
+      "group": "database",
+      "title": "SQL Server",
+      "description": "SQL Server, in a container from the AppHost or an existing server."
+    },
+    {
+      "id": "postgresql",
+      "kind": "option",
+      "concept": "infrastructure",
+      "group": "database",
+      "title": "PostgreSQL",
+      "description": "PostgreSQL, in a container from the AppHost or an existing server, with snake_case names.",
+      "requires": ["model-rules"]
+    },
+    {
       "id": "integration-events",
+      "kind": "hidden"
+    },
+    {
+      "id": "model-rules",
       "kind": "hidden"
     }
   ]

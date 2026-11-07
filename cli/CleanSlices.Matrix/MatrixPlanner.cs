@@ -56,6 +56,8 @@ internal static class MatrixPlanner
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var options = catalog.Units.Where(u => u.Kind == UnitKind.Option).ToList();
 
+        var defaultConfiguration = Configuration(Resolver.Resolve(catalog, [], [], samples: false));
+
         void Add(string id, Tier tier, Flow flow, bool samples, IReadOnlyList<OptionRequest> requests)
         {
             if (Settle(catalog, requests, samples) is not { } settled)
@@ -66,9 +68,14 @@ internal static class MatrixPlanner
             }
 
             var (finalRequests, resolution) = settled;
-            var configuration = string.Join(
-                " ",
-                resolution.Units.Where(u => u.Unit.Kind == UnitKind.Option).Select(u => new OptionRequest(u.Unit.Id, u.Choices).ToString()));
+            var configuration = Configuration(resolution);
+
+            // Adding later what every solution already has (a group's default) would add nothing.
+            if (flow == Flow.AddLater && configuration == defaultConfiguration)
+            {
+                return;
+            }
+
             if (!seen.Add($"{flow}|{samples}|{configuration}"))
             {
                 return;
@@ -107,8 +114,10 @@ internal static class MatrixPlanner
         }
 
         // Everything that fits together: each option in catalog order, kept when the configuration still resolves.
+        // Group defaults go last: the resolver adds them anyway, and trying them first would shut out the alternatives.
+        var defaults = catalog.Groups.Values.Select(g => g.Default).OfType<string>().ToHashSet(StringComparer.Ordinal);
         var everything = new List<OptionRequest>();
-        foreach (var option in options)
+        foreach (var option in options.OrderBy(o => defaults.Contains(o.Id) ? 1 : 0))
         {
             List<OptionRequest> candidate = [.. everything, OptionRequest.Of(option.Id)];
             if (Settle(catalog, candidate, samples: candidate.All(r => catalog.Find(r.Id)!.Samples)) is not null)
@@ -181,6 +190,10 @@ internal static class MatrixPlanner
             }
         }
     }
+
+    /// <summary>The options a resolution ends with, choices included: two jobs with the same one test the same thing.</summary>
+    private static string Configuration(Resolution resolution) =>
+        string.Join(" ", resolution.Units.Where(u => u.Unit.Kind == UnitKind.Option).Select(u => new OptionRequest(u.Unit.Id, u.Choices).ToString()));
 
     private static string Slug(OptionRequest request) =>
         string.Join("-", new[] { request.Id }.Concat(request.Choices.SelectMany(c => new[] { c.Key, c.Value })));
