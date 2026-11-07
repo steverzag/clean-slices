@@ -22,7 +22,7 @@ if (CatalogValidator.Validate(catalog) is { Count: > 0 } errors)
     return 2;
 }
 
-var plan = MatrixPlanner.Plan(catalog);
+var plan = MatrixPlanner.Plan(catalog, Combinations.All);
 
 switch (args)
 {

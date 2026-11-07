@@ -140,8 +140,10 @@ Options should add files rather than edit shared ones where they can (rule 4 in 
 
 | Tier | Jobs | When |
 |---|---|---|
-| push | the default with and without samples; each option alone, and each value of each choice, with and without samples; each option added later to a solution with a feature | pull requests |
+| push | the default with and without samples; each option alone, and each value of each choice, with and without samples; each option added later to a solution with a feature; the listed combinations marked push | pull requests |
 | full | push, plus every pair (with samples) and everything that fits together | pushes to `main`, nightly, and **Run workflow** (tier selectable) |
+
+**Listed combinations** (`cli/CleanSlices.Matrix/Combinations.cs`) add what pairs miss: options that meet in the same members, where each handler has one variant per combination. `result` + repository + CQRS runs on every push (and with Mediator in the full tier). Each is written like `--with` values and gets the tier it says; a test in `ConsistencyTests` fails when one stops resolving against the real catalog, so a renamed option can't drop it silently.
 
 A job generates a solution with the CLI built from source and the template at the commit under test, adds a feature, and runs the solution's tests. For one job per set of options it also runs the template repository's tests with those options (`-p:TemplateOptions=…`).
 
@@ -152,6 +154,7 @@ dotnet run --project cli/CleanSlices.Matrix -- list                 # what CI wo
 dotnet run --project cli/CleanSlices.Matrix -- list --tier push
 dotnet run --project cli/CleanSlices.Matrix -- run result-later     # one job; the solution stays in %TEMP%\cleanslices-matrix\<job>
 dotnet run --project cli/CleanSlices.Matrix -- run result --ref main
+dotnet run --project cli/CleanSlices.Matrix -- run cqrs-dispatcher-mediator-samples --work C:\m   # Windows: a short --work folder for long job names (path length limit)
 ```
 
 `run` uses the template at `HEAD` (committed changes) unless `--ref` says otherwise.

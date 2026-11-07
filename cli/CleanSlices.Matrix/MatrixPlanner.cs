@@ -43,13 +43,14 @@ internal sealed record MatrixPlan(IReadOnlyList<MatrixJob> Jobs, IReadOnlyList<S
 /// <summary>
 /// The combinations CI tests, derived from the catalog through the resolver, so the matrix grows with the catalog:
 /// the default with and without samples; each option alone, and each value of each of its choices, with and without
-/// samples, plus the option added later; every pair with samples; one solution with everything that fits together.
+/// samples, plus the option added later; every pair with samples; the listed <see cref="Combinations"/>; one solution
+/// with everything that fits together.
 /// Impossible combinations are skipped with the resolver's reason; options that need another option get its first
 /// provider; combinations that resolve to the same configuration run once.
 /// </summary>
 internal static class MatrixPlanner
 {
-    public static MatrixPlan Plan(OptionCatalog catalog)
+    public static MatrixPlan Plan(OptionCatalog catalog, IReadOnlyList<Combination>? combinations = null)
     {
         var jobs = new List<MatrixJob>();
         var skipped = new List<SkippedCombination>();
@@ -111,6 +112,20 @@ internal static class MatrixPlanner
                 var (a, b) = (options[i], options[j]);
                 Add($"{a.Id}+{b.Id}", Tier.Full, Flow.New, a.Samples && b.Samples, [OptionRequest.Of(a.Id), OptionRequest.Of(b.Id)]);
             }
+        }
+
+        foreach (var combination in combinations ?? [])
+        {
+            var parsed = combination.Options.Select(OptionRequest.Parse).ToList();
+            var id = combination.Id;
+            if (parsed.FirstOrDefault(p => p.Error is not null).Error is { } error)
+            {
+                skipped.Add(new SkippedCombination(id, error));
+                continue;
+            }
+
+            var requests = parsed.Select(p => p.Request!).ToList();
+            Add(id, combination.Tier, Flow.New, requests.All(r => catalog.Find(r.Id)?.Samples ?? false), requests);
         }
 
         // Everything that fits together: each option in catalog order, kept when the configuration still resolves.

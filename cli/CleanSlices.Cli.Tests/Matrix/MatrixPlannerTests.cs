@@ -100,6 +100,27 @@ public class MatrixPlannerTests
         Assert.Equal(Tier.Full, Job("everything").Tier);
     }
 
+
+    [Fact]
+    public void Listed_combinations_run_in_their_tier_with_samples()
+    {
+        var plan = MatrixPlanner.Plan(FakeCatalog.World, [new Combination(Tier.Push, "result", "cqrs:dispatcher=mediator")]);
+
+        var job = plan.Jobs.Single(j => j.Id == "result+cqrs-dispatcher-mediator");
+        Assert.Equal(Tier.Push, job.Tier);
+        Assert.True(job.Samples);
+        Assert.Equal(["result", "cqrs:dispatcher=mediator"], job.Options.Select(o => o.ToString()));
+    }
+
+    [Fact]
+    public void Listed_combinations_that_cant_be_resolved_are_skipped_with_the_reason()
+    {
+        var plan = MatrixPlanner.Plan(FakeCatalog.World, [new Combination(Tier.Push, "legacy", "cqrs"), new Combination(Tier.Push, "result", "nope")]);
+
+        Assert.DoesNotContain(plan.Jobs, j => j.Id is "legacy+cqrs" or "result+nope");
+        Assert.Contains(plan.Skipped, s => s.Id == "legacy+cqrs");
+        Assert.Contains(plan.Skipped, s => s.Id == "result+nope");
+    }
     [Fact]
     public void The_template_repository_is_built_once_per_set_of_symbols()
     {

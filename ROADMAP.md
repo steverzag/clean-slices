@@ -173,7 +173,7 @@ Each phase ends with something usable. The order is a proposal.
 | 3, done | **CI matrix**: combinations from the catalog through the resolver; template ref (`--template-ref`, `CLEANSLICES_TEMPLATE_REF`, `HEAD`) so CI tests the commit under test | Combinations stay working |
 | 4, done | **Outbox, inbox, integration events**: the first hidden unit, `requires` / `provides` between real options (the inbox gets the outbox), `recommended` and `addsTables`, three sample integration events. The CI matrix found a concurrency bug in the outbox's claim before release | Seams with defaults and hidden units |
 | 5, done | **PostgreSQL**: the first infrastructure group (`database`, SQL Server by default), the model-rules hidden unit, snake_case names and a case-insensitive email through model rules | Provider-neutral code |
-| 6 | **Repository, CQRS, request validation, idempotency keys** | Several invasive patterns in one feature template |
+| 6, done | **Repository, CQRS, request validation, idempotency keys**: three options meeting in every handler, written as flat `#elif` chains (decided by a prototype); the first choice (`cqrs` dispatcher: own handlers or Mediator); the `current-user` and `cache` hidden units; listed matrix combinations (`result` + repository + CQRS) | Several invasive patterns in one feature template |
 | 7 | **Queue, cache, authentication, realtime** | Zero-glue combinations, and the first glue units |
 | 8 | **Strategies**: soft delete, audit | Options on entities and the save pipeline order |
 | 9 | **Extras**; publish the CLI on NuGet | Ready for other people |

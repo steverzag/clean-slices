@@ -1,5 +1,6 @@
 using System.Text.Json.Nodes;
 using CleanSlices.Cli.Catalog;
+using CleanSlices.Matrix;
 
 namespace CleanSlices.Cli.Tests.Catalog;
 
@@ -19,6 +20,19 @@ public class ConsistencyTests
 
     /// <summary>What decides how a symbol renders; descriptions may differ per template.</summary>
     private static readonly string[] RenderingProperties = ["type", "datatype", "defaultValue", "choices", "value"];
+
+    [Fact]
+    public void Every_listed_matrix_combination_is_a_job_with_the_real_catalog()
+    {
+        // A renamed or removed option would otherwise drop the combination from CI without anyone noticing.
+        var plan = MatrixPlanner.Plan(Catalog, Combinations.All);
+
+        foreach (var combination in Combinations.All)
+        {
+            Assert.True(plan.Jobs.Any(j => j.Id == combination.Id),
+                $"Matrix combination '{combination.Id}' isn't a job: {plan.Skipped.FirstOrDefault(s => s.Id == combination.Id)?.Reason ?? "it resolves like another job."}");
+        }
+    }
 
     [Fact]
     public void The_catalog_passes_every_cross_reference_rule()
