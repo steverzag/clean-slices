@@ -1,10 +1,22 @@
 using CleanSlices.Api.Tests.Infrastructure;
+#if (outbox)
+using CleanSlices.Api.Tests.Outbox;
+#endif
 using CleanSlices.Infrastructure;
+#if (outbox)
+using CleanSlices.Infrastructure.Outbox;
+#endif
 using CleanSlices.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Hosting;
+#if (outbox)
+using Microsoft.AspNetCore.TestHost;
+#endif
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
+#if (outbox)
+using Microsoft.Extensions.Hosting;
+#endif
 using Testcontainers.MsSql;
 
 [assembly: AssemblyFixture(typeof(ApiFactory))]
@@ -40,6 +52,16 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 	protected override void ConfigureWebHost(IWebHostBuilder builder)
 	{
 		UseDatabase(builder, "CleanSlicesTests");
+#if (outbox)
+
+		// Tests process the outbox themselves, so its background loop never races them; retries are immediate.
+		builder.UseSetting("Outbox:RetryDelay", "00:00:00");
+		builder.ConfigureTestServices(services =>
+		{
+			services.Remove(services.Single(d => d.ServiceType == typeof(IHostedService) && d.ImplementationType == typeof(OutboxWorker)));
+			OutboxTestServices.Add(services);
+		});
+#endif
 	}
 
 	private void UseDatabase(IWebHostBuilder builder, string databaseName)

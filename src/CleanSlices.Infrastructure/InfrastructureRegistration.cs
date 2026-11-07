@@ -3,6 +3,9 @@
 using CleanSlices.Infrastructure.IntegrationEvents;
 #endif
 using CleanSlices.Infrastructure.Messages;
+#if (outbox)
+using CleanSlices.Infrastructure.Outbox;
+#endif
 using CleanSlices.Infrastructure.Persistence;
 using CleanSlices.Infrastructure.Persistence.SaveChanges;
 using Microsoft.EntityFrameworkCore;
@@ -29,6 +32,9 @@ public static class InfrastructureRegistration
 			services.TryAddScoped<SaveChangesPipeline>();
 #if (integration_events)
 			services.AddIntegrationEvents();
+#endif
+#if (outbox)
+			services.AddOutbox();
 #endif
 
 			services.AddDbContext<AppDbContext>((sp, o) =>

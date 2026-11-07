@@ -44,6 +44,12 @@
       "defaultValue": "false",
       "description": "Integration events (added by the CLI when an option needs them): events for the outside world, handled after the save."
     },
+    "outbox": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "Outbox pattern: integration events are stored with the data and delivered by a background processor, with retries."
+    },
     "aspireProjectsPrefix": {
       "type": "derived",
       "valueSource": "name",
@@ -118,6 +124,13 @@
           "condition": "(!integration_events)",
           "exclude": [
             "src/CleanSlices.Infrastructure/IntegrationEvents/**"
+          ]
+        },
+        {
+          "condition": "(!outbox)",
+          "exclude": [
+            "src/CleanSlices.Infrastructure/Outbox/**",
+            "tests/CleanSlices.Api.Tests/Outbox/**"
           ]
         },
         {

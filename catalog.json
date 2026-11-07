@@ -20,6 +20,16 @@
       "description": "Domain methods return Result / Result<T> instead of throwing for expected failures."
     },
     {
+      "id": "outbox",
+      "kind": "option",
+      "concept": "pattern",
+      "title": "Outbox",
+      "description": "Integration events are stored with the data, in the same transaction, and delivered by a background processor with retries.",
+      "requires": ["integration-events"],
+      "provides": ["at-least-once-delivery"],
+      "addsTables": true
+    },
+    {
       "id": "integration-events",
       "kind": "hidden"
     }
