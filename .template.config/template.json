@@ -38,6 +38,12 @@
       "defaultValue": "false",
       "description": "Result<T> pattern: domain methods return Result / Result<T> instead of throwing for expected failures."
     },
+    "integration_events": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "Integration events (added by the CLI when an option needs them): events for the outside world, handled after the save."
+    },
     "aspireProjectsPrefix": {
       "type": "derived",
       "valueSource": "name",
@@ -106,6 +112,12 @@
             "src/CleanSlices.Core/Shared/Result.cs",
             "tests/CleanSlices.Core.Tests/ResultAssertions.cs",
             "docs/error-handling.result.md"
+          ]
+        },
+        {
+          "condition": "(!integration_events)",
+          "exclude": [
+            "src/CleanSlices.Infrastructure/IntegrationEvents/**"
           ]
         },
         {

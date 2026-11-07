@@ -1,4 +1,7 @@
 ﻿using CleanSlices.Core.Messages;
+#if (integration_events)
+using CleanSlices.Infrastructure.IntegrationEvents;
+#endif
 using CleanSlices.Infrastructure.Messages;
 using CleanSlices.Infrastructure.Persistence;
 using CleanSlices.Infrastructure.Persistence.SaveChanges;
@@ -24,6 +27,9 @@ public static class InfrastructureRegistration
 			services.AddNotificationHandlers();
 			services.AddSaveChangesSteps();
 			services.TryAddScoped<SaveChangesPipeline>();
+#if (integration_events)
+			services.AddIntegrationEvents();
+#endif
 
 			services.AddDbContext<AppDbContext>((sp, o) =>
 				o.UseSqlServer(builder.Configuration.GetConnectionString(DatabaseConnectionName))

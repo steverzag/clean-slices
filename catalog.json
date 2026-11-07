@@ -18,6 +18,10 @@
       "concept": "pattern",
       "title": "Result<T>",
       "description": "Domain methods return Result / Result<T> instead of throwing for expected failures."
+    },
+    {
+      "id": "integration-events",
+      "kind": "hidden"
     }
   ]
 }
