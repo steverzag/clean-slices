@@ -88,6 +88,19 @@ The CLI reads the catalog **at the template commit a solution came from**, resol
   ```
   `samples` is always defined there, because the sample code is always compiled in this repository. The sample blocks themselves stay `//#if (samples)`.
 - **Whole members.** When a member differs in more than one place, or its declaration differs, put the whole member in each branch: `#if (result)` *complete method* `#else` *complete method* `#endif`. Neighbouring members that differ can share one block. A single, contiguous difference keeps a small block. Each variant should read top to bottom.
+- **Several options in one member: flat chains.** When options meet in the same member (`result`, repository and CQRS in a handler), write one complete member per combination in a flat chain with combined conditions, never nested inside the member:
+  ```csharp
+  #if (repository && result)
+  	public async Task<IResult> Handler(...) { ... }
+  #elif (repository)
+  	public async Task<IResult> Handler(...) { ... }
+  #elif (result)
+  	public async Task<IResult> Handler(...) { ... }
+  #else
+  	public async Task<IResult> Handler(...) { ... }
+  #endif
+  ```
+  Each combination reads as plain code, and all of them sit side by side, which makes keeping them in step easier. The prototype that settled this (`UpdateWidgetName` in every shape) is described in `docs/roadmap/patterns.md` under CQRS. If a file ever outgrows this, one file per combination (renamed by `template.json`) is the fallback.
 - **Whole files** that exist only with or without an option are excluded in `template.json`, not wrapped in `#if`: a wrapped file is still generated, empty. Wrap them in `#if` as well only so the repository build skips them (`Result.cs` is `#if (result)` … `#endif` *and* excluded when `!result`).
 - **The template engine removes every `#if` it sees**, including `#if DEBUG`, and keeps a block only if its condition is true for the template. Wrap a compiler directive that must survive in `//-:cnd:noEmit` … `//+:cnd:noEmit`.
 - **The feature template isn't compiled here.** Check it by generating a solution with a feature (below).

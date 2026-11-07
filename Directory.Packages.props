@@ -6,6 +6,9 @@
 
   <ItemGroup Label="ASP.NET Core">
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
+    <!--#if (validation)-->
+    <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="12.2.0" />
+    <!--#endif-->
   </ItemGroup>
 
   <ItemGroup Label="Entity Framework Core">

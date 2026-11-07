@@ -31,7 +31,10 @@ The options the solution was created with, each with its own documentation:
 <!--#if (postgresql)-->
 - **PostgreSQL** instead of SQL Server, with snake_case names. See [docs/database.md](docs/database.md).
 <!--#endif-->
-<!--#if (!samples && !result && !outbox && !inbox && !postgresql)-->
+<!--#if (validation)-->
+- **Request validation**: FluentValidation validators check requests before the handler; the domain stays the authority. See [docs/request-validation.md](docs/request-validation.md).
+<!--#endif-->
+<!--#if (!samples && !result && !outbox && !inbox && !postgresql && !validation)-->
 - None: this is the default setup. Options can be added later with the CLI.
 <!--#endif-->
 

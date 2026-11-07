@@ -54,6 +54,7 @@ Available options:
 | `result` | Domain methods return `Result` / `Result<T>` instead of throwing, endpoints compose them with `Map`/`Tap`, and `ResultExtensions` turn them into ProblemDetails responses. |
 | `outbox` | Integration events are stored with the data, in the same save, and delivered by a background processor with retries. Brings integration events with it. |
 | `inbox` | Each integration event handler runs once per event, even when it's delivered again. Needs the outbox; recommended with it. |
+| `validation` | Request validation: FluentValidation validators next to the requests, run automatically before the handler; same error responses as the domain. |
 | `sqlserver` | SQL Server, the default database: in a container from the AppHost, or an existing server. |
 | `postgresql` | PostgreSQL instead of SQL Server, with snake_case names and case-insensitive emails. Added to an existing solution, it replaces SQL Server. |
 

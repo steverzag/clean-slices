@@ -2,6 +2,9 @@ using System.Net;
 using CleanSlices.Api.Configuration;
 using CleanSlices.Api.Features.Users;
 using CleanSlices.Api.Tests.Infrastructure;
+#if (validation)
+using CleanSlices.Core.Domain.Users;
+#endif
 using CleanSlices.Infrastructure.Pagination;
 
 namespace CleanSlices.Api.Tests.Features.Users;
@@ -47,6 +50,22 @@ public class UserEndpointsTests(ApiFactory factory)
 
 		Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
 	}
+#if (validation)
+
+	[Fact]
+	public async Task An_invalid_request_is_rejected_before_the_handler_checks_the_email()
+	{
+		var email = UniqueEmail();
+		await _client.Post("/users", new CreateUser.CreateUserRequest("Ana", email));
+
+		// Without request validation the handler would answer 409 (email in use) before the domain saw the name.
+		var response = await _client.Post("/users", new CreateUser.CreateUserRequest(new string('a', User.NameMaxLength + 1), email));
+
+		Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+		var problem = await response.Content.ReadValidationProblemAsync();
+		Assert.True(problem.Errors.ContainsKey("name"));
+	}
+#endif
 
 	[Fact]
 	public async Task Create_with_an_email_in_use_ignoring_case_returns_409()

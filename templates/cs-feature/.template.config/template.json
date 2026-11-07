@@ -17,6 +17,12 @@
     "kebab": { "identifier": "kebabCase" }
   },
   "symbols": {
+    "validation": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "Request validation: FluentValidation validators check the shape of requests before the handler; the domain stays the authority."
+    },
     "app": {
       "type": "parameter",
       "datatype": "text",

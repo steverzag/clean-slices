@@ -7,6 +7,10 @@ using CleanSlices.Core.Domain.Users;
 using CleanSlices.Core.Shared;
 #endif
 using CleanSlices.Infrastructure.Persistence;
+#if (validation)
+using FluentValidation;
+using UserFieldErrors = CleanSlices.Core.Domain.Users.UserErrors;
+#endif
 using Microsoft.EntityFrameworkCore;
 
 namespace CleanSlices.Api.Features.Users;
@@ -15,6 +19,23 @@ public class CreateUser : IEndpoint
 {
 	public record CreateUserRequest(string Name, string Email);
 	public record CreateUserResponse(Guid Id, string Name, string Email);
+#if (validation)
+
+	public sealed class CreateUserRequestValidator : AbstractValidator<CreateUserRequest>
+	{
+		public CreateUserRequestValidator()
+		{
+			RuleFor(r => r.Name).Cascade(CascadeMode.Stop)
+				.NotEmpty().WithMessage(UserFieldErrors.EmptyName.Description)
+				.MaximumLength(User.NameMaxLength).WithMessage(UserFieldErrors.NameTooLong.Description);
+
+			RuleFor(r => r.Email).Cascade(CascadeMode.Stop)
+				.NotEmpty().WithMessage(UserFieldErrors.EmptyEmail.Description)
+				.MaximumLength(User.EmailMaxLength).WithMessage(UserFieldErrors.EmailTooLong.Description)
+				.Must(CleanSlices.Core.Shared.EmailValidator.IsValid).WithMessage(UserFieldErrors.InvalidEmail.Description);
+		}
+	}
+#endif
 
 #if (result)
 	public async Task<IResult> Handler(AppDbContext context, CreateUserRequest request, CancellationToken cancellationToken)

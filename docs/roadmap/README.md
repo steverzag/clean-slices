@@ -18,9 +18,9 @@ Changes to `main` that improve the default solution on their own: [base-template
 | Pattern | [Outbox](patterns.md#outbox) | – | **done** |
 | Pattern | [Inbox](patterns.md#inbox) | – | **done** (recommended with the outbox) |
 | Pattern | [Repository / unit of work](patterns.md#repository--unit-of-work) | – | designed |
-| Pattern | [CQRS](patterns.md#cqrs) | `dispatcher`: handlers (default), mediator, mediatr | designed |
+| Pattern | [CQRS](patterns.md#cqrs) | `dispatcher`: handlers (default, Mediator vocabulary), mediator | designed; MediatR dropped (phase 6) |
 | Pattern | [Idempotency keys](patterns.md#idempotency-keys) | – | designed |
-| Pattern | [Request validation](patterns.md#request-validation) | – | designed (FluentValidation) |
+| Pattern | [Request validation](patterns.md#request-validation) | – | **done** (FluentValidation) |
 | Hidden unit | [Current user](hidden-units.md#current-user) | – | designed |
 | Hidden unit | [Model rules](hidden-units.md#model-rules) | – | **done** (phase 5, for PostgreSQL) |
 | Hidden unit | [Cache](hidden-units.md#cache) | – | designed |

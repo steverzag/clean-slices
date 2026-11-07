@@ -26,6 +26,12 @@
     "aspireResourcePrefix": { "identifier": "chain", "steps": [ "lower", "dotToHyphen", "appendHyphen" ] }
   },
   "symbols": {
+    "validation": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "Request validation: FluentValidation validators check the shape of requests before the handler; the domain stays the authority."
+    },
     "samples": {
       "type": "parameter",
       "datatype": "bool",
@@ -145,6 +151,14 @@
             "src/CleanSlices.Core/Shared/Result.cs",
             "tests/CleanSlices.Core.Tests/ResultAssertions.cs",
             "docs/error-handling.result.md"
+          ]
+        },
+        {
+          "condition": "(!validation)",
+          "exclude": [
+            "src/CleanSlices.Api/Configuration/Validation/**",
+            "tests/CleanSlices.Api.Tests/Configuration/RequestValidationTests.cs",
+            "docs/request-validation.md"
           ]
         },
         {

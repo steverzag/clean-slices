@@ -4,6 +4,11 @@ using CleanSlices.Api.Extensions;
 using CleanSlices.Core.Shared;
 #endif
 using CleanSlices.Infrastructure.Persistence;
+#if (validation)
+using CleanSlices.Core.Domain.Users;
+using FluentValidation;
+using UserFieldErrors = CleanSlices.Core.Domain.Users.UserErrors;
+#endif
 using Microsoft.EntityFrameworkCore;
 
 namespace CleanSlices.Api.Features.Users;
@@ -11,6 +16,19 @@ namespace CleanSlices.Api.Features.Users;
 public class UpdateEmail : IEndpoint
 {
 	public record UpdateUserEmailRequest(string Email);
+#if (validation)
+
+	public sealed class UpdateUserEmailRequestValidator : AbstractValidator<UpdateUserEmailRequest>
+	{
+		public UpdateUserEmailRequestValidator()
+		{
+			RuleFor(r => r.Email).Cascade(CascadeMode.Stop)
+				.NotEmpty().WithMessage(UserFieldErrors.EmptyEmail.Description)
+				.MaximumLength(User.EmailMaxLength).WithMessage(UserFieldErrors.EmailTooLong.Description)
+				.Must(CleanSlices.Core.Shared.EmailValidator.IsValid).WithMessage(UserFieldErrors.InvalidEmail.Description);
+		}
+	}
+#endif
 
 #if (result)
 	public async Task<IResult> Handler(AppDbContext context, Guid id, UpdateUserEmailRequest request, CancellationToken cancellationToken)

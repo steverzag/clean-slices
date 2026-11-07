@@ -1,4 +1,8 @@
-﻿namespace CleanSlices.Api.Configuration.Endpoints;
+﻿#if (validation)
+using CleanSlices.Api.Configuration.Validation;
+
+#endif
+namespace CleanSlices.Api.Configuration.Endpoints;
 
 public static class EndpointRegister
 {
@@ -15,6 +19,12 @@ public static class EndpointRegister
 			var endpointTypes = endpointAssembly.GetTypes()
 				.Where(IsAssignableToIEndpoint);
 
+#if (validation)
+			// Every endpoint goes through request validation; the factory skips those with nothing to validate.
+			var endpoints = app.MapGroup(string.Empty).AddEndpointFilterFactory(RequestValidation.Factory);
+#else
+			var endpoints = app;
+#endif
 			List<string> failedImplementations = [];
 
 			foreach (var t in endpointTypes)
@@ -28,7 +38,7 @@ public static class EndpointRegister
 				}
 
 				var appEndpoint = (IEndpoint)Activator.CreateInstance(t)!;
-				appEndpoint.Register(app);
+				appEndpoint.Register(endpoints);
 			}
 
 			if(failedImplementations.Count > 0)

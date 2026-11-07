@@ -7,12 +7,28 @@ using CleanSlices.Core.Domain.Widgets;
 using CleanSlices.Core.Shared;
 #endif
 using CleanSlices.Infrastructure.Persistence;
+#if (validation)
+using FluentValidation;
+using WidgetFieldErrors = CleanSlices.Core.Domain.Widgets.WidgetErrors;
+#endif
 
 namespace CleanSlices.Api.Features.Widgets;
 
 public class UpdateWidgetName : IEndpoint
 {
 	public record UpdateWidgetNameRequest(string Name);
+#if (validation)
+
+	public sealed class UpdateWidgetNameRequestValidator : AbstractValidator<UpdateWidgetNameRequest>
+	{
+		public UpdateWidgetNameRequestValidator()
+		{
+			RuleFor(r => r.Name).Cascade(CascadeMode.Stop)
+				.NotEmpty().WithMessage(WidgetFieldErrors.EmptyName.Description)
+				.MaximumLength(Widget.NameMaxLength).WithMessage(WidgetFieldErrors.NameTooLong.Description);
+		}
+	}
+#endif
 
 #if (result)
 	public async Task<IResult> Handler(AppDbContext context, Guid id, UpdateWidgetNameRequest request, CancellationToken cancellationToken)

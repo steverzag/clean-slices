@@ -4,12 +4,29 @@ using CleanSlices.Api.Extensions;
 using CleanSlices.Core.Shared;
 #endif
 using CleanSlices.Infrastructure.Persistence;
+#if (validation)
+using CleanSlices.Core.Domain.Tasks;
+using FluentValidation;
+using TaskItemFieldErrors = CleanSlices.Core.Domain.Tasks.TaskItemErrors;
+#endif
 
 namespace CleanSlices.Api.Features.Tasks;
 
 public class UpdateDescription : IEndpoint
 {
 	public record UpdateTaskItemDescriptionRequest(string Description);
+#if (validation)
+
+	public sealed class UpdateTaskItemDescriptionRequestValidator : AbstractValidator<UpdateTaskItemDescriptionRequest>
+	{
+		public UpdateTaskItemDescriptionRequestValidator()
+		{
+			RuleFor(r => r.Description).Cascade(CascadeMode.Stop)
+				.NotEmpty().WithMessage(TaskItemFieldErrors.EmptyDescription.Description)
+				.MaximumLength(TaskItem.DescriptionMaxLength).WithMessage(TaskItemFieldErrors.DescriptionTooLong.Description);
+		}
+	}
+#endif
 
 #if (result)
 	public async Task<IResult> Handler(AppDbContext context, Guid id, UpdateTaskItemDescriptionRequest request, CancellationToken cancellationToken)

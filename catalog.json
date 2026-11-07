@@ -42,6 +42,13 @@
       "addsTables": true
     },
     {
+      "id": "validation",
+      "kind": "option",
+      "concept": "pattern",
+      "title": "Request validation",
+      "description": "FluentValidation validators check the shape of requests before the handler runs; the domain stays the authority."
+    },
+    {
       "id": "sqlserver",
       "kind": "option",
       "concept": "infrastructure",

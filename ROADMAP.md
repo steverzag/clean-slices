@@ -51,7 +51,7 @@ These rules are what make the goal achievable. A new option that breaks one of t
 
 8. **Code stays provider-neutral.** Entity type configurations use no provider-specific column types, no code depends on provider error numbers, and times are always UTC.
 
-9. **No hidden licenses.** When an option depends on a commercial package or product (MediatR, Seq), the CLI prints a notice when it's chosen and the setting for the license key is generated empty.
+9. **No hidden licenses.** When an option depends on a commercial package or product (Seq, for example), the CLI prints a notice when it's chosen and the setting for the license key is generated empty.
 
 10. **The default solution only contains what it uses itself.** A change to the base template must make the default solution better on its own. A seam that only options use goes into a [hidden unit](docs/roadmap/hidden-units.md), added when an option requires it. Testability alone isn't a reason to change the default solution.
 
@@ -93,8 +93,7 @@ Each option declares what it is and how it relates to others in `catalog.json`, 
           "default": "handlers",
           "values": {
             "handlers": { "title": "Own handlers" },
-            "mediator": { "title": "Mediator (source-generated, MIT)" },
-            "mediatr":  { "title": "MediatR", "license": { "notice": "…", "setting": "MediatR:LicenseKey" } }
+            "mediator": { "title": "Mediator (source-generated, MIT)" }
           }
         }
       }
@@ -188,6 +187,7 @@ Parked: discussed or proposed, deliberately not now.
 - **CI workflow** extra (GitHub Actions for generated solutions).
 - **Multi-tenancy** strategy. EF Core named query filters make it compatible with soft delete later.
 - **Strongly typed IDs** pattern.
+- **MediatR** as a CQRS dispatcher: dropped in phase 6 (commercial since version 13, and a vocabulary the other dispatchers can't share). The docs can show how to switch.
 - **SSE** as a second realtime option; **Azure SignalR Service** for scale-out.
 - **Database-backed idempotency store**, as a `store` sub-option, for teams that need the transactional guarantee.
 - **Public-only integration events** refinements, and a **separate read store** for CQRS.
@@ -200,4 +200,4 @@ Open questions:
 - **Upgrades.** Can a solution move to a newer template commit, and what happens to its options? Solutions from before the catalog can only get options this way.
 - **Interactive UX.** The prompts are grouped by concept, with follow-up questions for choices and requirements; revisit once the catalog has a few dozen options (search, presets?).
 
-To verify before the docs for users are written: MediatR's and MassTransit's current license terms, and whether `HybridCache` skips the in-memory `IDistributedCache` as its second level.
+To verify before the docs for users are written: the `Mediator` package's and MassTransit's current license terms, and whether `HybridCache` skips the in-memory `IDistributedCache` as its second level.

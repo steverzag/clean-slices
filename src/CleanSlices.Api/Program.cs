@@ -1,5 +1,8 @@
 using CleanSlices.Api.Configuration;
 using CleanSlices.Api.Configuration.Endpoints;
+#if (validation)
+using CleanSlices.Api.Configuration.Validation;
+#endif
 using CleanSlices.Api.Handlers;
 using CleanSlices.Infrastructure;
 using System.Text.Json.Serialization;
@@ -17,6 +20,9 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 	options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
 builder.Services.AddOpenApi();
+#if (validation)
+builder.Services.AddRequestValidation();
+#endif
 
 var app = builder.Build();
 

@@ -118,15 +118,25 @@ public async Task<IResult> Handler(IWidgetRepository widgets, IUnitOfWork unitOf
 - With Repository: commands use repositories and `IUnitOfWork`; queries use a read-only `IReadDb` (`IQueryable<T> Query<T>()`, always no-tracking) and keep their `Select(...)` projections. Without Repository: both use `AppDbContext`.
 - Domain events are unchanged.
 
-**Sub-options.** `dispatcher`:
+**Sub-options.** `dispatcher` (decided in phase 6, after a prototype):
 
 | Value | Handlers | Notes |
 |---|---|---|
-| `handlers` (default) | Our own `ICommandHandler<TCommand>` / `IQueryHandler<TQuery, TResult>`, injected into the endpoint; cross-cutting steps as decorators | No package |
-| `mediator` | `IRequest` / `IRequestHandler` / `ISender` / `IPipelineBehavior` from the source-generated `Mediator` package (MIT) | `ValueTask` |
-| `mediatr` | The same shape with MediatR | Commercial license from version 13: `MediatR:LicenseKey` setting generated empty, notice printed (rule 9) |
+| `handlers` (default) | Our own `ICommand` / `ICommand<T>` / `ICommandHandler<…>` / `ISender.Send` / `Unit`, with **Mediator's vocabulary** and `ValueTask`, and a small `ISender` of our own | No package |
+| `mediator` | The same interfaces from the source-generated `Mediator` package (MIT) | Verify the license before the docs |
 
-`mediator` and `mediatr` share one code shape; they differ in `Task` / `ValueTask` and registration.
+**MediatR is dropped** for now: it's commercial since version 13, and its vocabulary (`IRequest`, `Task`) can't match the other two. Because own handlers and Mediator share one vocabulary, **slice code is identical for both**: slices name no dispatcher namespace, and one `global using` file per dispatcher picks it. The choice only changes that file, registration and the package.
+
+**The prototype** (`UpdateWidgetName` in every shape, compiled in every combination):
+
+| | Files | Lines | Directive lines | Places to change "not found" |
+|---|---|---|---|---|
+| 16 shapes (with MediatR), small nested blocks | 1 | 183 | 73 (40 %), nested 3 deep | 6 |
+| 16 shapes, one file per combination | 16 | 656 | 2 each | 16 |
+| **8 shapes** (Mediator vocabulary, no MediatR), flat `#elif` chains of complete members | **1** | **159** | **23 (14 %)**, no nesting inside members | 8 |
+| 8 shapes, one file per combination | 8 | 302 | 2 each | 8 |
+
+Both 8-shape versions contain the same duplicated code (8 handler bodies, the inherent cost of three options meeting in one handler); the single file keeps them side by side and needs no rename machinery. So: one file per slice, flat chains (see CONTRIBUTING, *Several options in one member*), and one file per combination only as a fallback. The matrix gets an explicit job for `result` + repository + CQRS.
 
 **Feature template.** Each slice file holds the request, the command or query, its handler and the endpoint.
 
@@ -172,16 +182,22 @@ public async Task<IResult> Handler(IWidgetRepository widgets, IUnitOfWork unitOf
 
 **What.** FluentValidation validators check the *shape* of requests before the handler runs.
 
+**Built (phase 6).** `Api/Configuration/Validation/`; documented for users in `docs/request-validation.md`.
+
 **Design.**
 
-- Request validation checks what the domain can't: missing or null fields, values that can't be parsed, requests that don't map to an entity. **The domain stays the authority** for business rules, and limits reuse domain constants (`Widget.NameMaxLength`), so each number is defined once.
-- FluentValidation only (Apache 2.0). A validator class sits next to the request in the slice file; a generic endpoint filter runs it.
-- Always at the endpoint, even with CQRS. One location keeps the feature template simple, and the domain still checks every business rule wherever a command comes from.
-- Responses use the same `ValidationProblemDetails` shape, with camelCase field names, as domain validation (rule 7).
-- Order on an endpoint: validation, then idempotency.
+- Request validation checks what the domain can't: missing or null fields, values that can't be parsed, requests that don't map to an entity. **The domain stays the authority** for business rules.
+- **Limits and messages come from the domain** (`Widget.NameMaxLength`, the field errors in `Core/Domain/<Area>/<Entity>Errors.cs`), so a request rejected by its validator gets exactly the domain's response. Core's field errors are internal: the option adds `InternalsVisibleTo` for the Api to Core's project (an XML conditional) instead of making them public. Validators import them with an alias (`using WidgetFieldErrors = …WidgetErrors;`), since the Api has its own `WidgetErrors`. `Cascade(CascadeMode.Stop)` reports the first problem per field, like the domain.
+- FluentValidation only (Apache 2.0). A validator class sits next to the request in the slice file, found by scanning (`AddValidatorsFromAssembly`).
+- **Runs automatically, with no edit to `Register`:** `EndpointRegister` registers every endpoint on a group with an endpoint filter factory. The factory looks at the handler's parameters once; an endpoint whose arguments have no validator gets no filter. Features only *add* a validator class (rule 4).
+- Always at the endpoint, even with CQRS: one location, and the domain still checks every business rule wherever a command comes from.
+- Responses: status 400, title `Validation failed`, `errors` per field with JSON names, through the same `ProblemDetailsCustomization` (rule 7).
+- Order on an endpoint: validation (a group filter) runs before the endpoint's own filters, so before idempotency.
 
-**Feature template.** `CreateWidget` and `UpdateWidgetName` validate `Name`: required, at most `Widget.NameMaxLength`.
+**Feature template.** `CreateWidget` and `UpdateWidgetName` validate `Name`: required, at most `Widget.NameMaxLength`, with the domain's messages.
 
-**Samples.** *Proposed:* a validator for every sample request, including the email's shape, reusing the domain's length constants.
+**Samples.** A validator for every sample request (user name and email, including the email's format through the domain's `EmailValidator`; task title and description).
+
+**Tests.** The filter is tested directly (`Configuration/RequestValidationTests.cs`): an invalid argument gets the validation response and the handler doesn't run, a valid one reaches it, an endpoint without validated arguments gets no filter. Every existing invalid-field test passes unchanged with the option, now answered by the validator. A sample test shows validation runs first: a too-long name with an email in use gets 400, not 409.
 
 **Trade-offs to document.** For simple CRUD on one entity it adds little; its value grows with requests that don't match an entity. MediatR users may expect a `ValidationBehavior`; this template doesn't use one, on purpose.

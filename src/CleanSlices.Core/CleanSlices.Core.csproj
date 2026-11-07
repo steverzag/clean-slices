@@ -1,3 +1,10 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--#if (validation)-->
+  <!-- Request validators reuse the domain's field errors, so both reject a request with the same message. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="CleanSlices.Api" />
+  </ItemGroup>
+  <!--#endif-->
 
 </Project>

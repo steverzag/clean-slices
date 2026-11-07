@@ -7,6 +7,10 @@ using CleanSlices.Core.Domain.Tasks;
 using CleanSlices.Core.Shared;
 #endif
 using CleanSlices.Infrastructure.Persistence;
+#if (validation)
+using FluentValidation;
+using TaskItemFieldErrors = CleanSlices.Core.Domain.Tasks.TaskItemErrors;
+#endif
 
 namespace CleanSlices.Api.Features.Tasks;
 
@@ -14,6 +18,22 @@ public class CreateTaskItem : IEndpoint
 {
 	public record CreateTaskItemRequest(string Title, string Description);
 	public record CreateTaskItemResponse(Guid Id, string Title, string Description, TaskItemStatus Status, DateTimeOffset CreatedAt);
+#if (validation)
+
+	public sealed class CreateTaskItemRequestValidator : AbstractValidator<CreateTaskItemRequest>
+	{
+		public CreateTaskItemRequestValidator()
+		{
+			RuleFor(r => r.Title).Cascade(CascadeMode.Stop)
+				.NotEmpty().WithMessage(TaskItemFieldErrors.EmptyTitle.Description)
+				.MaximumLength(TaskItem.TitleMaxLength).WithMessage(TaskItemFieldErrors.TitleTooLong.Description);
+
+			RuleFor(r => r.Description).Cascade(CascadeMode.Stop)
+				.NotEmpty().WithMessage(TaskItemFieldErrors.EmptyDescription.Description)
+				.MaximumLength(TaskItem.DescriptionMaxLength).WithMessage(TaskItemFieldErrors.DescriptionTooLong.Description);
+		}
+	}
+#endif
 
 	public async Task<IResult> Handler(AppDbContext context, CreateTaskItemRequest request, CancellationToken cancellationToken)
 	{

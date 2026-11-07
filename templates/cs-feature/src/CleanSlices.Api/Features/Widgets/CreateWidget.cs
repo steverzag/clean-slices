@@ -7,12 +7,28 @@ using CleanSlices.Core.Domain.Widgets;
 using CleanSlices.Core.Shared;
 #endif
 using CleanSlices.Infrastructure.Persistence;
+#if (validation)
+using FluentValidation;
+using WidgetFieldErrors = CleanSlices.Core.Domain.Widgets.WidgetErrors;
+#endif
 
 namespace CleanSlices.Api.Features.Widgets;
 
 public class CreateWidget : IEndpoint
 {
 	public record CreateWidgetRequest(string Name);
+#if (validation)
+
+	public sealed class CreateWidgetRequestValidator : AbstractValidator<CreateWidgetRequest>
+	{
+		public CreateWidgetRequestValidator()
+		{
+			RuleFor(r => r.Name).Cascade(CascadeMode.Stop)
+				.NotEmpty().WithMessage(WidgetFieldErrors.EmptyName.Description)
+				.MaximumLength(Widget.NameMaxLength).WithMessage(WidgetFieldErrors.NameTooLong.Description);
+		}
+	}
+#endif
 	public record CreateWidgetResponse(Guid Id, string Name);
 
 	public async Task<IResult> Handler(AppDbContext context, CreateWidgetRequest request, CancellationToken cancellationToken)
