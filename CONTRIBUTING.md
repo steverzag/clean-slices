@@ -118,7 +118,7 @@ The CLI reads the catalog **at the template commit a solution came from**, resol
 4. Check, before committing:
    ```powershell
    dotnet test --solution CleanSlices.Dev.slnx                          # default + catalog consistency
-   dotnet test --solution CleanSlices.Dev.slnx -p:TemplateOptions=<id>  # the option
+   dotnet test --solution CleanSlices.Dev.slnx -p:TemplateOptions=<id>  # the option, with the hidden units it requires (e.g. idempotency%3Bcurrent_user%3Bcache)
    ```
 5. Commit, then run the option's CI jobs locally (see [CI](#ci)): the new jobs appear in `list` by themselves.
    ```powershell

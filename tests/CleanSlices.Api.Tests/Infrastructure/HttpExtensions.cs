@@ -1,6 +1,9 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+#if (idempotency)
+using CleanSlices.Api.Configuration.Idempotency;
+#endif
 using Microsoft.AspNetCore.Http;
 
 namespace CleanSlices.Api.Tests.Infrastructure;
@@ -29,6 +32,15 @@ public static class HttpExtensions
 	{
 		public Task<HttpResponseMessage> Post<T>(string uri, T body) =>
 			client.PostAsJsonAsync(uri, body, JsonOptions, TestContext.Current.CancellationToken);
+#if (idempotency)
+
+		public Task<HttpResponseMessage> Post<T>(string uri, T body, string idempotencyKey) =>
+			client.SendAsync(new HttpRequestMessage(HttpMethod.Post, uri)
+			{
+				Content = JsonContent.Create(body, options: JsonOptions),
+				Headers = { { Idempotency.Header, idempotencyKey } }
+			}, TestContext.Current.CancellationToken);
+#endif
 
 		public Task<HttpResponseMessage> Patch<T>(string uri, T body) =>
 			client.PatchAsJsonAsync(uri, body, JsonOptions, TestContext.Current.CancellationToken);

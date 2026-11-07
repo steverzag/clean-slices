@@ -154,29 +154,36 @@ Both 8-shape versions contain the same duplicated code (8 handler bodies, the in
 
 **What.** A client sends `Idempotency-Key: <uuid>`; a retry with the same key gets the stored response instead of running the action again.
 
+**Built (phase 6).** `Api/Configuration/Idempotency/`; requires the [`current-user`](hidden-units.md#current-user) and [`cache`](hidden-units.md#cache) hidden units. Documented for users in `docs/idempotency.md`.
+
 **Design.**
 
 - Behavior follows the IETF draft:
 
   | Situation | Response |
   |---|---|
-  | Same key, same request, finished | The stored response is replayed |
-  | Same key, different body | 422 |
+  | Same key, same request, finished | The stored response is replayed, with `Idempotent-Replayed: true` |
+  | Same key, different request | 422 |
   | Same key, first request still running | 409 |
   | Missing key where required | 400 |
+  | Empty, repeated or longer than 255 characters | 400 |
 
-- Opt-in per endpoint with `.WithIdempotency()`, an endpoint filter. The key is optional unless `Idempotency:Required` is `true`.
-- Records are stored through `IDistributedCache`: in memory by default, Redis when the Redis option is selected, with no glue. A lock per key inside the instance gives the 409.
-- The request fingerprint is a SHA-256 hash of method, path and body. Records are kept for 24 hours (configurable).
-- With an authentication option, keys are scoped per user through `ICurrentUser`.
+- Opt-in per endpoint with `.WithIdempotency()`, an endpoint filter factory. The key is optional unless `Idempotency:Required` is `true`. Settings have their defaults in code (`IdempotencyOptions`); appsettings stay untouched.
+- **The response is captured by running the endpoint's `IResult` into a buffer** (the response body swapped for a `MemoryStream`): status, `Content-Type`, `Location` and body are stored, and the stored record is itself an `IResult` that writes them, for the first response and every replay alike.
+- **Only 2xx responses are stored.** A failure releases the key, so a retry runs again. This also keeps rule 7: with or without `result`, a failure gives the same response, whether it's an exception (handled outside the filter) or a problem result.
+- Records go to `IDistributedCache`: in memory, Redis when the Redis option is selected, with no glue. A set of keys in progress inside the instance gives the 409.
+- **The fingerprint covers the bound arguments, not the raw body:** SHA-256 of method, path, query and the JSON of the handler's arguments that aren't services, the cancellation token or the `HttpContext` family. The factory picks those arguments once, at startup. Reading the raw body would need buffering enabled before model binding, in a middleware; equivalent JSON with different whitespace now counts as the same request. Records are kept for 24 hours (`Idempotency:Retention`).
+- Keys are scoped per user through `ICurrentUser` (anonymous for now: one shared space).
 
-**Feature template.** `.WithIdempotency()` on the Create endpoint.
+**Feature template.** `.WithIdempotency()` on the Create endpoint; a test retries a create with the same key and gets the same widget.
 
-**Samples.** *Proposed:* `.WithIdempotency()` on the creates and on assigning a user, an action that isn't naturally idempotent.
+**Samples.** `.WithIdempotency()` on `CreateUser` and `CreateTaskItem`. Assigning a user, proposed earlier, is already idempotent (a set add), so it doesn't get it. A test shows the point: a user creation retried with the same key gets the first 201 instead of a 409 for the email.
 
-**Interactions.** Request validation runs first, so an invalid request stores no key.
+**Tests.** `Api.Tests/Configuration/IdempotencyTests.cs` runs the filter on a small `TestServer` app of its own (no database): replay, 422, 409 while running, failures not stored, no key, required key, invalid key, keys per user.
 
-**Trade-offs to document.** In memory, keys are lost on a crash or restart, so a retry right after one runs again. With several instances behind Redis, two retries with the same key reaching different instances within milliseconds could both run. A database-backed store with the transactional guarantee is parked as a possible `store` sub-option.
+**Interactions.** Request validation runs first (a group filter); an invalid request fails, so it stores nothing either way.
+
+**Trade-offs to document.** In memory, keys are lost on a crash or restart, so a retry right after one runs again. With several instances behind Redis, two retries with the same key reaching different instances within milliseconds could both run. A crash between the save and storing the response runs the action again on retry. A database-backed store with the transactional guarantee is parked as a possible `store` sub-option.
 
 ## Request validation
 

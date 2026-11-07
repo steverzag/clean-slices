@@ -50,6 +50,25 @@ public class UserEndpointsTests(ApiFactory factory)
 
 		Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
 	}
+#if (idempotency)
+
+	[Fact]
+	public async Task Create_retried_with_the_same_idempotency_key_returns_the_first_response()
+	{
+		var key = Guid.NewGuid().ToString();
+		var request = new CreateUser.CreateUserRequest("Ana", UniqueEmail());
+
+		var first = await _client.Post("/users", request, key);
+
+		// Without the key the retry would run again and answer 409: the email is in use by then.
+		var retry = await _client.Post("/users", request, key);
+
+		Assert.Equal(HttpStatusCode.Created, retry.StatusCode);
+		Assert.Equal(
+			(await first.Content.ReadAsAsync<CreateUser.CreateUserResponse>()).Id,
+			(await retry.Content.ReadAsAsync<CreateUser.CreateUserResponse>()).Id);
+	}
+#endif
 #if (validation)
 
 	[Fact]

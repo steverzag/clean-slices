@@ -18,6 +18,24 @@ public class WidgetEndpointsTests(ApiFactory factory)
 		var created = await response.Content.ReadAsAsync<CreateWidget.CreateWidgetResponse>();
 		Assert.Equal("First", (await GetAsync(created.Id)).Name);
 	}
+#if (idempotency)
+
+	[Fact]
+	public async Task Create_retried_with_the_same_idempotency_key_creates_one_widget()
+	{
+		var key = Guid.NewGuid().ToString();
+		var request = new CreateWidget.CreateWidgetRequest("First");
+
+		var first = await _client.Post("/widgets", request, key);
+		var retry = await _client.Post("/widgets", request, key);
+
+		Assert.Equal(HttpStatusCode.Created, retry.StatusCode);
+		Assert.Equal(first.Headers.Location, retry.Headers.Location);
+		Assert.Equal(
+			(await first.Content.ReadAsAsync<CreateWidget.CreateWidgetResponse>()).Id,
+			(await retry.Content.ReadAsAsync<CreateWidget.CreateWidgetResponse>()).Id);
+	}
+#endif
 
 	[Fact]
 	public async Task Create_with_an_empty_name_returns_400_with_the_field_error()

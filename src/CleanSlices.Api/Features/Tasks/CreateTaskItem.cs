@@ -1,4 +1,7 @@
 ﻿using CleanSlices.Api.Configuration.Endpoints;
+#if (idempotency)
+using CleanSlices.Api.Configuration.Idempotency;
+#endif
 #if (result)
 using CleanSlices.Api.Extensions;
 #endif
@@ -59,6 +62,9 @@ public class CreateTaskItem : IEndpoint
 	{
 		app.MapPost("/tasks", Handler)
 			.WithTags("Tasks")
+#if (idempotency)
+			.WithIdempotency()
+#endif
 			.WithName(nameof(CreateTaskItem));
 	}
 }

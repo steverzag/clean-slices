@@ -23,6 +23,12 @@
       "defaultValue": "false",
       "description": "Request validation: FluentValidation validators check the shape of requests before the handler; the domain stays the authority."
     },
+    "idempotency": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "Idempotency keys: the create endpoint replays its stored response for a retry with the same Idempotency-Key header."
+    },
     "app": {
       "type": "parameter",
       "datatype": "text",

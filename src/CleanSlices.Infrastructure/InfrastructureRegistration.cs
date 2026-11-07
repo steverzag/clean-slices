@@ -1,4 +1,7 @@
 ﻿using CleanSlices.Core.Messages;
+#if (current_user)
+using CleanSlices.Infrastructure.CurrentUser;
+#endif
 #if (inbox)
 using CleanSlices.Infrastructure.Inbox;
 #endif
@@ -33,6 +36,13 @@ public static class InfrastructureRegistration
 			services.AddNotificationHandlers();
 			services.AddSaveChangesSteps();
 			services.TryAddScoped<SaveChangesPipeline>();
+#if (current_user)
+			services.TryAddSingleton<ICurrentUser, AnonymousCurrentUser>();
+#endif
+#if (cache)
+			// In memory, for this instance only; the Redis option registers a shared one.
+			services.AddDistributedMemoryCache();
+#endif
 #if (integration_events)
 			services.AddIntegrationEvents();
 #endif

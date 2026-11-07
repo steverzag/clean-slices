@@ -34,7 +34,10 @@ The options the solution was created with, each with its own documentation:
 <!--#if (validation)-->
 - **Request validation**: FluentValidation validators check requests before the handler; the domain stays the authority. See [docs/request-validation.md](docs/request-validation.md).
 <!--#endif-->
-<!--#if (!samples && !result && !outbox && !inbox && !postgresql && !validation)-->
+<!--#if (idempotency)-->
+- **Idempotency keys**: a retry with the same `Idempotency-Key` header gets the stored response instead of running again. See [docs/idempotency.md](docs/idempotency.md).
+<!--#endif-->
+<!--#if (!samples && !result && !outbox && !inbox && !postgresql && !validation && !idempotency)-->
 - None: this is the default setup. Options can be added later with the CLI.
 <!--#endif-->
 

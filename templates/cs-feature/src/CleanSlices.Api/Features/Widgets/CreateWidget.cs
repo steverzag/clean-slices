@@ -1,4 +1,7 @@
 using CleanSlices.Api.Configuration.Endpoints;
+#if (idempotency)
+using CleanSlices.Api.Configuration.Idempotency;
+#endif
 #if (result)
 using CleanSlices.Api.Extensions;
 #endif
@@ -55,6 +58,9 @@ public class CreateWidget : IEndpoint
 	{
 		app.MapPost("/widgets", Handler)
 			.WithTags("Widgets")
+#if (idempotency)
+			.WithIdempotency()
+#endif
 			.WithName(nameof(CreateWidget));
 	}
 }

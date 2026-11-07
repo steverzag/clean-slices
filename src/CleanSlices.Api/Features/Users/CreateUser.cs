@@ -1,4 +1,7 @@
 ﻿using CleanSlices.Api.Configuration.Endpoints;
+#if (idempotency)
+using CleanSlices.Api.Configuration.Idempotency;
+#endif
 #if (result)
 using CleanSlices.Api.Extensions;
 #endif
@@ -74,6 +77,9 @@ public class CreateUser : IEndpoint
 	{
 		app.MapPost("/users", Handler)
 			.WithTags("Users")
+#if (idempotency)
+			.WithIdempotency()
+#endif
 			.WithName(nameof(CreateUser));
 	}
 }

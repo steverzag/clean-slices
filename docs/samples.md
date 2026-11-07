@@ -64,6 +64,10 @@ Three domain events are turned into integration events (see [integration-events.
 | DELETE | `/users/{id}`                     | Delete a user (also unassigns them from their tasks) |
 
 `src/CleanSlices.Api/CleanSlices.Api.http` has ready-made requests for all of them.
+<!--#if (idempotency)-->
+
+The two creates (`POST /tasks`, `POST /users`) accept an `Idempotency-Key` header (see [idempotency.md](idempotency.md)): a user creation retried with the same key gets the first response instead of a 409 for the email.
+<!--#endif-->
 
 ## Tests
 

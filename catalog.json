@@ -49,6 +49,14 @@
       "description": "FluentValidation validators check the shape of requests before the handler runs; the domain stays the authority."
     },
     {
+      "id": "idempotency",
+      "kind": "option",
+      "concept": "pattern",
+      "title": "Idempotency keys",
+      "description": "A retry with the same Idempotency-Key header gets the stored response instead of running the action again.",
+      "requires": ["current-user", "cache"]
+    },
+    {
       "id": "sqlserver",
       "kind": "option",
       "concept": "infrastructure",
@@ -71,6 +79,14 @@
     },
     {
       "id": "model-rules",
+      "kind": "hidden"
+    },
+    {
+      "id": "current-user",
+      "kind": "hidden"
+    },
+    {
+      "id": "cache",
       "kind": "hidden"
     }
   ]

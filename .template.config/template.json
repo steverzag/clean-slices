@@ -32,6 +32,24 @@
       "defaultValue": "false",
       "description": "Request validation: FluentValidation validators check the shape of requests before the handler; the domain stays the authority."
     },
+    "idempotency": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "Idempotency keys: a retry with the same Idempotency-Key header gets the stored response instead of running the action again."
+    },
+    "current_user": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "Current user (added by the CLI when an option needs it): who makes the request, anonymous until an authentication option is selected."
+    },
+    "cache": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "Cache (added by the CLI when an option needs it): an in-memory distributed cache, replaced by the Redis option."
+    },
     "samples": {
       "type": "parameter",
       "datatype": "bool",
@@ -159,6 +177,20 @@
             "src/CleanSlices.Api/Configuration/Validation/**",
             "tests/CleanSlices.Api.Tests/Configuration/RequestValidationTests.cs",
             "docs/request-validation.md"
+          ]
+        },
+        {
+          "condition": "(!idempotency)",
+          "exclude": [
+            "src/CleanSlices.Api/Configuration/Idempotency/**",
+            "tests/CleanSlices.Api.Tests/Configuration/IdempotencyTests.cs",
+            "docs/idempotency.md"
+          ]
+        },
+        {
+          "condition": "(!current_user)",
+          "exclude": [
+            "src/CleanSlices.Infrastructure/CurrentUser/**"
           ]
         },
         {

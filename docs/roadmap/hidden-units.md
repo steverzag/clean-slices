@@ -15,9 +15,12 @@ They're built together with the first option that needs them.
 
 **What.** Who is making the request, for options that record or scope things per user.
 
+**Built (phase 6)**, with idempotency keys: `Infrastructure/CurrentUser/`, registered in `AddInfrastructure`.
+
 **Design.**
 
 - `ICurrentUser` with `string? UserId` and `bool IsAuthenticated`. The ID is a string because each identity provider shapes it differently.
+- **In Infrastructure, not Core**, like the integration-event contracts: the domain never asks who the user is, and the lowest future consumer (audit, a save step) is in Infrastructure. Authentication options implement it in the Api, where the claims are.
 - The default implementation is anonymous: `UserId` is `null`, `IsAuthenticated` is `false`. Options that use it must work with that (no auth selected, or work done by a background job).
 - Authentication options replace the default with one that reads the claims. Options that use the seam never know which provider is selected (rule 1).
 - Selecting an authentication option alone also adds the unit, since it provides the implementation.
@@ -44,11 +47,13 @@ They're built together with the first option that needs them.
 
 **What.** The caching seam, for options that store short-lived data.
 
+**Built (phase 6)**, with idempotency keys: one line in `AddInfrastructure`, `AddDistributedMemoryCache()`. No files of its own.
+
 **Design.**
 
-- `AddHybridCache()` plus the in-memory `IDistributedCache`.
+- The in-memory `IDistributedCache` now; `AddHybridCache()` joins it in phase 7 with Redis, the first option that needs it (rule 10).
 - Idempotency keys store their records in `IDistributedCache`. The Redis option registers a Redis `IDistributedCache`, and `HybridCache` uses it as its second level: both pick Redis up with no glue.
-- Verify when building: `HybridCache` should not use the in-memory `IDistributedCache` as a redundant second level.
+- Verify in phase 7: `HybridCache` should not use the in-memory `IDistributedCache` as a redundant second level.
 
 **Feature template.** Caches nothing; see [infrastructure.md](infrastructure.md#cache) for the recommended way to add caching to an endpoint.
 

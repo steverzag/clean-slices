@@ -1,5 +1,8 @@
 using CleanSlices.Api.Configuration;
 using CleanSlices.Api.Configuration.Endpoints;
+#if (idempotency)
+using CleanSlices.Api.Configuration.Idempotency;
+#endif
 #if (validation)
 using CleanSlices.Api.Configuration.Validation;
 #endif
@@ -22,6 +25,9 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 builder.Services.AddOpenApi();
 #if (validation)
 builder.Services.AddRequestValidation();
+#endif
+#if (idempotency)
+builder.Services.AddIdempotency();
 #endif
 
 var app = builder.Build();

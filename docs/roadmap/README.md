@@ -19,11 +19,11 @@ Changes to `main` that improve the default solution on their own: [base-template
 | Pattern | [Inbox](patterns.md#inbox) | – | **done** (recommended with the outbox) |
 | Pattern | [Repository / unit of work](patterns.md#repository--unit-of-work) | – | designed |
 | Pattern | [CQRS](patterns.md#cqrs) | `dispatcher`: handlers (default, Mediator vocabulary), mediator | designed; MediatR dropped (phase 6) |
-| Pattern | [Idempotency keys](patterns.md#idempotency-keys) | – | designed |
+| Pattern | [Idempotency keys](patterns.md#idempotency-keys) | – | **done** (in-memory store) |
 | Pattern | [Request validation](patterns.md#request-validation) | – | **done** (FluentValidation) |
-| Hidden unit | [Current user](hidden-units.md#current-user) | – | designed |
+| Hidden unit | [Current user](hidden-units.md#current-user) | – | **done** (anonymous) |
 | Hidden unit | [Model rules](hidden-units.md#model-rules) | – | **done** (phase 5, for PostgreSQL) |
-| Hidden unit | [Cache](hidden-units.md#cache) | – | designed |
+| Hidden unit | [Cache](hidden-units.md#cache) | – | **done** (`IDistributedCache` only; `HybridCache` with Redis, phase 7) |
 | Hidden unit | [Integration events](hidden-units.md#integration-events) | – | **done** (without the after-commit publisher, see its page) |
 | Infrastructure | [SQL Server](infrastructure.md#database), [PostgreSQL](infrastructure.md#database) | group `database` (required) | **done**; SQL Server is the default |
 | Infrastructure | [RabbitMQ, Azure Service Bus](infrastructure.md#queue) | group `queue` | designed |
