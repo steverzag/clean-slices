@@ -49,7 +49,10 @@ The options the solution was created with, each with its own documentation:
 <!--#if (fusioncache)-->
 - **FusionCache** runs `HybridCache`: fail-safe and timeouts, and with Redis a backplane. See [docs/caching.md](docs/caching.md).
 <!--#endif-->
-<!--#if (!samples && !result && !outbox && !inbox && !postgresql && !validation && !idempotency && !repository && !cqrs && !redis && !fusioncache)-->
+<!--#if (rabbitmq)-->
+- **RabbitMQ**: integration events go through a broker, retried and dead-lettered. See [docs/messaging.md](docs/messaging.md).
+<!--#endif-->
+<!--#if (!samples && !result && !outbox && !inbox && !postgresql && !validation && !idempotency && !repository && !cqrs && !redis && !fusioncache && !rabbitmq)-->
 - None: this is the default setup. Options can be added later with the CLI.
 <!--#endif-->
 

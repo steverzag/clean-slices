@@ -17,6 +17,9 @@
     <!--#if (redis)-->
     <PackageReference Include="Aspire.StackExchange.Redis.DistributedCaching" />
     <!--#endif-->
+    <!--#if (rabbitmq)-->
+    <PackageReference Include="Aspire.RabbitMQ.Client" />
+    <!--#endif-->
     <!--#if (hybrid_cache && !fusioncache)-->
     <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" />
     <!--#endif-->

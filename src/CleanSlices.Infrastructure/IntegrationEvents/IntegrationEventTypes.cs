@@ -29,6 +29,10 @@ internal sealed class IntegrationEventTypes
 		assembly.GetTypes().Where(t => t is { IsAbstract: false, IsInterface: false } && typeof(IIntegrationEvent).IsAssignableFrom(t));
 
 	public Type? Find(string name) => _byName.GetValueOrDefault(name);
+#if (message_broker)
+
+	public IReadOnlyCollection<string> Names => _byName.Keys;
+#endif
 
 	public string NameOf(IIntegrationEvent integrationEvent) =>
 		_byType.TryGetValue(integrationEvent.GetType(), out var name)

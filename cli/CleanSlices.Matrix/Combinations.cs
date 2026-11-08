@@ -17,5 +17,6 @@ internal static class Combinations
         new(Tier.Push, "result", "repository", "cqrs"),
         new(Tier.Full, "result", "repository", "cqrs:dispatcher=mediator"),
         new(Tier.Push, "fusioncache", "redis"),
+        new(Tier.Push, "rabbitmq", "inbox"),
     ];
 }

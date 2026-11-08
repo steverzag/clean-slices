@@ -53,7 +53,7 @@ public class HybridCacheTests(ApiFactory factory)
 	public async Task A_value_removed_on_one_instance_is_removed_on_the_others()
 	{
 		// Two instances of the app: each has its own memory, and they share Redis.
-		await using var other = factory.WithWebHostBuilder(_ => { });
+		await using var other = factory.AnotherInstance();
 		var first = factory.Services.GetRequiredService<HybridCache>();
 		var second = other.Services.GetRequiredService<HybridCache>();
 		var key = NewKey();
@@ -72,7 +72,7 @@ public class HybridCacheTests(ApiFactory factory)
 	{
 		// Microsoft's HybridCache has no backplane: the other instances keep their copy in memory.
 		// FusionCache with Redis (its glue unit) adds one; see docs/caching.md.
-		await using var other = factory.WithWebHostBuilder(_ => { });
+		await using var other = factory.AnotherInstance();
 		var first = factory.Services.GetRequiredService<HybridCache>();
 		var second = other.Services.GetRequiredService<HybridCache>();
 		var key = NewKey();

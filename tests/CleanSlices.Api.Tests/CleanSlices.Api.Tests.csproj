@@ -15,6 +15,9 @@
     <!--#if (redis)-->
     <PackageReference Include="Testcontainers.Redis" />
     <!--#endif-->
+    <!--#if (rabbitmq)-->
+    <PackageReference Include="Testcontainers.RabbitMq" />
+    <!--#endif-->
     <PackageReference Include="xunit.v3" />
   </ItemGroup>
 

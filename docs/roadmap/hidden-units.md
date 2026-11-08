@@ -10,6 +10,7 @@ A hidden unit is a piece that several options need but nobody picks on its own. 
 | [`hybrid-cache`](#hybridcache) | `HybridCache` | Microsoft's | Redis, FusionCache | FusionCache |
 | [`after-commit`](#after-commit) | `IAfterCommit` | – | HybridCache (invalidation); next the queue and realtime | – |
 | [`integration-events`](#integration-events) | `IIntegrationEventPublisher`, `IMessageDispatcher` | in-process | outbox, queue options | queue options (dispatcher) |
+| [`message-broker`](#message-broker) | what the queue options share (settings, message format, after-commit publisher) | – | RabbitMQ, Service Bus | – |
 
 They're built together with the first option that needs them.
 
@@ -114,10 +115,25 @@ Domain events and integration events:
   - **Serializer**: JSON with web defaults. An unknown name raises `UnknownIntegrationEventException`, so the outbox fails the row without retrying.
   - **`IMessageDispatcher`**, the transport. The default, `InProcessMessageDispatcher`, runs every handler of the event, each in its own scope, with `IIntegrationEventHandlerFilter`s around each call (the inbox is one). All handlers run even when one fails; the failures are thrown together, so the message is retried.
 - A domain event handler publishes the integration event; see the samples' `PublishUserCreatedHandler`.
-- **Not built yet: the after-commit publisher.** Without the outbox, `IIntegrationEventPublisher` would queue events with [`IAfterCommit`](#after-commit) (built in phase 7a) and send them once the data is committed. Only a queue option (phase 7b) reaches that case, so it's built then. Until then, the outbox provides the only publisher.
+- **The after-commit publisher (built in phase 7b)**, `AfterCommitPublisher` in the [`message-broker`](#message-broker) unit: without the outbox, the event is sent through [`IAfterCommit`](#after-commit) once the save commits.
+- **The handler runner (split out in phase 7b)**: `IntegrationEventHandlers` runs the handlers with their scopes and filters; `IMessageDispatcher` only delivers (in process it calls the runner, with a broker it sends and the consumer calls the runner).
 - Integration events are public contracts: add fields, never rename or remove them.
 
 **Feature template.** Generates none. Integration events are deliberate contracts; the docs show how to add one.
 
 **Samples.** See the [outbox](patterns.md#outbox): three integration events, with `samples` + `integration_events`.
 
+
+## Message broker
+
+**What.** What the queue options share, so each broker option only brings its own client code.
+
+**Built (phase 7b)**, with RabbitMQ: `Infrastructure/IntegrationEvents/Broker/`.
+
+**Design.**
+
+- `BrokerOptions` (`Messaging:` section): `Topic` and `Subscription` (a RabbitMQ exchange and queue, a Service Bus topic and subscription), `MaxDeliveries`, `Prefetch`.
+- `BrokerMessage`: the message format every broker uses (JSON body, event name as the type, message ID, `traceparent`).
+- `AfterCommitPublisher`, only without the outbox (excluded with it): sends each event once the save commits.
+- Requires `integration-events` and `after-commit`. With the outbox, `after-commit` is present but unused; accepted (see [infrastructure.md](infrastructure.md#queue)).
+- Its symbol, `message_broker`, is what code and tests use for "any broker" (`#if (!message_broker)` on the outbox's in-process-only test).

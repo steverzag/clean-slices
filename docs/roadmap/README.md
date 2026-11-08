@@ -28,7 +28,9 @@ Changes to `main` that improve the default solution on their own: [base-template
 | Hidden unit | [After commit](hidden-units.md#after-commit) | – | **done** (phase 7, first used by cache invalidation) |
 | Hidden unit | [Integration events](hidden-units.md#integration-events) | – | **done** (without the after-commit publisher, see its page) |
 | Infrastructure | [SQL Server](infrastructure.md#database), [PostgreSQL](infrastructure.md#database) | group `database` (required) | **done**; SQL Server is the default |
-| Infrastructure | [RabbitMQ, Azure Service Bus](infrastructure.md#queue) | group `queue` | designed |
+| Infrastructure | [RabbitMQ](infrastructure.md#queue) | group `queue` | **done** (phase 7b) |
+| Infrastructure | [Azure Service Bus](infrastructure.md#queue) | group `queue` | designed (next in 7b) |
+| Hidden unit | [Message broker](hidden-units.md#message-broker) | – | **done** (phase 7b: shared by the queue options) |
 | Infrastructure | [Redis](infrastructure.md#cache) | group `cache` | **done** |
 | Infrastructure | [FusionCache](infrastructure.md#cache) | group `cache-library` | **done** (phase 7) |
 | Glue | [FusionCache × Redis](infrastructure.md#cache) | – | **done**: Redis as second level and backplane (the first glue unit) |

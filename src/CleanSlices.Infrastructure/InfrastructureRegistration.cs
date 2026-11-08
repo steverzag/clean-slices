@@ -8,8 +8,14 @@ using CleanSlices.Infrastructure.CurrentUser;
 #if (inbox)
 using CleanSlices.Infrastructure.Inbox;
 #endif
+#if (message_broker && !outbox)
+using CleanSlices.Infrastructure.IntegrationEvents.Broker;
+#endif
 #if (integration_events)
 using CleanSlices.Infrastructure.IntegrationEvents;
+#endif
+#if (rabbitmq)
+using CleanSlices.Infrastructure.IntegrationEvents.RabbitMq;
 #endif
 using CleanSlices.Infrastructure.Messages;
 #if (outbox)
@@ -42,6 +48,9 @@ public static class InfrastructureRegistration
 	public const string DatabaseConnectionName = "Database";
 #if (redis)
 	public const string CacheConnectionName = "cache";
+#endif
+#if (message_broker)
+	public const string MessagingConnectionName = "messaging";
 #endif
 
 	extension(IHostApplicationBuilder builder)
@@ -88,6 +97,12 @@ public static class InfrastructureRegistration
 #endif
 #if (integration_events)
 			services.AddIntegrationEvents();
+#endif
+#if (rabbitmq)
+			builder.AddRabbitMq(MessagingConnectionName);
+#endif
+#if (message_broker && !outbox)
+			services.TryAddScoped<IIntegrationEventPublisher, AfterCommitPublisher>();
 #endif
 #if (outbox)
 			services.AddOutbox();

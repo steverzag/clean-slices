@@ -116,6 +116,18 @@
       "defaultValue": "false",
       "description": "FusionCache runs HybridCache: fail-safe, timeouts, and with Redis a backplane."
     },
+    "rabbitmq": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "Integration events go through RabbitMQ: sent after the commit (or by the outbox), retried, then dead-lettered."
+    },
+    "message_broker": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "Message broker (added by the CLI with a queue option): what RabbitMQ and Service Bus share."
+    },
     "hybrid_cache": {
       "type": "parameter",
       "datatype": "bool",
@@ -285,6 +297,26 @@
           ]
         },
         {
+          "condition": "(!message_broker)",
+          "exclude": [
+            "src/CleanSlices.Infrastructure/IntegrationEvents/Broker/**",
+            "docs/messaging.md"
+          ]
+        },
+        {
+          "condition": "(outbox)",
+          "exclude": [
+            "src/CleanSlices.Infrastructure/IntegrationEvents/Broker/AfterCommitPublisher.cs"
+          ]
+        },
+        {
+          "condition": "(!rabbitmq)",
+          "exclude": [
+            "src/CleanSlices.Infrastructure/IntegrationEvents/RabbitMq/**",
+            "tests/CleanSlices.Api.Tests/IntegrationEvents/RabbitMqTests.cs"
+          ]
+        },
+        {
           "condition": "(!after_commit)",
           "exclude": [
             "src/CleanSlices.Infrastructure/Persistence/AfterCommit/**",
@@ -330,6 +362,7 @@
           "exclude": [
             "src/CleanSlices.Infrastructure/IntegrationEvents/**",
             "docs/integration-events.md",
+            "tests/CleanSlices.Api.Tests/IntegrationEvents/**",
             "src/CleanSlices.Infrastructure/EventHandlers/TaskItems/PublishTaskCompletedHandler.cs",
             "src/CleanSlices.Infrastructure/EventHandlers/Users/PublishUserCreatedHandler.cs",
             "src/CleanSlices.Infrastructure/EventHandlers/Users/PublishUserDeletedHandler.cs"

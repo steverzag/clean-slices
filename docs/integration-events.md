@@ -11,6 +11,14 @@ Integration events are for the outside world: emails, other services, anything t
 
 Everything lives in `src/CleanSlices.Infrastructure/IntegrationEvents/`.
 
+<!--#if (message_broker && outbox)-->
+**Delivery:** the outbox stores each event with the data and sends it to the broker; the broker delivers it to the handlers. See [outbox.md](outbox.md) and [messaging.md](messaging.md).
+<!--#elseif (message_broker)-->
+**Delivery:** each event is sent to the broker once the save commits, and the broker delivers it to the handlers. See [messaging.md](messaging.md).
+<!--#else-->
+**Delivery:** the outbox stores each event with the data, and its processor runs the handlers in the background. See [outbox.md](outbox.md).
+<!--#endif-->
+
 ## Publishing an event
 
 Publish from a domain event handler. The event is sent only if the save that raised the domain event succeeds.

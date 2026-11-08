@@ -45,6 +45,19 @@ An infrastructure option picks *which product* sits behind a seam. Options are o
 
 **Options.** RabbitMQ and Azure Service Bus. The default is in-process.
 
+**Built (phase 7b): RabbitMQ.** Service Bus is next. Documented for users in `docs/messaging.md`.
+
+**As built (RabbitMQ).**
+
+- **The dispatcher was split:** `IntegrationEventHandlers` runs every handler of a message (scopes, filters, the inbox); `IMessageDispatcher` only delivers. In process, the dispatcher calls the runner; with a broker, it sends, and the broker's consumer calls the runner. No behaviour change without a broker; the existing tests didn't change.
+- **The [`message-broker`](hidden-units.md#message-broker) hidden unit** holds what the queue options share: `BrokerOptions` (`Messaging:` `Topic`, `Subscription`, `MaxDeliveries` 5, `Prefetch` 10; names default to `<solution>-events` / `<solution>-api`), the message format, and **`AfterCommitPublisher`**: without the outbox, the event is sent through `IAfterCommit` once the save commits. Each queue option requires the unit; it requires `integration-events` and `after-commit`. With the outbox also selected, `after-commit` is present but unused: a documented exception to rule 10, accepted over splitting the units further.
+- **Topology** (declared once by `RabbitMqTopology`, by whichever comes first, publishing or consuming, because RabbitMQ drops what's published before a queue is bound): a durable topic exchange; the app's **quorum queue**, bound once per known event name; `x-delivery-limit` = `MaxDeliveries` − 1 and a dead-letter exchange, so the broker counts deliveries and dead-letters by itself. Redeliveries are immediate (no delayed retry without a plugin); documented.
+- **Sending** opens a channel with publisher confirmations per message and waits for the confirm; persistent messages; `mandatory: false` (an event nobody is bound to isn't an error).
+- **Receiving**: `RabbitMqConsumer`, a hosted service; ack after all handlers succeed, nack + requeue on failure, reject (to the dead-letter queue) for a name or payload that can't be read. Consumer activity `receive <Name>` parented to the `traceparent` header.
+- **Wire format**: body = JSON payload, `Type` = event name (and routing key), `MessageId` = the outbox row's ID or a new one (stable across redeliveries, so the inbox dedupes), `traceparent` header.
+- **Tests** run against a real broker (Testcontainers RabbitMQ) with the consumer running: tests send, then wait for a recording handler with a deadline. Extra test hosts (`WithEmptyDatabaseAsync`, `AnotherInstance()`) don't run the consumer, so they never take a message from the main host. Tests: delivery through the broker; publishing only after the commit (no outbox); a failing handler gets every delivery, then the dead-letter queue (with the inbox, the other handler ran once); an unreadable message is dead-lettered at once. Outbox tests wait for deliveries; the outbox's "failing handler" test runs only in process.
+- **Matrix**: `rabbitmq+inbox` (inbox without outbox) is a listed combination on every push: the resolver alone would give the inbox the outbox, its first provider.
+
 **Design.**
 
 - Only **integration events** go through the queue. Domain events always run in-process, before the commit. A queue option requires the [integration events](hidden-units.md#integration-events) unit, which the resolver adds.
@@ -65,7 +78,7 @@ An infrastructure option picks *which product* sits behind a seam. Options are o
 
 **Feature template.** No change.
 
-**Samples.** *Proposed:* the sample integration event goes through the broker, which the AppHost runs.
+**Samples.** No code change: the three sample integration events go through the broker, which the AppHost runs. Their outbox-based tests wait for the handlers (the inbox record appears after the row is processed).
 
 **Trade-offs to document.** Without the outbox, an event is lost if the broker is down at the moment of sending. Integration events are public contracts: add fields, never rename or remove them.
 

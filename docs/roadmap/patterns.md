@@ -72,7 +72,7 @@ A pattern changes *how code is written*: method signatures, control flow, how a 
 
 **Tests.** `tests/…Api.Tests/Inbox/`: a message delivered twice is handled once, a redelivery retries only the handler that failed, two simultaneous deliveries record once without failing, retention. With the inbox, the outbox's retry test expects the succeeding handler to run once instead of on every attempt.
 
-**Phase 7 notes.** When a queue provides at-least-once delivery without the outbox: the inbox tests reuse the outbox's test event, and the test host removes the inbox's clean-up worker inside the outbox's `#if`. Both must stand on their own then.
+**Phase 7 notes (resolved in 7b).** With a queue providing at-least-once delivery, the inbox works without the outbox: its tests call the handler runner directly (the inbox wraps the handlers whatever the transport), the test event moved to `Api.Tests/IntegrationEvents/TestEvents.cs`, and the test host removes the inbox's clean-up worker under the inbox's own condition. The matrix runs `rabbitmq+inbox` (no outbox) on every push.
 
 ## Repository / unit of work
 

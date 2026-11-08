@@ -30,6 +30,7 @@ internal static class IntegrationEventsRegistration
 					.Select(d => d.ServiceType.GetGenericArguments()[0]))));
 
 			services.TryAddSingleton<IntegrationEventSerializer>();
+			services.TryAddSingleton<IntegrationEventHandlers>();
 			services.TryAddSingleton<IMessageDispatcher, InProcessMessageDispatcher>();
 
 			return services;

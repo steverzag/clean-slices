@@ -12,7 +12,8 @@
   "groups": {
     "database": { "title": "Database", "required": true, "default": "sqlserver" },
     "cache": { "title": "Cache", "required": false },
-    "cache-library": { "title": "Cache library", "required": false }
+    "cache-library": { "title": "Cache library", "required": false },
+    "queue": { "title": "Queue", "required": false }
   },
 
   "units": [
@@ -118,6 +119,16 @@
       "requires": ["hybrid-cache"]
     },
     {
+      "id": "rabbitmq",
+      "kind": "option",
+      "concept": "infrastructure",
+      "group": "queue",
+      "title": "RabbitMQ",
+      "description": "Integration events go through RabbitMQ: sent after the commit (or by the outbox), retried, then dead-lettered; in a container from the AppHost.",
+      "requires": ["message-broker"],
+      "provides": ["at-least-once-delivery"]
+    },
+    {
       "id": "integration-events",
       "kind": "hidden"
     },
@@ -141,6 +152,11 @@
     {
       "id": "after-commit",
       "kind": "hidden"
+    },
+    {
+      "id": "message-broker",
+      "kind": "hidden",
+      "requires": ["integration-events", "after-commit"]
     },
     {
       "id": "fusioncache-redis",

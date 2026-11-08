@@ -67,10 +67,25 @@ public class UserIntegrationEventsTests(ApiFactory factory)
 
 		await ProcessUntilAsync(user.Id, "UserCreatedIntegrationEvent");
 
-		await using var check = factory.Services.CreateAsyncScope();
-		var records = await check.ServiceProvider.GetRequiredService<AppDbContext>().Set<ProcessedMessage>()
-			.CountAsync(m => m.MessageId == message.Id && m.Handler == typeof(SendWelcomeEmailHandler).FullName, Ct);
-		Assert.Equal(1, records);
+		Assert.Equal(1, await WelcomeEmailRecordsAsync(message.Id));
+	}
+
+	// Through a broker the handlers run in the background, after the row is processed: wait for the record.
+	private async Task<int> WelcomeEmailRecordsAsync(Guid messageId)
+	{
+		var deadline = DateTime.UtcNow.AddSeconds(30);
+		while (true)
+		{
+			await using var scope = factory.Services.CreateAsyncScope();
+			var records = await scope.ServiceProvider.GetRequiredService<AppDbContext>().Set<ProcessedMessage>()
+				.CountAsync(m => m.MessageId == messageId && m.Handler == typeof(SendWelcomeEmailHandler).FullName, Ct);
+			if (records > 0 || DateTime.UtcNow >= deadline)
+			{
+				return records;
+			}
+
+			await Task.Delay(50, Ct);
+		}
 	}
 #endif
 

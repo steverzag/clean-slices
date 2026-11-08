@@ -34,5 +34,10 @@ else
 var cache = builder.AddRedis("cache");
 api.WithReference(cache).WaitFor(cache);
 #endif
+#if (rabbitmq)
+
+var messaging = builder.AddRabbitMQ("messaging").WithManagementPlugin();
+api.WithReference(messaging).WaitFor(messaging);
+#endif
 
 builder.Build().Run();

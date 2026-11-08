@@ -1,6 +1,7 @@
 #if (outbox)
 using System.Diagnostics;
 using CleanSlices.Api.Tests.Infrastructure;
+using CleanSlices.Api.Tests.IntegrationEvents;
 using CleanSlices.Infrastructure.IntegrationEvents;
 using CleanSlices.Infrastructure.Outbox;
 using CleanSlices.Infrastructure.Persistence;
@@ -20,10 +21,10 @@ public class OutboxTests(ApiFactory factory)
 		var testId = Guid.NewGuid();
 		using var activity = new Activity("test request").Start();
 
-		await PublishAsync(new OutboxTestEvent(testId));
+		await PublishAsync(new TestEvent(testId));
 
 		var message = await FindAsync(testId);
-		Assert.Equal(nameof(OutboxTestEvent), message.Name);
+		Assert.Equal(nameof(TestEvent), message.Name);
 		Assert.Equal(activity.Id, message.TraceParent);
 		Assert.Null(message.ProcessedAt);
 		Assert.Equal(0, message.Attempts);
@@ -36,7 +37,7 @@ public class OutboxTests(ApiFactory factory)
 
 		await using (var scope = factory.Services.CreateAsyncScope())
 		{
-			await scope.ServiceProvider.GetRequiredService<IIntegrationEventPublisher>().Publish(new OutboxTestEvent(testId), Ct);
+			await scope.ServiceProvider.GetRequiredService<IIntegrationEventPublisher>().Publish(new TestEvent(testId), Ct);
 		}
 
 		Assert.Null(await FindOrDefaultAsync(testId));
@@ -46,20 +47,23 @@ public class OutboxTests(ApiFactory factory)
 	public async Task Processing_delivers_the_event_to_its_handlers_once()
 	{
 		var testId = Guid.NewGuid();
-		await PublishAsync(new OutboxTestEvent(testId));
+		await PublishAsync(new TestEvent(testId));
 
 		var message = await ProcessUntilAsync(testId, m => m.ProcessedAt is not null);
 
 		Assert.Equal(1, message.Attempts);
 		Assert.Null(message.LockedBy);
-		Assert.Equal(1, RecordingHandler.DeliveriesOf(testId));
+		Assert.Equal(1, await RecordingHandler.WaitForDeliveriesAsync(testId, 1, Ct));
 	}
 
+#if (!message_broker)
+	// In process only: through a broker, the outbox sees the broker accept the message, not the handlers fail.
+	// The broker's own redeliveries are tested in IntegrationEvents/RabbitMqTests.cs.
 	[Fact]
 	public async Task A_failing_handler_is_retried_then_marked_failed()
 	{
 		var testId = Guid.NewGuid();
-		await PublishAsync(new OutboxTestEvent(testId, Fail: true));
+		await PublishAsync(new TestEvent(testId, Fail: true));
 		var maxAttempts = factory.Services.GetRequiredService<IOptions<OutboxOptions>>().Value.MaxAttempts;
 
 		var message = await ProcessUntilAsync(testId, m => m.FailedAt is not null);
@@ -76,6 +80,7 @@ public class OutboxTests(ApiFactory factory)
 		Assert.Equal(maxAttempts, RecordingHandler.DeliveriesOf(testId));
 #endif
 	}
+#endif
 
 	[Fact]
 	public async Task Processors_claiming_at_the_same_time_handle_each_message_once()
@@ -86,7 +91,7 @@ public class OutboxTests(ApiFactory factory)
 			var publisher = scope.ServiceProvider.GetRequiredService<IIntegrationEventPublisher>();
 			foreach (var testId in testIds)
 			{
-				await publisher.Publish(new OutboxTestEvent(testId), Ct);
+				await publisher.Publish(new TestEvent(testId), Ct);
 			}
 
 			await scope.ServiceProvider.GetRequiredService<AppDbContext>().SaveChangesAsync(Ct);
@@ -107,7 +112,10 @@ public class OutboxTests(ApiFactory factory)
 			await ProcessUntilAsync(testId, m => m.ProcessedAt is not null);
 		}
 
-		Assert.All(testIds, testId => Assert.Equal(1, RecordingHandler.DeliveriesOf(testId)));
+		foreach (var testId in testIds)
+		{
+			Assert.Equal(1, await RecordingHandler.WaitForDeliveriesAsync(testId, 1, Ct));
+		}
 	}
 
 	[Fact]
@@ -131,7 +139,7 @@ public class OutboxTests(ApiFactory factory)
 	public async Task Processed_rows_are_deleted_after_the_retention()
 	{
 		var testId = Guid.NewGuid();
-		await PublishAsync(new OutboxTestEvent(testId));
+		await PublishAsync(new TestEvent(testId));
 		var message = await ProcessUntilAsync(testId, m => m.ProcessedAt is not null);
 
 		await using (var scope = factory.Services.CreateAsyncScope())

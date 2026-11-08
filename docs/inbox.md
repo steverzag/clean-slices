@@ -8,6 +8,7 @@ Integration events are delivered **at least once**, so a handler can be called a
 - Otherwise it adds the record to the handler's `AppDbContext`, runs the handler, and saves. The record is saved **together with the handler's own changes**: either both are kept, or neither is, and the event is retried.
 - Each handler has its own record. When one of an event's handlers fails, the retry skips the ones that succeeded and runs only the one that failed.
 - When two API instances handle the same event at the same moment, the second save finds the record already there and the event counts as handled.
+- An event is recognized by its ID: the outbox row's ID, or the broker message's ID, which stays the same on every redelivery.
 
 Records older than `Inbox:Retention` (7 days by default) are deleted every hour. Keep it longer than an event can take to be delivered again.
 

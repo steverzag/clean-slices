@@ -6,8 +6,13 @@ An integration event is stored as a row in `OutboxMessages` **in the same save a
 
 1. `IIntegrationEventPublisher.Publish` adds the row to the current save, with the request's trace.
 2. The processor (`Outbox/OutboxProcessor.cs`, run by `OutboxWorker` in the API) claims a batch of pending rows, oldest first. A claimed row is reserved until `LeaseDuration` passes, so several API instances never handle the same row at the same time.
+<!--#if (message_broker)-->
+3. Each row is sent to the broker. Once the broker confirms it has the message, the row is marked processed; from there the broker delivers it to the handlers and retries them (see [messaging.md](messaging.md)).
+4. If sending fails (the broker can't be reached), the row is tried again after `RetryDelay`, doubling each time (5 s, 10 s, 20 s, 40 s). After `MaxAttempts` it's marked **failed** and left for you to inspect. A row whose event name no class has any more fails at once.
+<!--#else-->
 3. Each row is handed to its event's handlers. If they all succeed, the row is marked processed.
 4. If one fails, the row is tried again after `RetryDelay`, doubling each time (5 s, 10 s, 20 s, 40 s). After `MaxAttempts` it's marked **failed** and left for you to inspect. A row whose event name no class has any more fails at once.
+<!--#endif-->
 5. Processed rows are deleted after `Retention`.
 
 In the Aspire dashboard, the processing of a row appears in the same trace as the request that published it.

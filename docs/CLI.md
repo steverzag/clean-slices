@@ -53,7 +53,7 @@ Available options:
 |---|---|
 | `result` | Domain methods return `Result` / `Result<T>` instead of throwing, endpoints compose them with `Map`/`Tap`, and `ResultExtensions` turn them into ProblemDetails responses. |
 | `outbox` | Integration events are stored with the data, in the same save, and delivered by a background processor with retries. Brings integration events with it. |
-| `inbox` | Each integration event handler runs once per event, even when it's delivered again. Needs the outbox; recommended with it. |
+| `inbox` | Each integration event handler runs once per event, even when it's delivered again. Needs the outbox or a queue; recommended with them. |
 | `validation` | Request validation: FluentValidation validators next to the requests, run automatically before the handler; same error responses as the domain. |
 | `repository` | Repository / unit of work: endpoints use a repository per entity and `IUnitOfWork`, defined in Core, instead of `AppDbContext`. New features get their repository pair. |
 | `cqrs` | CQRS: endpoints send commands and queries to handlers in the slice; queries read through `IReadDb` without tracking. Choice `dispatcher`: `handlers` (default, a small dispatcher of its own) or `mediator` (the Mediator package, MIT): `--with cqrs:dispatcher=mediator`. |
@@ -62,6 +62,7 @@ Available options:
 | `postgresql` | PostgreSQL instead of SQL Server, with snake_case names and case-insensitive emails. Added to an existing solution, it replaces SQL Server. |
 | `redis` | Redis behind `IDistributedCache` and `HybridCache`, shared by every instance, in a container from the AppHost. Prints its license notice (source-available since 7.4). |
 | `fusioncache` | FusionCache (MIT) runs `HybridCache`: fail-safe, timeouts, eager refresh. With `redis` too, Redis becomes its second level and its backplane (added automatically). |
+| `rabbitmq` | Integration events go through RabbitMQ (in a container from the AppHost): sent after the commit, or by the outbox; redelivered on failure, then dead-lettered. Makes the inbox available without the outbox. |
 
 ## Create a solution
 

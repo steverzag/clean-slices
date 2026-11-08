@@ -15,6 +15,9 @@
     <!--#if (redis)-->
     <PackageReference Include="Aspire.Hosting.Redis" />
     <!--#endif-->
+    <!--#if (rabbitmq)-->
+    <PackageReference Include="Aspire.Hosting.RabbitMQ" />
+    <!--#endif-->
   </ItemGroup>
 
   <ItemGroup>
