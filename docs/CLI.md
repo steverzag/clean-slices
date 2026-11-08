@@ -171,7 +171,7 @@ Options can't be removed, and their choices can't be changed after they're appli
 {
   "manifestVersion": 2,
   "name": "Acme.Orders",
-  "cliVersion": "0.9.0",
+  "cliVersion": "0.10.0",
   "samples": false,
   "templateRepo": "https://github.com/steverzag/clean-slices.git",
   "templateCommit": "a63f5be9d2a0…",
