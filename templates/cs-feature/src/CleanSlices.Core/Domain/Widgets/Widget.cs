@@ -2,11 +2,18 @@ using CleanSlices.Core.Shared;
 
 namespace CleanSlices.Core.Domain.Widgets;
 
+#if (soft_delete)
+public class Widget : Entity, ISoftDeletable
+#else
 public class Widget : Entity
+#endif
 {
 	public const int NameMaxLength = 200;
 
 	public string Name { get; private set; } = null!;
+#if (soft_delete)
+	public DateTimeOffset? DeletedAt { get; private set; }
+#endif
 
 	private Widget() { } // For EF Core
 

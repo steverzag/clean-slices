@@ -39,7 +39,7 @@ Changes to `main` that improve the default solution on their own: [base-template
 | Infrastructure | [Keycloak, Entra ID, ASP.NET Core Identity](infrastructure.md#authentication) | group `auth` | **done** (phase 7c) |
 | Infrastructure | [SignalR](infrastructure.md#realtime) | group `realtime` | **done** (phase 7d) |
 | Glue | [SignalR × Redis](infrastructure.md#realtime) | – | **done**: the Redis backplane |
-| Strategy | [Soft delete](strategies.md#soft-delete) | – | designed |
+| Strategy | [Soft delete](strategies.md#soft-delete) | – | **done** (phase 8) |
 | Strategy | [Audit](strategies.md#audit) | – | designed |
 | Strategy | [Optimistic concurrency](strategies.md#parked-optimistic-concurrency) | – | **parked** |
 | Extra | [Logging (Serilog)](extras.md#logging-serilog) | `seq`: off (default), on | designed |

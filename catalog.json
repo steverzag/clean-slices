@@ -183,6 +183,16 @@
       "requires": ["after-commit"]
     },
     {
+      "id": "soft-delete",
+      "kind": "option",
+      "concept": "strategy",
+      "title": "Soft delete",
+      "description": "Deleting an entity sets DeletedAt instead of removing the row; deleted rows are hidden from every query, and the API answers as after a real delete.",
+      "requires": ["model-rules"],
+      "addsTables": true,
+      "addNote": "existing entities aren't converted: add ISoftDeletable and a DeletedAt property to the ones that need it, then create the migration (see docs/soft-delete.md)."
+    },
+    {
       "id": "integration-events",
       "kind": "hidden"
     },

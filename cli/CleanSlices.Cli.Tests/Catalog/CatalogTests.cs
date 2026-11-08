@@ -46,5 +46,7 @@ public class CatalogTests
         Assert.True(catalog.Find("inbox")!.Recommended);
         Assert.True(catalog.Find("outbox")!.AddsTables);
         Assert.False(catalog.Find("result")!.Recommended || catalog.Find("result")!.AddsTables);
+        Assert.Equal("convert existing entities by hand", catalog.Find("outbox")!.AddNote);
+        Assert.Null(catalog.Find("result")!.AddNote);
     }
 }

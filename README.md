@@ -64,10 +64,13 @@ The options the solution was created with, each with its own documentation:
 <!--#if (signalr)-->
 - **SignalR**: messages pushed to connected clients (a user, a group, everyone), sent after the commit. See [docs/realtime.md](docs/realtime.md).
 <!--#endif-->
+<!--#if (soft_delete)-->
+- **Soft delete**: deleting an entity sets `DeletedAt` instead of removing the row; deleted rows are hidden. See [docs/soft-delete.md](docs/soft-delete.md).
+<!--#endif-->
 <!--#if (identity)-->
 - **ASP.NET Core Identity**: every endpoint requires a login; the API keeps its own accounts, with register and login endpoints under `/account`. See [docs/authentication.md](docs/authentication.md).
 <!--#endif-->
-<!--#if (!samples && !result && !outbox && !inbox && !postgresql && !validation && !idempotency && !repository && !cqrs && !redis && !fusioncache && !rabbitmq && !servicebus && !keycloak && !entra && !identity && !signalr)-->
+<!--#if (!samples && !result && !outbox && !inbox && !postgresql && !validation && !idempotency && !repository && !cqrs && !redis && !fusioncache && !rabbitmq && !servicebus && !keycloak && !entra && !identity && !signalr && !soft_delete)-->
 - None: this is the default setup. Options can be added later with the CLI.
 <!--#endif-->
 

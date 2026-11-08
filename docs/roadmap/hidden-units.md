@@ -43,7 +43,7 @@ They're built together with the first option that needs them.
 - `OnModelCreating` runs every rule class found by scanning, after the type configurations, in order of full type name. That's one conditional line in `AppDbContext`, present only when the unit is.
 - Rules are created with `Activator`, with no dependency injection: `OnModelCreating` runs once per model, before any scope exists.
 - A rule applies what its option needs: a collation, table names, a query filter, extra columns, a table.
-- Used by: PostgreSQL (`CaseInsensitiveCollation`, `SnakeCaseTableNames`, the sample `UserEmailCollationRule`). Next: soft delete and audit.
+- Used by: PostgreSQL (`CaseInsensitiveCollation`, `SnakeCaseTableNames`, the sample `UserEmailCollationRule`), soft delete (`SoftDeleteRule`). Next: audit.
 
 **Feature template.** No change.
 

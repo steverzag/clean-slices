@@ -72,6 +72,10 @@ The two creates (`POST /tasks`, `POST /users`) accept an `Idempotency-Key` heade
 
 `GET /users/{id}` reads through `HybridCache` (key `user:{id}`). `User` raises `UserUpdatedDomainEvent` when its name or email changes, and `ForgetCachedUserHandler` removes the cached copy after the commit, for updates and deletes (see [caching.md](caching.md)).
 <!--#endif-->
+<!--#if (soft_delete)-->
+
+Users and tasks are soft-deletable: deleting one keeps its row with `DeletedAt`, hidden from the API (see [soft-delete.md](soft-delete.md)). A deleted task keeps its assignments.
+<!--#endif-->
 <!--#if (signalr)-->
 
 Clients watch a task through the hub's `WatchTask(taskId)`; `NotifyTaskWatchersHandler` sends them `TaskChanged` once the task is completed or deleted (see [realtime.md](realtime.md)).

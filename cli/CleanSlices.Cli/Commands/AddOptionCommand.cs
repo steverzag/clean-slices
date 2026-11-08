@@ -159,6 +159,7 @@ internal sealed class AddOptionCommand : AsyncCommand<AddOptionCommand.Settings>
         PrintChanges(outcome);
         WarnAboutReplacements(after);
         WarnAboutNewTables(after, applied, solution.InfrastructureProjectPath);
+        PrintNotes(after, applied);
 
         var subject = $"feat: add {titles}";
         if (outcome.HasConflicts)
@@ -206,7 +207,7 @@ internal sealed class AddOptionCommand : AsyncCommand<AddOptionCommand.Settings>
         }
     }
 
-    /// <summary>Migrations are generated on the user's side (rule 5), so new tables need one before the app runs.</summary>
+    /// <summary>Migrations are generated on the user's side (rule 5), so a schema change needs one before the app runs.</summary>
     private static void WarnAboutNewTables(Resolution resolution, IReadOnlySet<string> applied, string infrastructureProject)
     {
         var withTables = resolution.Units
@@ -218,8 +219,17 @@ internal sealed class AddOptionCommand : AsyncCommand<AddOptionCommand.Settings>
             return;
         }
 
-        Ui.Warning($"{string.Join(" and ", withTables.Select(u => u.DisplayName))} {(withTables.Count == 1 ? "adds" : "add")} database tables. Create a migration:");
+        Ui.Warning($"{string.Join(" and ", withTables.Select(u => u.DisplayName))} {(withTables.Count == 1 ? "changes" : "change")} the database. Create a migration:");
         Ui.Hint($"dotnet ef migrations add {MigrationName(withTables)} --project {infrastructureProject}");
+    }
+
+    /// <summary>What the user must do by hand after an option is merged, such as converting existing entities (rule 4).</summary>
+    private static void PrintNotes(Resolution resolution, IReadOnlySet<string> applied)
+    {
+        foreach (var unit in resolution.Units.Select(u => u.Unit).Where(u => u.AddNote is not null && !applied.Contains(u.Id)))
+        {
+            Ui.Hint($"{unit.DisplayName}: {unit.AddNote}");
+        }
     }
 
     /// <summary><c>Add</c> plus the ids in PascalCase: outbox + inbox → <c>AddOutboxInbox</c>.</summary>

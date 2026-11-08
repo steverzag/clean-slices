@@ -2,13 +2,20 @@
 
 namespace CleanSlices.Core.Domain.Users;
 
+#if (soft_delete)
+public class User : Entity, ISoftDeletable
+#else
 public class User : Entity
+#endif
 {
 	public const int NameMaxLength = 200;
 	public const int EmailMaxLength = 256;
 
 	public string Name { get; private set; } = null!;
 	public string Email { get; private set; } = null!;
+#if (soft_delete)
+	public DateTimeOffset? DeletedAt { get; private set; }
+#endif
 
 	private User() { } // For EF Core
 

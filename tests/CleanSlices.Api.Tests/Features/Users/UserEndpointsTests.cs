@@ -142,6 +142,19 @@ public class UserEndpointsTests(ApiFactory factory)
 
 		Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
 		Assert.Equal(HttpStatusCode.NotFound, (await _client.Get($"/users/{id}")).StatusCode);
+		Assert.Equal(HttpStatusCode.NotFound, (await _client.Delete($"/users/{id}")).StatusCode);
+	}
+
+	[Fact]
+	public async Task A_deleted_users_email_can_be_used_again()
+	{
+		var email = UniqueEmail();
+		var first = await _client.Post("/users", new CreateUser.CreateUserRequest("Ana", email));
+		await _client.Delete($"/users/{(await first.Content.ReadAsAsync<CreateUser.CreateUserResponse>()).Id}");
+
+		var response = await _client.Post("/users", new CreateUser.CreateUserRequest("Luis", email));
+
+		Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 	}
 
 	[Fact]

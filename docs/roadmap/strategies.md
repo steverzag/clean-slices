@@ -18,6 +18,16 @@ Every strategy follows the same three steps, so strategies never touch each othe
 
 **What.** Deleting an entity sets `DeletedAt` instead of removing the row, and deleted rows are hidden from queries.
 
+**Built (phase 8).** Documented for users in `docs/soft-delete.md`.
+
+**As built.**
+
+- `ISoftDeletable` in `Core/Domain`; entities declare `public DateTimeOffset? DeletedAt { get; private set; }`. `SoftDeleteStep` (order 100) and `SoftDeleteRule` (named filter `SoftDelete`, public as `SoftDeleteFilter.Name` for app code, built as an expression per entity type: EF 10's `HasQueryFilter(name, LambdaExpression)`) in `Infrastructure/Persistence/SoftDelete/`. Requires `model-rules`.
+- **Filtered unique indexes, automatic** (changed from the design, where they were a trade-off to document): with a plain unique index, the handler's "email in use" check doesn't see the deleted user, the insert hits the index, and the client gets a 500 where a hard delete gives 201 (rule 7). The rule filters every unique index of a soft-deletable entity: `[DeletedAt] IS NULL` on SQL Server, plus `[Column] IS NOT NULL` for nullable columns (EF adds that itself only for indexes without a filter of their own), `"deleted_at" IS NULL` on PostgreSQL (one `#if (postgresql)`; the snake_case name is the template's own convention). A test that runs in every variant, `A_deleted_users_email_can_be_used_again`, fails with a 500 without the filter (sabotage-proved).
+- **Related rows stay** (changed from what was expected in phase 8's discussion): the delete handlers load the entity without its children, and the database cascade only runs on a real `DELETE`, so a soft-deleted task keeps its assignments and gets them back on restore. A test pins it.
+- **CLI**: the migration message became "changes the database" (soft delete adds a column and changes indexes), and units can carry an `addNote`, printed after `add`: soft delete's says existing entities aren't converted (rule 4).
+- Samples: `User` and `TaskItem` are soft-deletable. Feature template: `Widget` implements `ISoftDeletable`.
+
 **Design.**
 
 - `ISoftDeletable` has a read-only `DateTimeOffset? DeletedAt`. Domain code can read it; only the save step sets it.

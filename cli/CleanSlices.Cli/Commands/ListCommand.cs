@@ -107,7 +107,7 @@ internal sealed class ListCommand : AsyncCommand<ListCommand.Settings>
 
                 if (unit.AddsTables)
                 {
-                    details.Add("adds database tables");
+                    details.Add("changes the database");
                 }
 
                 if (!unit.Samples)

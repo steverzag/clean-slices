@@ -122,8 +122,11 @@ internal sealed record Unit
     /// <summary>Offered (never added silently) when the selection meets this option's requirements.</summary>
     public bool Recommended { get; init; }
 
-    /// <summary>The unit adds database tables, so adding it to a solution needs a migration.</summary>
+    /// <summary>The unit changes the database (tables, columns, indexes), so adding it to a solution needs a migration.</summary>
     public bool AddsTables { get; init; }
+
+    /// <summary>Printed after the unit is added to an existing solution: what the user must still do by hand.</summary>
+    public string? AddNote { get; init; }
 
     /// <summary>Glue units: applied when every listed unit is selected.</summary>
     public IReadOnlyList<string> When { get; init; } = [];

@@ -9,7 +9,11 @@ public enum TaskItemStatus
 	Completed
 }
 
+#if (soft_delete)
+public class TaskItem : Entity, ISoftDeletable
+#else
 public class TaskItem : Entity
+#endif
 {
 	public const int TitleMaxLength = 200;
 	public const int DescriptionMaxLength = 2000;
@@ -18,6 +22,9 @@ public class TaskItem : Entity
 	public string Description { get; private set; } = null!;
 	public TaskItemStatus Status { get; private set; }
 	public DateTimeOffset? CompletedOn { get; private set; }
+#if (soft_delete)
+	public DateTimeOffset? DeletedAt { get; private set; }
+#endif
 	private readonly List<TaskItemUserAssignment> _userAssignments = [];
 	public IReadOnlyList<TaskItemUserAssignment> UserAssignments => [.. _userAssignments];
 	public IReadOnlySet<Guid> UserIds => new HashSet<Guid>(_userAssignments.Select(user => user.UserId));

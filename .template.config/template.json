@@ -164,6 +164,12 @@
       "defaultValue": "false",
       "description": "SignalR with Redis (added by the CLI when both are selected): the Redis backplane, so every instance reaches every client."
     },
+    "soft_delete": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "Soft delete: deleting an entity sets DeletedAt instead of removing the row, and deleted rows are hidden."
+    },
     "authentication": {
       "type": "parameter",
       "datatype": "bool",
@@ -399,6 +405,15 @@
             "src/CleanSlices.Infrastructure/EventHandlers/TaskItems/NotifyTaskWatchersHandler.cs",
             "tests/CleanSlices.Api.Tests/Realtime/**",
             "docs/realtime.md"
+          ]
+        },
+        {
+          "condition": "(!soft_delete)",
+          "exclude": [
+            "src/CleanSlices.Core/Domain/ISoftDeletable.cs",
+            "src/CleanSlices.Infrastructure/Persistence/SoftDelete/**",
+            "tests/CleanSlices.Api.Tests/Features/Users/SoftDeleteTests.cs",
+            "docs/soft-delete.md"
           ]
         },
         {

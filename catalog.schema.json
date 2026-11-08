@@ -157,9 +157,14 @@
           "default": false
         },
         "addsTables": {
-          "description": "The unit adds database tables: after `cleanslices add`, the CLI reminds the user to create a migration.",
+          "description": "The unit changes the database (tables, columns, indexes): after `cleanslices add`, the CLI reminds the user to create a migration.",
           "type": "boolean",
           "default": false
+        },
+        "addNote": {
+          "description": "Printed after `cleanslices add` puts the unit in an existing solution: what the user must still do by hand (for example, converting existing entities).",
+          "type": "string",
+          "minLength": 1
         },
         "when": {
           "description": "Glue units only: applied when every listed unit is selected.",

@@ -41,6 +41,12 @@
       "defaultValue": "false",
       "description": "Idempotency keys: the create endpoint replays its stored response for a retry with the same Idempotency-Key header."
     },
+    "soft_delete": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "Soft delete: the entity implements ISoftDeletable."
+    },
     "authentication": {
       "type": "parameter",
       "datatype": "bool",

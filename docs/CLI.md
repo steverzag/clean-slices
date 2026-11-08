@@ -68,6 +68,7 @@ Available options:
 | `entra` | Every endpoint requires a login: the API validates Microsoft Entra ID tokens for your app registration, with app roles as role claims and the object ID as the user ID. The AppHost asks for the tenant and client IDs; the tests sign their own tokens. Prints its notice (an Azure tenant is needed). |
 | `identity` | Every endpoint requires a login: the API keeps its own accounts with ASP.NET Core Identity (`AppDbContext` inherits `IdentityDbContext`), with register, login and account endpoints under `/account`, bearer tokens and a seeded `admin` role. Adds tables: the CLI prints the migration to create. |
 | `signalr` | Messages pushed to connected clients through one SignalR hub (`/hubs/notifications`): to a user, a group or everyone, sent after the commit and dropped if the save fails. With an authentication option the hub requires a login; with Redis, the `signalr-redis` glue adds the backplane. |
+| `soft-delete` | Deleting an entity sets `DeletedAt` instead of removing the row; deleted rows are hidden from every query, and unique indexes ignore them, so the API answers as after a real delete. New features get it; after `add`, the CLI reminds you that existing entities aren't converted. Changes the database: the CLI prints the migration to create. |
 
 ## Create a solution
 
@@ -153,7 +154,7 @@ If one of your changes touches the same lines as an option, the affected files a
 
 Picking an option from a group the solution already has an option in **replaces** it (for example another database provider). Migrations are specific to a database provider, so the CLI reminds you to recreate them.
 
-Options that add database tables (the outbox, the inbox) print the migration to create after the merge, for example `dotnet ef migrations add AddOutbox --project src/Acme.Orders.Infrastructure`. The CLI doesn't run it for you.
+Options that change the database (the outbox, the inbox, Identity, soft delete) print the migration to create after the merge, for example `dotnet ef migrations add AddOutbox --project src/Acme.Orders.Infrastructure`. The CLI doesn't run it for you.
 
 Options can't be removed, and their choices can't be changed after they're applied, yet.
 
