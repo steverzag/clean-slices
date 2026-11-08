@@ -146,6 +146,12 @@
       "defaultValue": "false",
       "description": "Every endpoint requires a login: the API validates Microsoft Entra ID tokens for your app registration."
     },
+    "identity": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "Every endpoint requires a login: the API stores its own users with ASP.NET Core Identity and issues bearer tokens."
+    },
     "authentication": {
       "type": "parameter",
       "datatype": "bool",
@@ -364,6 +370,13 @@
           "condition": "(!entra)",
           "exclude": [
             "src/CleanSlices.Api/Configuration/Authentication/Entra/**"
+          ]
+        },
+        {
+          "condition": "(!identity)",
+          "exclude": [
+            "src/CleanSlices.Api/Configuration/Authentication/Identity/**",
+            "src/CleanSlices.Infrastructure/Identity/**"
           ]
         },
         {

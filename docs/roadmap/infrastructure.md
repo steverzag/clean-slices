@@ -124,7 +124,7 @@ Plus the **`fusioncache-redis` glue unit**, added when both are selected: Redis 
 
 **Options.** Keycloak, Microsoft Entra ID, ASP.NET Core Identity. The default is none: an open API.
 
-**Built (phase 7c): Keycloak, Entra ID.** Documented for users in `docs/authentication.md`.
+**Built (phase 7c): Keycloak, Entra ID, ASP.NET Core Identity.** Documented for users in `docs/authentication.md`.
 
 **As built (Keycloak).**
 
@@ -142,6 +142,16 @@ Plus the **`fusioncache-redis` glue unit**, added when both are selected: Redis 
 - **AppHost**: two parameters (`<app>-entra-tenant-id`, `<app>-entra-client-id`) passed to the API as environment variables; the dashboard asks for them on the first run. Not run: it needs a tenant.
 - **Tests**: no tenant. `ApiFactory` signs its own tokens (HMAC test key, the option's v2 issuer and client ID, `oid` different from `sub`, `roles` for the admin) and replaces only the metadata: `options.ConfigurationManager` becomes a `StaticConfigurationManager` in a post-configure (setting `options.Configuration` there is too late: JwtBearer's own post-configure has already created a manager that fetches Entra's metadata, and every token got 401). The same `AuthenticationTests` run; the user-ID test expects `oid` (sabotage-proved).
 - `.http`: `@token`, pasted from `az account get-access-token` (the docs say how to authorize the Azure CLI on the API).
+
+**As built (ASP.NET Core Identity).**
+
+- `Infrastructure/Identity/`: `AppUser : IdentityUser` (string keys, which `ICurrentUser.UserId` already is), `AppRoles.Admin`, and the role seeded with `HasData` in an `IEntityTypeConfiguration<IdentityRole>` found by the existing scan, so it comes with the migration and `EnsureCreated`. `addsTables`.
+- `AppDbContext`: the declaration chain grew to eight members (`identity` × repository × CQRS), `base.OnModelCreating` first under `identity`. The samples' `Users` DbSet hides `IdentityDbContext.Users` with `new` (Identity's stores use `Set<TUser>()`); in this app `Users` stays the domain users.
+- `Api/Configuration/Authentication/Identity/`: `AddIdentityCore<AppUser>().AddRoles<IdentityRole>().AddEntityFrameworkStores<AppDbContext>().AddApiEndpoints()` with the **bearer scheme only** (`AddIdentityApiEndpoints` adds cookies an API doesn't use); `MapIdentityApi` under `/account`. **Identity's endpoints don't opt out of the fallback policy** (found by the tests: register and login got 401), and `AllowAnonymous` on the group would open `manage/*` too (it wins over `RequireAuthorization`), so a convention opens every account endpoint except `manage/*`; a test checks both sides (sabotage-proved). OpenAPI: an HTTP bearer scheme.
+- PostgreSQL: the existing `SnakeCaseTableNames` rule renames Identity's tables (`asp_net_users`, …); verified in a generated solution's schema script.
+- **Tests**: the test users register and log in through the real endpoints (serialized; a second register gets 400), the admin gets the role through `UserManager`; every test host and the probe app share Data Protection keys (a test folder), since tokens are Data Protection payloads. The probe app turns off `ValidateOnBuild`: it reads tokens only and has no `AppDbContext`.
+- Docs: Data Protection keys must be shared between instances in production; emails aren't sent until an `IEmailSender<AppUser>` is registered.
+
 
 | Option | How | Local development |
 |---|---|---|

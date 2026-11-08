@@ -61,7 +61,10 @@ The options the solution was created with, each with its own documentation:
 <!--#if (entra)-->
 - **Microsoft Entra ID**: every endpoint requires a login; the API validates Entra ID tokens for your app registration. See [docs/authentication.md](docs/authentication.md).
 <!--#endif-->
-<!--#if (!samples && !result && !outbox && !inbox && !postgresql && !validation && !idempotency && !repository && !cqrs && !redis && !fusioncache && !rabbitmq && !servicebus && !keycloak && !entra)-->
+<!--#if (identity)-->
+- **ASP.NET Core Identity**: every endpoint requires a login; the API keeps its own accounts, with register and login endpoints under `/account`. See [docs/authentication.md](docs/authentication.md).
+<!--#endif-->
+<!--#if (!samples && !result && !outbox && !inbox && !postgresql && !validation && !idempotency && !repository && !cqrs && !redis && !fusioncache && !rabbitmq && !servicebus && !keycloak && !entra && !identity)-->
 - None: this is the default setup. Options can be added later with the CLI.
 <!--#endif-->
 

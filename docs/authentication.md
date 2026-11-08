@@ -16,6 +16,8 @@ The shared code is in `Api/Configuration/Authentication/`; each provider adds it
 
 <!--#if (entra)-->
 - `UserId` is the login's ID: the standard name identifier claim, which holds the user's object ID (`oid`) in the tenant. Entra's subject (`sub`) is different for every app, so it isn't used. It is `null` without a login, and outside a request (background work such as the outbox).
+<!--#elseif (identity)-->
+- `UserId` is the login's ID: the standard name identifier claim, which holds the account's ID in `AspNetUsers`. It is `null` without a login, and outside a request (background work such as the outbox).
 <!--#else-->
 - `UserId` is the login's ID: the standard name identifier claim, which the token's subject (`sub`) fills. It is `null` without a login, and outside a request (background work such as the outbox).
 <!--#endif-->
@@ -145,6 +147,51 @@ Paste the token into `@token` at the top of `src/CleanSlices.Api/CleanSlices.Api
 The option only validates tokens, for one tenant. For calling other APIs on the user's behalf (Microsoft Graph, your own services) or for accepting several tenants, use `Microsoft.Identity.Web` (`AddMicrosoftIdentityWebApi`) instead: it adds token acquisition and multi-tenant issuer checks, at the cost of more dependencies.
 <!--#endif-->
 
+<!--#if (identity)-->
+## ASP.NET Core Identity
+
+The API keeps its own login accounts with ASP.NET Core Identity, in the same database as your data: `AppDbContext` inherits `IdentityDbContext<AppUser>`, so Identity's tables (`AspNetUsers`, `AspNetRoles`, …) come with your migrations. Create one after adding the option:
+
+```
+dotnet ef migrations add AddIdentity --project src/CleanSlices.Infrastructure
+```
+
+`AppUser` (`Infrastructure/Identity/`) is the login account, not a domain entity; add profile fields to it if you need them. Its ID is Identity's string key, which is what `ICurrentUser.UserId` returns.
+
+### Endpoints
+
+`MapIdentityApi` adds the account endpoints under **`/account`**:
+
+| Endpoint | Login | |
+|---|---|---|
+| `POST /account/register` | no | `{ email, password }` creates an account |
+| `POST /account/login` | no | `{ email, password }` returns `accessToken` (valid for one hour) and `refreshToken` |
+| `POST /account/refresh` | no | `{ refreshToken }` returns new tokens |
+| `confirmEmail`, `resendConfirmationEmail`, `forgotPassword`, `resetPassword` | no | the email flows |
+| `/account/manage/info`, `/account/manage/2fa` | yes | the logged-in user's account |
+
+Send the access token as `Authorization: Bearer <token>`. The tokens are Identity's own format, not JWTs: only this API can read them. The `.http` file registers a user, logs in and sends the token.
+
+Only bearer tokens are set up; `useCookies=true` on login isn't supported. The default password rules apply: at least six characters, with an upper-case letter, a lower-case letter, a digit and a symbol.
+
+### Roles
+
+The `admin` role is seeded (`AppRoles.Admin`, in the model, so it comes with the migration). There are no endpoints that assign roles: give a user a role in your own code, with `UserManager`:
+
+```csharp
+var user = await users.FindByEmailAsync(email);
+await users.AddToRoleAsync(user!, AppRoles.Admin);
+```
+
+Roles are written into the token when the user logs in, so a new role shows up at the next login (or refresh).
+
+### Production notes
+
+- **Emails aren't sent.** Identity's email flows (confirmation, password reset) call `IEmailSender<AppUser>`, which does nothing by default. Register your own implementation to send them; until then, accounts don't need a confirmed email.
+- **Share the Data Protection keys.** The tokens are encrypted with ASP.NET Core Data Protection. With several instances, or across restarts in a container, every instance must use the same keys, or tokens from one won't work on another: persist them (`AddDataProtection().PersistKeysTo…`, for example to Redis, a database or Azure Blob Storage).
+- Lockout, 2FA and the password rules are configured with `builder.Services.Configure<IdentityOptions>(…)`.
+<!--#endif-->
+
 ## Tests
 
 The tests log in for you: `ApiFactory` gets a token for the test user once per run and adds it to every client it creates, so endpoint tests need nothing extra. For another user, call `factory.LoginAsync(TestUsers.Admin)` and set the `Authorization` header yourself. To check that an endpoint requires a login, remove the header:
@@ -159,4 +206,7 @@ The tests run Keycloak in a container (Testcontainers) with the same realm file 
 <!--#endif-->
 <!--#if (entra)-->
 The tests don't call Entra ID: the test factory signs its own tokens and the API trusts only that key. Everything else is the real validation (issuer, audience, roles, the object ID as the user ID); only fetching Entra's signing keys isn't tested.
+<!--#endif-->
+<!--#if (identity)-->
+The test users register and log in through `/account/register` and `/account/login`; the admin gets its role through `UserManager`. The test hosts share their Data Protection keys, so a token works on every host a test starts.
 <!--#endif-->

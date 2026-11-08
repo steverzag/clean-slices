@@ -5,14 +5,28 @@ using CleanSlices.Core.Domain;
 using CleanSlices.Core.Domain.Tasks;
 using CleanSlices.Core.Domain.Users;
 //#endif
+#if (identity)
+using CleanSlices.Infrastructure.Identity;
+#endif
 #if (model_rules)
 using CleanSlices.Infrastructure.Persistence.ModelRules;
+#endif
+#if (identity)
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 #endif
 using Microsoft.EntityFrameworkCore;
 
 namespace CleanSlices.Infrastructure.Persistence;
 
-#if (repository && cqrs)
+#if (identity && repository && cqrs)
+public class AppDbContext : IdentityDbContext<AppUser>, IUnitOfWork, IReadDb
+#elif (identity && repository)
+public class AppDbContext : IdentityDbContext<AppUser>, IUnitOfWork
+#elif (identity && cqrs)
+public class AppDbContext : IdentityDbContext<AppUser>, IReadDb
+#elif (identity)
+public class AppDbContext : IdentityDbContext<AppUser>
+#elif (repository && cqrs)
 public class AppDbContext : DbContext, IUnitOfWork, IReadDb
 #elif (repository)
 public class AppDbContext : DbContext, IUnitOfWork
@@ -23,7 +37,12 @@ public class AppDbContext : DbContext
 #endif
 {
 	//#if (samples)
+#if (identity)
+	// Hides IdentityDbContext.Users: Users are the sample's domain users; login accounts are Set<AppUser>().
+	public new DbSet<User> Users => Set<User>();
+#else
 	public DbSet<User> Users => Set<User>();
+#endif
 	public DbSet<TaskItem> Tasks => Set<TaskItem>();
 
 	//#endif
@@ -33,6 +52,9 @@ public class AppDbContext : DbContext
 
 	protected override void OnModelCreating(ModelBuilder modelBuilder)
 	{
+#if (identity)
+		base.OnModelCreating(modelBuilder);
+#endif
 		modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
 #if (model_rules)
 		modelBuilder.ApplyModelRules();

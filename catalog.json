@@ -162,6 +162,17 @@
       "license": { "notice": "Microsoft Entra ID is an Azure service: you need a tenant and an app registration (the free tier is enough for development). The tests don't call Entra; they sign their own tokens." }
     },
     {
+      "id": "identity",
+      "kind": "option",
+      "concept": "infrastructure",
+      "group": "auth",
+      "title": "ASP.NET Core Identity",
+      "description": "Every endpoint requires a login: the API stores its own users (register, login and account endpoints under /account) and issues bearer tokens; roles as role claims, an admin role seeded.",
+      "requires": ["authentication"],
+      "provides": ["login"],
+      "addsTables": true
+    },
+    {
       "id": "integration-events",
       "kind": "hidden"
     },

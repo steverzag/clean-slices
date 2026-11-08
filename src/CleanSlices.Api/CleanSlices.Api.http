@@ -6,6 +6,25 @@
 #   az account get-access-token --scope api://<client-id>/access_as_user --query accessToken -o tsv
 @token = paste-the-token-here
 # #endif
+# #if (identity)
+@token = {{login.response.body.accessToken}}
+
+# Every endpoint requires a login: register once, then log in. The other requests send the token.
+POST {{CleanSlices.Api_HostAddress}}/account/register
+Content-Type: application/json
+
+{ "email": "user@example.com", "password": "user-Passw0rd!" }
+
+###
+
+# @name login
+POST {{CleanSlices.Api_HostAddress}}/account/login
+Content-Type: application/json
+
+{ "email": "user@example.com", "password": "user-Passw0rd!" }
+
+###
+# #endif
 # #if (keycloak)
 @token = {{login.response.body.access_token}}
 

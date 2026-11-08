@@ -1,8 +1,14 @@
 #if (authentication)
 using System.Net;
 using System.Net.Http.Headers;
+#if (identity)
+using System.Net.Http.Json;
+#endif
 #if (entra)
 using CleanSlices.Api.Configuration.Authentication.Entra;
+#endif
+#if (identity)
+using CleanSlices.Api.Configuration.Authentication.Identity;
 #endif
 #if (keycloak)
 using CleanSlices.Api.Configuration.Authentication.Keycloak;
@@ -14,7 +20,9 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+#if (!identity)
 using Microsoft.IdentityModel.JsonWebTokens;
+#endif
 
 namespace CleanSlices.Api.Tests.Authentication;
 
@@ -48,6 +56,24 @@ public class AuthenticationTests(ApiFactory factory) : IAsyncDisposable
 	}
 	//#endif
 
+#if (identity)
+
+	[Fact]
+	public async Task Account_endpoints_need_no_login_except_manage()
+	{
+		var anonymous = Anonymous(factory.CreateClient());
+		var account = new { email = $"{Guid.NewGuid():N}@example.com", password = "Account-Passw0rd!" };
+
+		var register = await anonymous.PostAsJsonAsync($"{IdentityAuthentication.RoutePrefix}/register", account, TestContext.Current.CancellationToken);
+		var infoWithoutLogin = await anonymous.GetAsync($"{IdentityAuthentication.RoutePrefix}/manage/info", TestContext.Current.CancellationToken);
+		var infoWithLogin = await factory.CreateClient().GetAsync($"{IdentityAuthentication.RoutePrefix}/manage/info", TestContext.Current.CancellationToken);
+
+		Assert.Equal(HttpStatusCode.OK, register.StatusCode);
+		Assert.Equal(HttpStatusCode.Unauthorized, infoWithoutLogin.StatusCode);
+		Assert.Equal(HttpStatusCode.OK, infoWithLogin.StatusCode);
+	}
+#endif
+
 	[Fact]
 	public async Task An_invalid_token_gets_401()
 	{
@@ -67,7 +93,9 @@ public class AuthenticationTests(ApiFactory factory) : IAsyncDisposable
 
 		var userId = await client.GetStringAsync("/me", TestContext.Current.CancellationToken);
 
-#if (entra)
+#if (identity)
+		Assert.Equal(await factory.UserIdAsync(TestUsers.User), userId);
+#elif (entra)
 		// The object ID, not the subject: Entra's subject differs per app.
 		Assert.Equal(new JsonWebToken(token).GetClaim("oid").Value, userId);
 #else
@@ -108,6 +136,11 @@ public class AuthenticationTests(ApiFactory factory) : IAsyncDisposable
 			factory.UseEntraSettings(builder.Configuration);
 			builder.AddEntraAuthentication();
 			factory.TrustTestTokens(builder.Services);
+#elif (identity)
+			// The probe app reads tokens only; Identity's stores (and their AppDbContext) are never resolved.
+			builder.Host.UseDefaultServiceProvider(options => options.ValidateOnBuild = false);
+			builder.AddIdentityAuthentication();
+			factory.ShareTokenKeys(builder.Services);
 #endif
 
 			_app = builder.Build();

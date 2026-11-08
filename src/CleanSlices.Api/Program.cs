@@ -5,6 +5,9 @@ using CleanSlices.Api.Configuration.Authentication;
 #if (entra)
 using CleanSlices.Api.Configuration.Authentication.Entra;
 #endif
+#if (identity)
+using CleanSlices.Api.Configuration.Authentication.Identity;
+#endif
 #if (keycloak)
 using CleanSlices.Api.Configuration.Authentication.Keycloak;
 #endif
@@ -30,6 +33,8 @@ builder.AddInfrastructure();
 builder.AddKeycloakAuthentication();
 #elif (entra)
 builder.AddEntraAuthentication();
+#elif (identity)
+builder.AddIdentityAuthentication();
 #endif
 
 builder.Services.AddExceptionHandler<ExceptionHandler>();
@@ -74,5 +79,8 @@ app.UseAuthentication();
 app.UseAuthorization();
 #endif
 app.RegisterEndpoints();
+#if (identity)
+app.MapIdentityEndpoints();
+#endif
 
 await app.RunAsync();

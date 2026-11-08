@@ -1,6 +1,9 @@
 #if (entra)
 using CleanSlices.Api.Configuration.Authentication.Entra;
 #endif
+#if (identity)
+using CleanSlices.Api.Configuration.Authentication.Identity;
+#endif
 #if (keycloak)
 using CleanSlices.Api.Configuration.Authentication.Keycloak;
 #endif
@@ -12,6 +15,9 @@ using CleanSlices.Api.Tests.Infrastructure;
 using CleanSlices.Api.Tests.IntegrationEvents;
 #endif
 using CleanSlices.Infrastructure;
+#if (identity)
+using CleanSlices.Infrastructure.Identity;
+#endif
 #if (inbox)
 using CleanSlices.Infrastructure.Inbox;
 #endif
@@ -28,11 +34,17 @@ using CleanSlices.Infrastructure.IntegrationEvents.ServiceBus;
 using CleanSlices.Infrastructure.Outbox;
 #endif
 using CleanSlices.Infrastructure.Persistence;
+#if (identity)
+using Microsoft.AspNetCore.DataProtection;
+#endif
 using Microsoft.AspNetCore.Hosting;
+#if (identity)
+using Microsoft.AspNetCore.Identity;
+#endif
 #if (entra)
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 #endif
-#if (integration_events || entra)
+#if (integration_events || entra || identity)
 using Microsoft.AspNetCore.TestHost;
 #endif
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -67,7 +79,10 @@ using System.Net.Http.Headers;
 #if (entra)
 using System.Security.Cryptography;
 #endif
-#if (servicebus || keycloak)
+#if (identity)
+using System.Net.Http.Json;
+#endif
+#if (servicebus || keycloak || identity)
 using System.Text.Json;
 #endif
 #if (rabbitmq)
@@ -119,6 +134,10 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 	};
 	private readonly SymmetricSecurityKey _signingKey = new(RandomNumberGenerator.GetBytes(32));
 #endif
+#if (identity)
+	private readonly string _tokenKeys = Path.Combine(Path.GetTempPath(), $"cleanslices-tests-keys-{Guid.NewGuid():N}");
+	private readonly SemaphoreSlim _logins = new(1, 1);
+#endif
 #if (authentication)
 	private string _userToken = "";
 #endif
@@ -146,7 +165,72 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 	protected override void ConfigureClient(HttpClient client)
 	{
 		base.ConfigureClient(client);
-		client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _userToken);
+		if (_userToken.Length > 0)
+		{
+			client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _userToken);
+		}
+	}
+#endif
+#if (identity)
+
+	// Every test host, and the tests' own apps, read tokens with the same keys.
+	public void ShareTokenKeys(IServiceCollection services) =>
+		services.AddDataProtection()
+			.SetApplicationName("CleanSlices.Api.Tests")
+			.PersistKeysToFileSystem(new DirectoryInfo(_tokenKeys));
+
+	// The test users register and log in through the API's own endpoints; the admin gets the role directly.
+	public async Task<string> LoginAsync(string username)
+	{
+		await _logins.WaitAsync(TestContext.Current.CancellationToken);
+		try
+		{
+			var email = $"{username}@example.com";
+			var password = $"{username}-Passw0rd!";
+			using var client = CreateClient();
+			client.DefaultRequestHeaders.Authorization = null;
+
+			// 400 once the user exists, from an earlier login in this run.
+			await client.PostAsJsonAsync($"{IdentityAuthentication.RoutePrefix}/register", new { email, password }, TestContext.Current.CancellationToken);
+			if (username == TestUsers.Admin)
+			{
+				await AddToAdminsAsync(email);
+			}
+
+			using var response = await client.PostAsJsonAsync($"{IdentityAuthentication.RoutePrefix}/login", new { email, password }, TestContext.Current.CancellationToken);
+			response.EnsureSuccessStatusCode();
+
+			using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+			return json.RootElement.GetProperty("accessToken").GetString()!;
+		}
+		finally
+		{
+			_logins.Release();
+		}
+	}
+
+	public async Task<string> UserIdAsync(string username)
+	{
+		using var scope = Services.CreateScope();
+		var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+		var user = await users.FindByEmailAsync($"{username}@example.com");
+		return user?.Id ?? throw new InvalidOperationException($"The test user {username} isn't registered.");
+	}
+
+	private async Task AddToAdminsAsync(string email)
+	{
+		using var scope = Services.CreateScope();
+		var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+		var user = await users.FindByEmailAsync(email)
+			?? throw new InvalidOperationException($"{email} wasn't registered.");
+		if (!await users.IsInRoleAsync(user, AppRoles.Admin))
+		{
+			var result = await users.AddToRoleAsync(user, AppRoles.Admin);
+			if (!result.Succeeded)
+			{
+				throw new InvalidOperationException(string.Join("; ", result.Errors.Select(e => e.Description)));
+			}
+		}
 	}
 #endif
 #if (entra)
@@ -267,6 +351,8 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 		builder.UseSetting($"{EntraOptions.Section}:TenantId", TestEntra.TenantId);
 		builder.UseSetting($"{EntraOptions.Section}:ClientId", TestEntra.ClientId);
 		builder.ConfigureTestServices(TrustTestTokens);
+#elif (identity)
+		builder.ConfigureTestServices(ShareTokenKeys);
 #endif
 #if (outbox)
 

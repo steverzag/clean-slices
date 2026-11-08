@@ -66,6 +66,7 @@ Available options:
 | `servicebus` | Integration events go through an Azure Service Bus topic (the emulator locally, from the AppHost): sent after the commit, or by the outbox; redelivered on failure, then dead-lettered. Prints its license notice (paid service; emulator license). |
 | `keycloak` | Every endpoint requires a login: the API validates Keycloak tokens, with realm roles as role claims. The AppHost runs Keycloak (in a container) with a realm, a client and two test users; the tests log in by themselves. |
 | `entra` | Every endpoint requires a login: the API validates Microsoft Entra ID tokens for your app registration, with app roles as role claims and the object ID as the user ID. The AppHost asks for the tenant and client IDs; the tests sign their own tokens. Prints its notice (an Azure tenant is needed). |
+| `identity` | Every endpoint requires a login: the API keeps its own accounts with ASP.NET Core Identity (`AppDbContext` inherits `IdentityDbContext`), with register, login and account endpoints under `/account`, bearer tokens and a seeded `admin` role. Adds tables: the CLI prints the migration to create. |
 
 ## Create a solution
 

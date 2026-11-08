@@ -32,11 +32,11 @@ Changes to `main` that improve the default solution on their own: [base-template
 | Infrastructure | [RabbitMQ](infrastructure.md#queue) | group `queue` | **done** (phase 7b) |
 | Infrastructure | [Azure Service Bus](infrastructure.md#queue) | group `queue` | **done** (phase 7b; emulator locally) |
 | Hidden unit | [Message broker](hidden-units.md#message-broker) | – | **done** (phase 7b: shared by the queue options) |
-| Hidden unit | [Authentication](hidden-units.md#authentication) | – | phase 7c: shared by the authentication options |
+| Hidden unit | [Authentication](hidden-units.md#authentication) | – | **done** (phase 7c: shared by the authentication options) |
 | Infrastructure | [Redis](infrastructure.md#cache) | group `cache` | **done** |
 | Infrastructure | [FusionCache](infrastructure.md#cache) | group `cache-library` | **done** (phase 7) |
 | Glue | [FusionCache × Redis](infrastructure.md#cache) | – | **done**: Redis as second level and backplane (the first glue unit) |
-| Infrastructure | [Keycloak, Entra ID, ASP.NET Core Identity](infrastructure.md#authentication) | group `auth` | phase 7c: Keycloak and Entra ID done |
+| Infrastructure | [Keycloak, Entra ID, ASP.NET Core Identity](infrastructure.md#authentication) | group `auth` | **done** (phase 7c) |
 | Infrastructure | [SignalR](infrastructure.md#realtime) | group `realtime` | designed |
 | Strategy | [Soft delete](strategies.md#soft-delete) | – | designed |
 | Strategy | [Audit](strategies.md#audit) | – | designed |
