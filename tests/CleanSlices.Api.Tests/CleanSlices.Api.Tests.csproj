@@ -21,6 +21,9 @@
     <!--#if (servicebus)-->
     <PackageReference Include="Testcontainers.ServiceBus" />
     <!--#endif-->
+    <!--#if (signalr)-->
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />
+    <!--#endif-->
     <!--#if (keycloak)-->
     <PackageReference Include="Testcontainers.Keycloak" />
     <!--#endif-->

@@ -37,7 +37,8 @@ Changes to `main` that improve the default solution on their own: [base-template
 | Infrastructure | [FusionCache](infrastructure.md#cache) | group `cache-library` | **done** (phase 7) |
 | Glue | [FusionCache × Redis](infrastructure.md#cache) | – | **done**: Redis as second level and backplane (the first glue unit) |
 | Infrastructure | [Keycloak, Entra ID, ASP.NET Core Identity](infrastructure.md#authentication) | group `auth` | **done** (phase 7c) |
-| Infrastructure | [SignalR](infrastructure.md#realtime) | group `realtime` | designed |
+| Infrastructure | [SignalR](infrastructure.md#realtime) | group `realtime` | **done** (phase 7d) |
+| Glue | [SignalR × Redis](infrastructure.md#realtime) | – | **done**: the Redis backplane |
 | Strategy | [Soft delete](strategies.md#soft-delete) | – | designed |
 | Strategy | [Audit](strategies.md#audit) | – | designed |
 | Strategy | [Optimistic concurrency](strategies.md#parked-optimistic-concurrency) | – | **parked** |

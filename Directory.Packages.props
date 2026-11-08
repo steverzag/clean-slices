@@ -13,6 +13,9 @@
     <PackageVersion Include="Mediator.Abstractions" Version="3.0.2" />
     <PackageVersion Include="Mediator.SourceGenerator" Version="3.0.2" />
     <!--#endif-->
+    <!--#if (signalr_redis)-->
+    <PackageVersion Include="Microsoft.AspNetCore.SignalR.StackExchangeRedis" Version="10.0.14" />
+    <!--#endif-->
     <!--#if (keycloak || entra)-->
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.14" />
     <!--#endif-->
@@ -97,6 +100,9 @@
     <!--#endif-->
     <!--#if (servicebus)-->
     <PackageVersion Include="Testcontainers.ServiceBus" Version="4.16.0" />
+    <!--#endif-->
+    <!--#if (signalr)-->
+    <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.14" />
     <!--#endif-->
     <!--#if (keycloak)-->
     <PackageVersion Include="Testcontainers.Keycloak" Version="4.16.0" />

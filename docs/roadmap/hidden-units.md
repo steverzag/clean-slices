@@ -8,7 +8,7 @@ A hidden unit is a piece that several options need but nobody picks on its own. 
 | [`model-rules`](#model-rules) | model rules run from `OnModelCreating` | – | PostgreSQL, soft delete, audit | – |
 | [`cache`](#cache) | `IDistributedCache` | in memory | idempotency keys, Redis | Redis |
 | [`hybrid-cache`](#hybridcache) | `HybridCache` | Microsoft's | Redis, FusionCache | FusionCache |
-| [`after-commit`](#after-commit) | `IAfterCommit` | – | HybridCache (invalidation); next the queue and realtime | – |
+| [`after-commit`](#after-commit) | `IAfterCommit` | – | HybridCache (invalidation), the after-commit publisher, SignalR | – |
 | [`integration-events`](#integration-events) | `IIntegrationEventPublisher`, `IMessageDispatcher` | in-process | outbox, queue options | queue options (dispatcher) |
 | [`message-broker`](#message-broker) | what the queue options share (settings, message format, after-commit publisher) | – | RabbitMQ, Service Bus | – |
 | [`authentication`](#authentication) | what the authentication options share (claims-based `ICurrentUser`, fallback policy) | – | Keycloak, Entra ID, Identity | – |
@@ -89,7 +89,8 @@ They're built together with the first option that needs them.
 - The data is already saved when the actions run: a failing action is logged, and the others still run.
 - "After the commit" relies on each `SaveChangesAsync` being its own transaction. Code that opens an explicit transaction would see the actions run before its commit; documented.
 - Unit tests call the step directly (`Persistence/AfterCommitTests.cs`): order, dropped on failure, failures isolated, run once.
-- Next users: the after-commit publisher (queue without outbox, phase 7b) and realtime (7d), which may add "outside a save, run at once".
+- **`IsSaving` (added in phase 7d, for SignalR):** `SaveInProgressStep` (order `int.MinValue`, so domain event handlers already see it) sets it before the save and clears it after the commit or the failure. The notifier queues during a save and sends at once outside one; without it, a message sent outside a save would wait for a save that may never come. Unit-tested on the step.
+- **Later:** the after-commit publisher has the same gap: an integration event published outside a save waits for the next one. It could check `IsSaving` the same way.
 
 ## Integration events
 

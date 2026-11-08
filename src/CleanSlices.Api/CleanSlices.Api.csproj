@@ -12,6 +12,9 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <!--#endif-->
+    <!--#if (signalr_redis)-->
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.StackExchangeRedis" />
+    <!--#endif-->
     <!--#if (keycloak || entra)-->
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
     <!--#endif-->

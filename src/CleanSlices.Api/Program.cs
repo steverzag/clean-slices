@@ -18,6 +18,9 @@ using CleanSlices.Api.Configuration.Cqrs;
 #if (idempotency)
 using CleanSlices.Api.Configuration.Idempotency;
 #endif
+#if (signalr)
+using CleanSlices.Api.Configuration.Realtime;
+#endif
 #if (validation)
 using CleanSlices.Api.Configuration.Validation;
 #endif
@@ -35,6 +38,9 @@ builder.AddKeycloakAuthentication();
 builder.AddEntraAuthentication();
 #elif (identity)
 builder.AddIdentityAuthentication();
+#endif
+#if (signalr)
+builder.AddRealtime();
 #endif
 
 builder.Services.AddExceptionHandler<ExceptionHandler>();
@@ -75,12 +81,18 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 #if (authentication)
 // After the status code pages, so 401 and 403 get a ProblemDetails body.
+#if (signalr)
+app.UseHubAccessTokens();
+#endif
 app.UseAuthentication();
 app.UseAuthorization();
 #endif
 app.RegisterEndpoints();
 #if (identity)
 app.MapIdentityEndpoints();
+#endif
+#if (signalr)
+app.MapRealtime();
 #endif
 
 await app.RunAsync();

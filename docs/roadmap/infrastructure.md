@@ -181,6 +181,19 @@ Plus the **`fusioncache-redis` glue unit**, added when both are selected: Redis 
 
 **Options.** SignalR. The default is none. Server-sent events may come later as a second option, for simple one-way streams.
 
+**Built (phase 7d): SignalR.** Documented for users in `docs/realtime.md`.
+
+**As built.**
+
+- Option `signalr` in the optional group `realtime`, requiring `after-commit`. SignalR is part of ASP.NET Core: no server package.
+- `IRealtimeNotifier` (`Infrastructure/Realtime/`, so domain event handlers can call it): `SendToUserAsync`, `SendToGroupAsync`, `SendToAllAsync`. `SignalRNotifier` and `NotificationsHub` (`/hubs/notifications`) are in `Api/Configuration/Realtime/`, like the claims-based `ICurrentUser`.
+- **After the commit through `IAfterCommit.IsSaving`** (added to the [after-commit](hidden-units.md#after-commit) unit): during a save the notifier enqueues, outside one it sends at once. Tests: a message outside a save arrives; nothing is sent when a domain event handler makes the save fail (sabotage-proved: ignoring `IsSaving` fails it).
+- **The token in the query string is one middleware, not glue** (changed from the design): `UseHubAccessTokens`, before authentication, under `#if (authentication)`, copies `access_token` into the `Authorization` header for `/hubs/*` requests only. It works with JwtBearer (Keycloak, Entra ID) and Identity's bearer handler alike, so the planned SignalR × Identity glue unit was never built. The hub requires a login through the fallback policy. Tests connect over WebSockets with the token in the query string (sabotage-proved).
+- **`signalr-redis` glue**: `AddStackExchangeRedis` on the `cache` connection, channels prefixed with the app name. Test: a client on one instance receives a message sent from `AnotherInstance()` (sabotage-proved).
+- **Samples**: a group per task (`WatchTask` on the hub, `task:{id}`), `TaskChanged` from `NotifyTaskWatchersHandler` on completed and deleted. Not "notify the assignee": the sample assignee is a domain `User`, not a login.
+- CORS stays in the docs.
+
+
 **Design.**
 
 - The option brings `IRealtimeNotifier`: `SendToUserAsync`, `SendToGroupAsync`, `SendToAllAsync`.

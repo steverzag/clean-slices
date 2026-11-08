@@ -72,6 +72,10 @@ The two creates (`POST /tasks`, `POST /users`) accept an `Idempotency-Key` heade
 
 `GET /users/{id}` reads through `HybridCache` (key `user:{id}`). `User` raises `UserUpdatedDomainEvent` when its name or email changes, and `ForgetCachedUserHandler` removes the cached copy after the commit, for updates and deletes (see [caching.md](caching.md)).
 <!--#endif-->
+<!--#if (signalr)-->
+
+Clients watch a task through the hub's `WatchTask(taskId)`; `NotifyTaskWatchersHandler` sends them `TaskChanged` once the task is completed or deleted (see [realtime.md](realtime.md)).
+<!--#endif-->
 
 ## Tests
 

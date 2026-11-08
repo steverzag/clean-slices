@@ -55,8 +55,10 @@ using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 #endif
 using Microsoft.Extensions.DependencyInjection;
-#if (entra)
+#if (entra || keycloak)
 using Microsoft.IdentityModel.JsonWebTokens;
+#endif
+#if (entra)
 using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
@@ -276,6 +278,8 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 		return Task.FromResult(token);
 	}
 
+	public Task<string> UserIdAsync(string username) => Task.FromResult(ObjectId(username));
+
 	public static string ObjectId(string username) =>
 		new Guid(MD5.HashData(System.Text.Encoding.UTF8.GetBytes(username))).ToString();
 #endif
@@ -304,6 +308,9 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 		using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
 		return json.RootElement.GetProperty("access_token").GetString()!;
 	}
+
+	public async Task<string> UserIdAsync(string username) =>
+		new JsonWebToken(await LoginAsync(username)).Subject;
 #endif
 
 	/// <summary>

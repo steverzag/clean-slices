@@ -152,6 +152,18 @@
       "defaultValue": "false",
       "description": "Every endpoint requires a login: the API stores its own users with ASP.NET Core Identity and issues bearer tokens."
     },
+    "signalr": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "Push messages to connected clients through one SignalR hub, sent after the commit."
+    },
+    "signalr_redis": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "SignalR with Redis (added by the CLI when both are selected): the Redis backplane, so every instance reaches every client."
+    },
     "authentication": {
       "type": "parameter",
       "datatype": "bool",
@@ -377,6 +389,16 @@
           "exclude": [
             "src/CleanSlices.Api/Configuration/Authentication/Identity/**",
             "src/CleanSlices.Infrastructure/Identity/**"
+          ]
+        },
+        {
+          "condition": "(!signalr)",
+          "exclude": [
+            "src/CleanSlices.Api/Configuration/Realtime/**",
+            "src/CleanSlices.Infrastructure/Realtime/**",
+            "src/CleanSlices.Infrastructure/EventHandlers/TaskItems/NotifyTaskWatchersHandler.cs",
+            "tests/CleanSlices.Api.Tests/Realtime/**",
+            "docs/realtime.md"
           ]
         },
         {

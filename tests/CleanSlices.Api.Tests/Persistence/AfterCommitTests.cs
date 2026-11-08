@@ -56,6 +56,23 @@ public class AfterCommitTests
 		Assert.Equal(["once"], _ran);
 	}
 
+	[Fact]
+	public async Task A_save_is_in_progress_from_the_first_step_until_it_ends()
+	{
+		var step = new SaveInProgressStep(_actions);
+		Assert.False(_actions.IsSaving);
+
+		await step.BeforeSaveAsync(null!, TestContext.Current.CancellationToken);
+		Assert.True(_actions.IsSaving);
+		await step.AfterCommitAsync(null!, TestContext.Current.CancellationToken);
+		Assert.False(_actions.IsSaving);
+
+		await step.BeforeSaveAsync(null!, TestContext.Current.CancellationToken);
+		await step.SaveFailedAsync(null!, TestContext.Current.CancellationToken);
+		Assert.False(_actions.IsSaving);
+		Assert.Equal(int.MinValue, step.Order);
+	}
+
 	private void Enqueue(string name) => _actions.Enqueue(_ =>
 	{
 		_ran.Add(name);
