@@ -124,22 +124,37 @@ Plus the **`fusioncache-redis` glue unit**, added when both are selected: Redis 
 
 **Options.** Keycloak, Microsoft Entra ID, ASP.NET Core Identity. The default is none: an open API.
 
+**Built (phase 7c): Keycloak.** Documented for users in `docs/authentication.md`.
+
+**As built (Keycloak).**
+
+- `Api/Configuration/Authentication/Keycloak/`: `KeycloakOptions` (`Authentication:Keycloak:` `Authority`, `Audience`; defaults in code match the AppHost), `AddKeycloakAuthentication()` (standard `AddJwtBearer`, `RequireHttpsMetadata` outside Development, `OnTokenValidated` turns `realm_access.roles` into role claims), `KeycloakOpenApi` (OAuth2 authorization code scheme, a document-wide requirement, added to the `v1` document through `OpenApiOptions`, so the `AddOpenApi()` line doesn't change).
+- `Program.cs`: one registration line, and explicit `UseAuthentication` / `UseAuthorization` after `UseStatusCodePages`: the middleware ASP.NET Core adds by itself runs before them, so a 401 or 403 would have no ProblemDetails body.
+- **AppHost**: a plain container (`quay.io/keycloak/keycloak:26.8`, `start-dev --import-realm`) on the fixed port **18080**, so the defaults in code, the `.http` file and tools know the URL; the master admin password is a generated, persisted parameter; health check on the management port. No data volume: the realm is imported on every start.
+- **Realm** `aspire/…AppHost/Keycloak/realm.json` (a neutral file name: the template renames `cleanslices` inside files, not in this file's name): realm `<app>-realm`, public client `<app>-api` (PKCE, password grant for tests and the `.http` file, an audience mapper adding itself to `aud`), role `admin`, users `user` / `user` and `admin` / `admin` (first and last name and email set: Keycloak refuses logins of users whose profile is incomplete), one-hour access tokens.
+- **Tests**: Testcontainers Keycloak with the same realm file (linked into the test project); `ApiFactory` logs `user` in once and adds the token in `ConfigureClient`, which derived factories reuse, so no existing test changed. `AuthenticationTests`: anonymous health and OpenAPI, 401 as ProblemDetails (samples), a bad token, `ICurrentUser.UserId` equals the token's `sub`, admin 200 / user 403 on a role check (in a small test app; sabotage-proved). The feature template gets a 401 test.
+- Verified with the AppHost of a generated solution: the realm imports, the test users get tokens, no token or a bad one gives 401, a valid one reaches the handler.
+
 | Option | How | Local development |
 |---|---|---|
-| Keycloak | The API validates JWTs (`AddKeycloakJwtBearer`) | Aspire runs Keycloak and imports a realm with a client and a test user |
-| Entra ID | The API validates JWTs (`Microsoft.Identity.Web`) | A tenant is needed; appsettings get placeholders |
+| Keycloak | The API validates JWTs (the standard `AddJwtBearer`: Aspire's Keycloak packages are preview-only) | The AppHost runs Keycloak as a plain container and imports a realm with a client and two test users |
+| Entra ID | The API validates JWTs (`Microsoft.Identity.Web`) | A tenant is needed; its IDs are settings to fill in |
 | ASP.NET Core Identity | The API stores users; `MapIdentityApi` adds register and login endpoints | Works immediately; `AppDbContext` inherits `IdentityDbContext` (a conditional) |
 
 **Design.**
 
-- Each option provides `ICurrentUser` from the claims, replacing the anonymous default of the [`current-user`](hidden-units.md#current-user) hidden unit.
-- Secure by default: a fallback policy requires an authenticated user on every endpoint. Health checks and the OpenAPI document opt out with `.AllowAnonymous()`. Roles and permissions are left to the user; the docs show a policy.
+- **The `authentication` hidden unit** holds what the three options share, like `message-broker` for the queues: the claims-based `ICurrentUser`, the fallback policy, and `.AllowAnonymous()` on health checks and the OpenAPI document. Each option requires it and brings only its own scheme. Its symbol is what code uses for "any authentication option".
+- **The `login` capability** is provided by each option, not by the hidden unit, so a later option that needs logged-in users (permissions) requires `login`: the resolver then asks which provider to add instead of adding the hidden unit alone.
+- The `authentication` unit provides `ICurrentUser` from the claims, replacing the anonymous default of the [`current-user`](hidden-units.md#current-user) hidden unit. The user ID is the standard name identifier claim, which each option fills.
+- Secure by default: a fallback policy requires an authenticated user on every endpoint. Health checks and the OpenAPI document opt out with `.AllowAnonymous()`.
+- **Roles work the same with every provider.** Each option turns its provider's roles into standard role claims, so `RequireRole("admin")` works unchanged whichever is selected. Keycloak puts realm roles in a nested `realm_access.roles` claim, flattened when the token is validated; Entra ID sends a `roles` claim (app roles); Identity has role claims once roles are enabled. A test per option: a user with the role gets in, one without gets 403. Permissions are a [parked option](../../ROADMAP.md#parked-and-open) built on this.
+- Settings have their defaults in code, so `appsettings.json` stays untouched (it already has a PostgreSQL whole-file variant; auth variants would multiply them).
 - Each option describes its login fully in the OpenAPI document (OAuth2 flows for Keycloak and Entra ID, bearer for Identity), so the API reference UI can log in with no glue.
-- **Open (phase 7): the samples with authentication.** The sample `User` is a domain user, not a login account. Instead of rejecting `--samples`, design the link: the sample `User` as the profile of the authenticated user, matched by `ICurrentUser.UserId`.
+- **The samples with authentication (decided in phase 7):** the sample `User` stays a domain user, not a login account (it only exists with `--samples`, and with Identity it would have to inherit `IdentityUser`). The sample endpoints are protected like any other. Linking a `User` to its login (a `LoginId` matched with `ICurrentUser.UserId`) is left for later.
 
 **Feature template.** No change; the fallback policy protects new endpoints.
 
-**Samples.** Open, see above. The sample endpoints are protected like any other, and the sample tests log in with the option's test user.
+**Samples.** No code change: the sample endpoints are protected, and the tests log in with the option's test user (the test factory adds the token to every client).
 
 **Interactions.** Idempotency keys become per user; audit and logging record the user; realtime targets users.
 

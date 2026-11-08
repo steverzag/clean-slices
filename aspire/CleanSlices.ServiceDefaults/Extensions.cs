@@ -113,13 +113,24 @@ public static class Extensions
         if (app.Environment.IsDevelopment())
         {
             // All health checks must pass for app to be considered ready to accept traffic after starting
+#if (authentication)
+            app.MapHealthChecks(HealthEndpointPath).AllowAnonymous();
+#else
             app.MapHealthChecks(HealthEndpointPath);
+#endif
 
             // Only health checks tagged with the "live" tag must pass for app to be considered alive
+#if (authentication)
+            app.MapHealthChecks(AlivenessEndpointPath, new HealthCheckOptions
+            {
+                Predicate = r => r.Tags.Contains("live")
+            }).AllowAnonymous();
+#else
             app.MapHealthChecks(AlivenessEndpointPath, new HealthCheckOptions
             {
                 Predicate = r => r.Tags.Contains("live")
             });
+#endif
         }
 
         return app;

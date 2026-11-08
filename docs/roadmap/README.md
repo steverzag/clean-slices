@@ -21,6 +21,7 @@ Changes to `main` that improve the default solution on their own: [base-template
 | Pattern | [CQRS](patterns.md#cqrs) | `dispatcher`: handlers (default, Mediator vocabulary), mediator | **done**; MediatR dropped |
 | Pattern | [Idempotency keys](patterns.md#idempotency-keys) | – | **done** (in-memory store) |
 | Pattern | [Request validation](patterns.md#request-validation) | – | **done** (FluentValidation) |
+| Pattern | [Permissions](../../ROADMAP.md#parked-and-open) | – | **parked** (phase 7c maps roles for it) |
 | Hidden unit | [Current user](hidden-units.md#current-user) | – | **done** (anonymous) |
 | Hidden unit | [Model rules](hidden-units.md#model-rules) | – | **done** (phase 5, for PostgreSQL) |
 | Hidden unit | [Cache](hidden-units.md#cache) | – | **done** (`IDistributedCache`: in memory, or Redis) |
@@ -31,10 +32,11 @@ Changes to `main` that improve the default solution on their own: [base-template
 | Infrastructure | [RabbitMQ](infrastructure.md#queue) | group `queue` | **done** (phase 7b) |
 | Infrastructure | [Azure Service Bus](infrastructure.md#queue) | group `queue` | **done** (phase 7b; emulator locally) |
 | Hidden unit | [Message broker](hidden-units.md#message-broker) | – | **done** (phase 7b: shared by the queue options) |
+| Hidden unit | [Authentication](hidden-units.md#authentication) | – | phase 7c: shared by the authentication options |
 | Infrastructure | [Redis](infrastructure.md#cache) | group `cache` | **done** |
 | Infrastructure | [FusionCache](infrastructure.md#cache) | group `cache-library` | **done** (phase 7) |
 | Glue | [FusionCache × Redis](infrastructure.md#cache) | – | **done**: Redis as second level and backplane (the first glue unit) |
-| Infrastructure | [Keycloak, Entra ID, ASP.NET Core Identity](infrastructure.md#authentication) | group `auth` | designed |
+| Infrastructure | [Keycloak, Entra ID, ASP.NET Core Identity](infrastructure.md#authentication) | group `auth` | phase 7c: Keycloak first |
 | Infrastructure | [SignalR](infrastructure.md#realtime) | group `realtime` | designed |
 | Strategy | [Soft delete](strategies.md#soft-delete) | – | designed |
 | Strategy | [Audit](strategies.md#audit) | – | designed |

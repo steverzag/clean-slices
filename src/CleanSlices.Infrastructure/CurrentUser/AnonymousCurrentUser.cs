@@ -1,4 +1,4 @@
-#if (current_user)
+#if (current_user && !authentication)
 namespace CleanSlices.Infrastructure.CurrentUser;
 
 // Used until an authentication option provides the user from the request's claims.

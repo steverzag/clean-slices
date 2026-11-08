@@ -36,6 +36,19 @@ public class WidgetEndpointsTests(ApiFactory factory)
 			(await retry.Content.ReadAsAsync<CreateWidget.CreateWidgetResponse>()).Id);
 	}
 #endif
+#if (authentication)
+
+	[Fact]
+	public async Task Requests_without_a_login_get_401()
+	{
+		var client = factory.CreateClient();
+		client.DefaultRequestHeaders.Authorization = null;
+
+		var response = await client.GetAsync("/widgets", TestContext.Current.CancellationToken);
+
+		Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+	}
+#endif
 
 	[Fact]
 	public async Task Create_with_an_empty_name_returns_400_with_the_field_error()

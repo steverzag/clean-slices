@@ -41,6 +41,12 @@
       "defaultValue": "false",
       "description": "Idempotency keys: the create endpoint replays its stored response for a retry with the same Idempotency-Key header."
     },
+    "authentication": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "Authentication (any authentication option): the tests check that the endpoints require a login."
+    },
     "app": {
       "type": "parameter",
       "datatype": "text",

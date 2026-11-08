@@ -55,7 +55,10 @@ The options the solution was created with, each with its own documentation:
 <!--#if (servicebus)-->
 - **Azure Service Bus**: integration events go through a topic (the emulator locally), retried and dead-lettered. See [docs/messaging.md](docs/messaging.md).
 <!--#endif-->
-<!--#if (!samples && !result && !outbox && !inbox && !postgresql && !validation && !idempotency && !repository && !cqrs && !redis && !fusioncache && !rabbitmq && !servicebus)-->
+<!--#if (keycloak)-->
+- **Keycloak**: every endpoint requires a login; the API validates Keycloak tokens, and the AppHost runs Keycloak with test users. See [docs/authentication.md](docs/authentication.md).
+<!--#endif-->
+<!--#if (!samples && !result && !outbox && !inbox && !postgresql && !validation && !idempotency && !repository && !cqrs && !redis && !fusioncache && !rabbitmq && !servicebus && !keycloak)-->
 - None: this is the default setup. Options can be added later with the CLI.
 <!--#endif-->
 

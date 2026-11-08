@@ -1,4 +1,10 @@
 using CleanSlices.Api.Configuration;
+#if (authentication)
+using CleanSlices.Api.Configuration.Authentication;
+#endif
+#if (keycloak)
+using CleanSlices.Api.Configuration.Authentication.Keycloak;
+#endif
 using CleanSlices.Api.Configuration.Endpoints;
 #if (cqrs)
 using CleanSlices.Api.Configuration.Cqrs;
@@ -17,6 +23,9 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 builder.AddInfrastructure();
+#if (keycloak)
+builder.AddKeycloakAuthentication();
+#endif
 
 builder.Services.AddExceptionHandler<ExceptionHandler>();
 builder.Services.AddProblemDetails(options =>
@@ -46,10 +55,19 @@ app.MapDefaultEndpoints();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
+#if (authentication)
+    app.MapOpenApi().AllowAnonymous();
+#else
     app.MapOpenApi();
+#endif
 }
 
 app.UseHttpsRedirection();
+#if (authentication)
+// After the status code pages, so 401 and 403 get a ProblemDetails body.
+app.UseAuthentication();
+app.UseAuthorization();
+#endif
 app.RegisterEndpoints();
 
 await app.RunAsync();

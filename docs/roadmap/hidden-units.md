@@ -11,6 +11,7 @@ A hidden unit is a piece that several options need but nobody picks on its own. 
 | [`after-commit`](#after-commit) | `IAfterCommit` | – | HybridCache (invalidation); next the queue and realtime | – |
 | [`integration-events`](#integration-events) | `IIntegrationEventPublisher`, `IMessageDispatcher` | in-process | outbox, queue options | queue options (dispatcher) |
 | [`message-broker`](#message-broker) | what the queue options share (settings, message format, after-commit publisher) | – | RabbitMQ, Service Bus | – |
+| [`authentication`](#authentication) | what the authentication options share (claims-based `ICurrentUser`, fallback policy) | – | Keycloak, Entra ID, Identity | – |
 
 They're built together with the first option that needs them.
 
@@ -137,3 +138,18 @@ Domain events and integration events:
 - `AfterCommitPublisher`, only without the outbox (excluded with it): sends each event once the save commits.
 - Requires `integration-events` and `after-commit`. With the outbox, `after-commit` is present but unused; accepted (see [infrastructure.md](infrastructure.md#queue)).
 - Its symbol, `message_broker`, is what code and tests use for "any broker" (`#if (!message_broker)` on the outbox's in-process-only test).
+
+## Authentication
+
+**What.** What the authentication options share, so each option only brings its own scheme.
+
+**Built (phase 7c)**, with Keycloak: `Api/Configuration/Authentication/`.
+
+**Design.**
+
+- `ClaimsCurrentUser` replaces the anonymous `ICurrentUser` of the [`current-user`](#current-user) unit, which it requires: the user ID is the name identifier claim. Outside a request (background work) it answers anonymous.
+- A fallback policy requires an authenticated user on every endpoint; health checks and the OpenAPI document are anonymous.
+- Requires `current-user`. It doesn't provide `login`: each option does, so an option that needs logged-in users never gets this unit alone (see [infrastructure.md](infrastructure.md#authentication)).
+- Its symbol, `authentication`, is what code and tests use for "any authentication option".
+
+**Feature template.** No change.

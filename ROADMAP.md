@@ -174,7 +174,7 @@ Each phase ends with something usable. The order is a proposal.
 | 4, done | **Outbox, inbox, integration events**: the first hidden unit, `requires` / `provides` between real options (the inbox gets the outbox), `recommended` and `addsTables`, three sample integration events. The CI matrix found a concurrency bug in the outbox's claim before release | Seams with defaults and hidden units |
 | 5, done | **PostgreSQL**: the first infrastructure group (`database`, SQL Server by default), the model-rules hidden unit, snake_case names and a case-insensitive email through model rules | Provider-neutral code |
 | 6, done | **Repository, CQRS, request validation, idempotency keys**: three options meeting in every handler, written as flat `#elif` chains (decided by a prototype); the first choice (`cqrs` dispatcher: own handlers or Mediator); the `current-user` and `cache` hidden units; listed matrix combinations (`result` + repository + CQRS) | Several invasive patterns in one feature template |
-| 7 | **Queue, cache, authentication, realtime**. 7a done: Redis and FusionCache (two cache groups), the first glue unit (`fusioncache-redis`), the `hybrid-cache` and `after-commit` hidden units. 7b done: RabbitMQ and Azure Service Bus (the `message-broker` hidden unit, the inbox without the outbox) | Zero-glue combinations, and the first glue units |
+| 7 | **Queue, cache, authentication, realtime**. 7a done: Redis and FusionCache (two cache groups), the first glue unit (`fusioncache-redis`), the `hybrid-cache` and `after-commit` hidden units. 7b done: RabbitMQ and Azure Service Bus (the `message-broker` hidden unit, the inbox without the outbox). 7c: Keycloak built (the `authentication` hidden unit, the `login` capability, provider roles as role claims); Entra ID and Identity next | Zero-glue combinations, and the first glue units |
 | 8 | **Strategies**: soft delete, audit | Options on entities and the save pipeline order |
 | 9 | **Extras**; publish the CLI on NuGet | Ready for other people |
 
@@ -192,6 +192,7 @@ Parked: discussed or proposed, deliberately not now.
 - **SSE** as a second realtime option; **Azure SignalR Service** for scale-out.
 - **Database-backed idempotency store**, as a `store` sub-option, for teams that need the transactional guarantee.
 - **Public-only integration events** refinements, and a **separate read store** for CQRS.
+- **Permissions** pattern (proposed in phase 7c), requiring the `login` capability that every authentication option provides. Phase 7c prepares it: every option turns its provider's roles into standard role claims. The option would add `.RequirePermission("tasks.write")` (a policy provider that builds a policy for any `perm:` name, so nothing is registered per permission), permissions from a role → permissions map in settings (defaults in code), perhaps a choice to read them from token claims instead (Keycloak client roles, Entra app roles), 403 as ProblemDetails, `widgets.read` / `widgets.write` in the feature template, and in the samples only admins delete users. Per-resource checks ("only the owner can edit") stay app code; the docs would show `IAuthorizationService`.
 - **Containers**, **dev container** (extras); **API versioning**, **rate limiting** (pattern candidates).
 
 Open questions:

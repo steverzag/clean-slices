@@ -134,6 +134,18 @@
       "defaultValue": "false",
       "description": "Message broker (added by the CLI with a queue option): what RabbitMQ and Service Bus share."
     },
+    "keycloak": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "Every endpoint requires a login: the API validates Keycloak tokens; the AppHost runs Keycloak with a realm and test users."
+    },
+    "authentication": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "Authentication (added by the CLI with an authentication option): what the authentication options share."
+    },
     "hybrid_cache": {
       "type": "parameter",
       "datatype": "bool",
@@ -326,6 +338,27 @@
           "condition": "(!servicebus)",
           "exclude": [
             "src/CleanSlices.Infrastructure/IntegrationEvents/ServiceBus/**"
+          ]
+        },
+        {
+          "condition": "(!authentication)",
+          "exclude": [
+            "src/CleanSlices.Api/Configuration/Authentication/**",
+            "tests/CleanSlices.Api.Tests/Authentication/**",
+            "docs/authentication.md"
+          ]
+        },
+        {
+          "condition": "(authentication)",
+          "exclude": [
+            "src/CleanSlices.Infrastructure/CurrentUser/AnonymousCurrentUser.cs"
+          ]
+        },
+        {
+          "condition": "(!keycloak)",
+          "exclude": [
+            "src/CleanSlices.Api/Configuration/Authentication/Keycloak/**",
+            "aspire/CleanSlices.AppHost/Keycloak/**"
           ]
         },
         {

@@ -21,12 +21,22 @@
     <!--#if (servicebus)-->
     <PackageReference Include="Testcontainers.ServiceBus" />
     <!--#endif-->
+    <!--#if (keycloak)-->
+    <PackageReference Include="Testcontainers.Keycloak" />
+    <!--#endif-->
     <PackageReference Include="xunit.v3" />
   </ItemGroup>
 
   <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
+  <!--#if (keycloak)-->
+
+  <!-- The tests import the same realm as the AppHost. -->
+  <ItemGroup>
+    <None Include="..\..\aspire\CleanSlices.AppHost\Keycloak\realm.json" Link="Authentication\realm.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <!--#endif-->
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\CleanSlices.Api\CleanSlices.Api.csproj" />

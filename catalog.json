@@ -13,7 +13,8 @@
     "database": { "title": "Database", "required": true, "default": "sqlserver" },
     "cache": { "title": "Cache", "required": false },
     "cache-library": { "title": "Cache library", "required": false },
-    "queue": { "title": "Queue", "required": false }
+    "queue": { "title": "Queue", "required": false },
+    "auth": { "title": "Authentication", "required": false }
   },
 
   "units": [
@@ -140,6 +141,16 @@
       "license": { "notice": "Azure Service Bus is a paid Azure service. The local emulator (AppHost and tests) runs under Microsoft's emulator license terms, accepted for you by the AppHost and the tests; it is for development only." }
     },
     {
+      "id": "keycloak",
+      "kind": "option",
+      "concept": "infrastructure",
+      "group": "auth",
+      "title": "Keycloak",
+      "description": "Every endpoint requires a login: the API validates Keycloak's tokens, with realm roles as role claims; the AppHost runs Keycloak with a ready realm and test users.",
+      "requires": ["authentication"],
+      "provides": ["login"]
+    },
+    {
       "id": "integration-events",
       "kind": "hidden"
     },
@@ -168,6 +179,11 @@
       "id": "message-broker",
       "kind": "hidden",
       "requires": ["integration-events", "after-commit"]
+    },
+    {
+      "id": "authentication",
+      "kind": "hidden",
+      "requires": ["current-user"]
     },
     {
       "id": "fusioncache-redis",

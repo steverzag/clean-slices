@@ -1,40 +1,75 @@
 @CleanSlices.Api_HostAddress = http://localhost:5221
+# #if (keycloak)
+
+# Every endpoint requires a login: run this request first. It logs in the test user of the AppHost's Keycloak.
+# @name login
+POST http://localhost:18080/realms/cleanslices-realm/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=password&client_id=cleanslices-api&username=user&password=user
+
+###
+# #endif
 
 # #if (samples)
 GET {{CleanSlices.Api_HostAddress}}/tasks
+# #if (authentication)
+Authorization: Bearer {{login.response.body.access_token}}
+# #endif
 Accept: application/json
 
 ###
 
 # Lists are paged: page 1 and 10 items by default, at most 50 per page
 GET {{CleanSlices.Api_HostAddress}}/tasks?pageNumber=2&pageSize=5
+# #if (authentication)
+Authorization: Bearer {{login.response.body.access_token}}
+# #endif
 Accept: application/json
 
 ###
 
 GET {{CleanSlices.Api_HostAddress}}/users
+# #if (authentication)
+Authorization: Bearer {{login.response.body.access_token}}
+# #endif
 Accept: application/json
 
 ###
 
 # Replace the IDs with ones returned by the GET requests above
 DELETE {{CleanSlices.Api_HostAddress}}/tasks/00000000-0000-0000-0000-000000000000
+# #if (authentication)
+Authorization: Bearer {{login.response.body.access_token}}
+# #endif
 
 ###
 
 DELETE {{CleanSlices.Api_HostAddress}}/users/00000000-0000-0000-0000-000000000000
+# #if (authentication)
+Authorization: Bearer {{login.response.body.access_token}}
+# #endif
 
 ###
 
 POST {{CleanSlices.Api_HostAddress}}/tasks/00000000-0000-0000-0000-000000000000/users/00000000-0000-0000-0000-000000000000
+# #if (authentication)
+Authorization: Bearer {{login.response.body.access_token}}
+# #endif
 
 ###
 
 DELETE {{CleanSlices.Api_HostAddress}}/tasks/00000000-0000-0000-0000-000000000000/users/00000000-0000-0000-0000-000000000000
+# #if (authentication)
+Authorization: Bearer {{login.response.body.access_token}}
+# #endif
 
 ###
 # #else
 GET {{CleanSlices.Api_HostAddress}}/health
+# #if (authentication)
+Authorization: Bearer {{login.response.body.access_token}}
+# #endif
 
 ###
 # #endif

@@ -2,7 +2,7 @@
 using CleanSlices.Core.Domain;
 #endif
 using CleanSlices.Core.Messages;
-#if (current_user)
+#if (current_user && !authentication)
 using CleanSlices.Infrastructure.CurrentUser;
 #endif
 #if (inbox)
@@ -72,7 +72,7 @@ public static class InfrastructureRegistration
 #if (cqrs)
 			services.TryAddScoped<IReadDb>(sp => sp.GetRequiredService<AppDbContext>());
 #endif
-#if (current_user)
+#if (current_user && !authentication)
 			services.TryAddSingleton<ICurrentUser, AnonymousCurrentUser>();
 #endif
 #if (after_commit)

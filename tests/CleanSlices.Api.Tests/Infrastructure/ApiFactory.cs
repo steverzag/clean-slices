@@ -1,3 +1,9 @@
+#if (keycloak)
+using CleanSlices.Api.Configuration.Authentication.Keycloak;
+#endif
+#if (authentication)
+using CleanSlices.Api.Tests.Authentication;
+#endif
 using CleanSlices.Api.Tests.Infrastructure;
 #if (integration_events)
 using CleanSlices.Api.Tests.IntegrationEvents;
@@ -40,7 +46,10 @@ using Testcontainers.MsSql;
 #if (redis)
 using Testcontainers.Redis;
 #endif
-#if (servicebus)
+#if (authentication)
+using System.Net.Http.Headers;
+#endif
+#if (servicebus || keycloak)
 using System.Text.Json;
 #endif
 #if (rabbitmq)
@@ -48,6 +57,9 @@ using Testcontainers.RabbitMq;
 #endif
 #if (servicebus)
 using Testcontainers.ServiceBus;
+#endif
+#if (keycloak)
+using Testcontainers.Keycloak;
 #endif
 
 [assembly: AssemblyFixture(typeof(ApiFactory))]
@@ -76,6 +88,14 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 		.WithConfig(EmulatorConfig())
 		.Build();
 #endif
+#if (keycloak)
+	private readonly KeycloakContainer _keycloak = new KeycloakBuilder("quay.io/keycloak/keycloak:26.8")
+		.WithRealm(Path.Combine(AppContext.BaseDirectory, "Authentication", "realm.json"))
+		.Build();
+#endif
+#if (authentication)
+	private string _userToken = "";
+#endif
 
 	public async ValueTask InitializeAsync()
 	{
@@ -86,8 +106,49 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 #if (message_broker)
 		await _messaging.StartAsync(TestContext.Current.CancellationToken);
 #endif
+#if (keycloak)
+		await _keycloak.StartAsync(TestContext.Current.CancellationToken);
+#endif
 		await CreateSchemaAsync(this);
+#if (authentication)
+		_userToken = await LoginAsync(TestUsers.User);
+#endif
 	}
+#if (authentication)
+
+	// Every client the tests create is logged in as the test user.
+	protected override void ConfigureClient(HttpClient client)
+	{
+		base.ConfigureClient(client);
+		client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _userToken);
+	}
+#endif
+#if (keycloak)
+
+	public string KeycloakAuthority =>
+		_keycloak.GetBaseAddress().TrimEnd('/') + new Uri(new KeycloakOptions().Authority).AbsolutePath;
+
+	// The realm's test users have their name as password; the client allows the password grant for this.
+	public async Task<string> LoginAsync(string username)
+	{
+		using var http = new HttpClient();
+		using var response = await http.PostAsync(
+			$"{KeycloakAuthority}/protocol/openid-connect/token",
+			new FormUrlEncodedContent(new Dictionary<string, string>
+			{
+				["grant_type"] = "password",
+				["client_id"] = new KeycloakOptions().Audience,
+				["username"] = username,
+				["password"] = username,
+				["scope"] = "openid",
+			}),
+			TestContext.Current.CancellationToken);
+		response.EnsureSuccessStatusCode();
+
+		using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+		return json.RootElement.GetProperty("access_token").GetString()!;
+	}
+#endif
 
 	/// <summary>
 	/// A separate API host with its own empty database, for tests that count rows (totals, pages).
@@ -127,6 +188,9 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 #endif
 #if (message_broker)
 		builder.UseSetting($"ConnectionStrings:{InfrastructureRegistration.MessagingConnectionName}", _messaging.GetConnectionString());
+#endif
+#if (keycloak)
+		builder.UseSetting($"{KeycloakOptions.Section}:Authority", KeycloakAuthority);
 #endif
 #if (outbox)
 
@@ -238,6 +302,9 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 #endif
 #if (message_broker)
 		await _messaging.DisposeAsync();
+#endif
+#if (keycloak)
+		await _keycloak.DisposeAsync();
 #endif
 	}
 }

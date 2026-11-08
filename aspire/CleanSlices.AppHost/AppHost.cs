@@ -8,6 +8,9 @@ const int PostgresPort = 15432;
 #else
 const int SqlServerPort = 14330;
 #endif
+#if (keycloak)
+const int KeycloakPort = 18080;
+#endif
 
 var api = builder.AddProject<Projects.CleanSlices_Api>("cleanslices-api");
 
@@ -48,6 +51,22 @@ messaging.AddServiceBusTopic("cleanslices-events")
 	.AddServiceBusSubscription("cleanslices-api-subscription", subscriptionName: "cleanslices-api")
 	.WithProperties(subscription => subscription.MaxDeliveryCount = 5);
 api.WithReference(messaging).WaitFor(messaging);
+#endif
+#if (keycloak)
+
+// A plain container: Aspire's Keycloak integration is still in preview.
+// The realm in Keycloak/ (client, roles, test users) is imported on every start; nothing else is kept.
+var keycloakPassword = builder.AddParameter("cleanslices-keycloak-password", new GenerateParameterDefault { MinLength = 16 }, secret: true, persist: true);
+var keycloak = builder.AddContainer("cleanslices-keycloak", "quay.io/keycloak/keycloak", "26.8")
+	.WithArgs("start-dev", "--import-realm")
+	.WithEnvironment("KC_BOOTSTRAP_ADMIN_USERNAME", "admin")
+	.WithEnvironment("KC_BOOTSTRAP_ADMIN_PASSWORD", keycloakPassword)
+	.WithEnvironment("KC_HEALTH_ENABLED", "true")
+	.WithBindMount("Keycloak", "/opt/keycloak/data/import", isReadOnly: true)
+	.WithHttpEndpoint(port: KeycloakPort, targetPort: 8080)
+	.WithHttpEndpoint(targetPort: 9000, name: "management")
+	.WithHttpHealthCheck("/health/ready", endpointName: "management");
+api.WaitFor(keycloak);
 #endif
 
 builder.Build().Run();
