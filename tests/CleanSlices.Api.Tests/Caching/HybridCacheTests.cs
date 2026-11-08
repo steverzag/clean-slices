@@ -78,10 +78,24 @@ public class HybridCacheTests(ApiFactory factory)
 		var key = NewKey();
 
 		await first.GetOrCreateAsync(key, _ => ValueTask.FromResult("old"), cancellationToken: CancellationToken);
+		await WaitUntilInRedisAsync(key);
 		await second.RemoveAsync(key, CancellationToken);
 
 		Assert.Equal("new", await second.GetOrCreateAsync(key, _ => ValueTask.FromResult("new"), cancellationToken: CancellationToken));
 		Assert.Equal("old", await first.GetOrCreateAsync(key, _ => ValueTask.FromResult("new"), cancellationToken: CancellationToken));
+	}
+
+	// Microsoft's HybridCache can finish writing Redis after GetOrCreateAsync returns: wait for it,
+	// or that late write could put the old value back after the removal.
+	private async Task WaitUntilInRedisAsync(string key)
+	{
+		var redis = factory.Services.GetRequiredService<IDistributedCache>();
+		var deadline = DateTime.UtcNow.AddSeconds(5);
+		while (await redis.GetAsync(key, CancellationToken) is null)
+		{
+			Assert.True(DateTime.UtcNow < deadline, $"'{key}' never reached Redis.");
+			await Task.Delay(50, CancellationToken);
+		}
 	}
 #endif
 #if (fusioncache_redis)
