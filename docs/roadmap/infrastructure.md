@@ -124,7 +124,7 @@ Plus the **`fusioncache-redis` glue unit**, added when both are selected: Redis 
 
 **Options.** Keycloak, Microsoft Entra ID, ASP.NET Core Identity. The default is none: an open API.
 
-**Built (phase 7c): Keycloak.** Documented for users in `docs/authentication.md`.
+**Built (phase 7c): Keycloak, Entra ID.** Documented for users in `docs/authentication.md`.
 
 **As built (Keycloak).**
 
@@ -134,6 +134,14 @@ Plus the **`fusioncache-redis` glue unit**, added when both are selected: Redis 
 - **Realm** `aspire/…AppHost/Keycloak/realm.json` (a neutral file name: the template renames `cleanslices` inside files, not in this file's name): realm `<app>-realm`, public client `<app>-api` (PKCE, password grant for tests and the `.http` file, an audience mapper adding itself to `aud`), role `admin`, users `user` / `user` and `admin` / `admin` (first and last name and email set: Keycloak refuses logins of users whose profile is incomplete), one-hour access tokens.
 - **Tests**: Testcontainers Keycloak with the same realm file (linked into the test project); `ApiFactory` logs `user` in once and adds the token in `ConfigureClient`, which derived factories reuse, so no existing test changed. `AuthenticationTests`: anonymous health and OpenAPI, 401 as ProblemDetails (samples), a bad token, `ICurrentUser.UserId` equals the token's `sub`, admin 200 / user 403 on a role check (in a small test app; sabotage-proved). The feature template gets a 401 test.
 - Verified with the AppHost of a generated solution: the realm imports, the test users get tokens, no token or a bad one gives 401, a valid one reaches the handler.
+
+**As built (Entra ID).**
+
+- **The standard `AddJwtBearer`, not `Microsoft.Identity.Web`** (changed while building): for an API that only validates tokens for one tenant, Identity.Web adds MSAL, token acquisition and caches, and old `DataProtection` / `Cryptography.Xml` versions. What it would handle here is two Entra details, now two lines: `ValidIssuers` (v2 `…/{tenant}/v2.0` and v1 `https://sts.windows.net/{tenant}/`) and `ValidAudiences` (the client ID and `api://{client-id}`). The docs point to Identity.Web for downstream calls and multi-tenant apps. The JwtBearer package is shared with Keycloak (`keycloak || entra` package conditionals).
+- `Api/Configuration/Authentication/Entra/`: `EntraOptions` (`Authentication:Entra:` `TenantId`, `ClientId` required, `Instance`, `Scope` `access_as_user`), `AddEntraAuthentication()` (fails at startup naming the missing settings; `OnTokenValidated` replaces the name identifier with `oid`: Entra's `sub` is pairwise per app), `EntraOpenApi` (OAuth2 authorization code against the tenant, scope `api://{client-id}/access_as_user`). App roles arrive in `roles`, which the default claim mapping already turns into role claims.
+- **AppHost**: two parameters (`<app>-entra-tenant-id`, `<app>-entra-client-id`) passed to the API as environment variables; the dashboard asks for them on the first run. Not run: it needs a tenant.
+- **Tests**: no tenant. `ApiFactory` signs its own tokens (HMAC test key, the option's v2 issuer and client ID, `oid` different from `sub`, `roles` for the admin) and replaces only the metadata: `options.ConfigurationManager` becomes a `StaticConfigurationManager` in a post-configure (setting `options.Configuration` there is too late: JwtBearer's own post-configure has already created a manager that fetches Entra's metadata, and every token got 401). The same `AuthenticationTests` run; the user-ID test expects `oid` (sabotage-proved).
+- `.http`: `@token`, pasted from `az account get-access-token` (the docs say how to authorize the Azure CLI on the API).
 
 | Option | How | Local development |
 |---|---|---|

@@ -13,7 +13,7 @@
     <PackageVersion Include="Mediator.Abstractions" Version="3.0.2" />
     <PackageVersion Include="Mediator.SourceGenerator" Version="3.0.2" />
     <!--#endif-->
-    <!--#if (keycloak)-->
+    <!--#if (keycloak || entra)-->
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.14" />
     <!--#endif-->
   </ItemGroup>

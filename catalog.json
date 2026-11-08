@@ -151,6 +151,17 @@
       "provides": ["login"]
     },
     {
+      "id": "entra",
+      "kind": "option",
+      "concept": "infrastructure",
+      "group": "auth",
+      "title": "Microsoft Entra ID",
+      "description": "Every endpoint requires a login: the API validates Entra ID tokens for your app registration, with app roles as role claims; the AppHost asks for the tenant and client IDs.",
+      "requires": ["authentication"],
+      "provides": ["login"],
+      "license": { "notice": "Microsoft Entra ID is an Azure service: you need a tenant and an app registration (the free tier is enough for development). The tests don't call Entra; they sign their own tokens." }
+    },
+    {
       "id": "integration-events",
       "kind": "hidden"
     },

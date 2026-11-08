@@ -14,7 +14,11 @@ The shared code is in `Api/Configuration/Authentication/`; each provider adds it
 
 `ICurrentUser` (`Infrastructure/CurrentUser/`) tells the code who made the request:
 
+<!--#if (entra)-->
+- `UserId` is the login's ID: the standard name identifier claim, which holds the user's object ID (`oid`) in the tenant. Entra's subject (`sub`) is different for every app, so it isn't used. It is `null` without a login, and outside a request (background work such as the outbox).
+<!--#else-->
 - `UserId` is the login's ID: the standard name identifier claim, which the token's subject (`sub`) fills. It is `null` without a login, and outside a request (background work such as the outbox).
+<!--#endif-->
 - `IsAuthenticated` is `true` for a logged-in user.
 
 Options that work per user read it, so they need no change: idempotency keys, for example, belong to the user who sent them.
@@ -98,6 +102,49 @@ Outside Development the authority must use HTTPS.
 - `start-dev` uses an in-memory database and HTTP. A real Keycloak runs with `start`, its own database and HTTPS.
 <!--#endif-->
 
+<!--#if (entra)-->
+## Microsoft Entra ID
+
+The API validates the access tokens Entra ID issues for your app registration (JWT bearer, `Microsoft.AspNetCore.Authentication.JwtBearer`). Entra ID is an Azure service: you need a tenant (the free tier is enough for development). There is nothing to run locally.
+
+### Registering the API
+
+In the Entra admin center (*Identity › Applications › App registrations*), or with `az ad app create`:
+
+1. **Register an application** for the API, single tenant. Its *Application (client) ID* and *Directory (tenant) ID* are the two settings below.
+2. **Expose an API**: set the Application ID URI (`api://<client-id>` by default) and add a scope named `access_as_user`.
+3. **App roles**: add a role with the value `admin` (allowed member types: users/groups), then assign it to users under *Enterprise applications › your app › Users and groups*. Assigned roles arrive in the token's `roles` claim and become role claims.
+4. For a client that signs users in (a browser app, an API reference page), register it, add the `access_as_user` scope under its *API permissions*, and let it sign users in with the authorization code flow and PKCE.
+
+### Settings
+
+| Setting | Default | |
+|---|---|---|
+| `Authentication:Entra:TenantId` | – (required) | The directory (tenant) ID |
+| `Authentication:Entra:ClientId` | – (required) | The API's application (client) ID |
+| `Authentication:Entra:Instance` | `https://login.microsoftonline.com/` | Another cloud's login URL, if needed |
+| `Authentication:Entra:Scope` | `access_as_user` | The scope the OpenAPI document asks for |
+
+The API refuses to start without the tenant and client IDs. With the AppHost you don't set them on the API: on the first run the dashboard asks for the parameters `cleanslices-entra-tenant-id` and `cleanslices-entra-client-id`, keeps them in the AppHost's user secrets, and passes them to the API. Without the AppHost, put them in the API's user secrets or environment (`Authentication__Entra__TenantId`, ...).
+
+Tokens are accepted when Entra issued them for the tenant, in either version (v1 tokens come from `https://sts.windows.net/<tenant-id>/`, v2 from `…/<tenant-id>/v2.0`, depending on the registration's *accessTokenAcceptedVersion*), and when their audience is the client ID or `api://<client-id>`.
+
+### Getting a token
+
+The quickest way is the Azure CLI. Allow it once: under *Expose an API › Authorized client applications*, add the Azure CLI's client ID, `04b07795-8ddb-461a-bbee-02f9e1bf7b46`, with the `access_as_user` scope. Then:
+
+```
+az login --tenant <tenant-id>
+az account get-access-token --scope api://<client-id>/access_as_user --query accessToken -o tsv
+```
+
+Paste the token into `@token` at the top of `src/CleanSlices.Api/CleanSlices.Api.http`; it lasts about an hour. The OpenAPI document describes the login (OAuth2, authorization code against your tenant), so API reference pages can sign in with Entra.
+
+### Beyond this option
+
+The option only validates tokens, for one tenant. For calling other APIs on the user's behalf (Microsoft Graph, your own services) or for accepting several tenants, use `Microsoft.Identity.Web` (`AddMicrosoftIdentityWebApi`) instead: it adds token acquisition and multi-tenant issuer checks, at the cost of more dependencies.
+<!--#endif-->
+
 ## Tests
 
 The tests log in for you: `ApiFactory` gets a token for the test user once per run and adds it to every client it creates, so endpoint tests need nothing extra. For another user, call `factory.LoginAsync(TestUsers.Admin)` and set the `Authorization` header yourself. To check that an endpoint requires a login, remove the header:
@@ -109,4 +156,7 @@ client.DefaultRequestHeaders.Authorization = null;
 
 <!--#if (keycloak)-->
 The tests run Keycloak in a container (Testcontainers) with the same realm file as the AppHost.
+<!--#endif-->
+<!--#if (entra)-->
+The tests don't call Entra ID: the test factory signs its own tokens and the API trusts only that key. Everything else is the real validation (issuer, audience, roles, the object ID as the user ID); only fetching Entra's signing keys isn't tested.
 <!--#endif-->

@@ -1,6 +1,9 @@
 #if (authentication)
 using System.Net;
 using System.Net.Http.Headers;
+#if (entra)
+using CleanSlices.Api.Configuration.Authentication.Entra;
+#endif
 #if (keycloak)
 using CleanSlices.Api.Configuration.Authentication.Keycloak;
 #endif
@@ -57,14 +60,19 @@ public class AuthenticationTests(ApiFactory factory) : IAsyncDisposable
 	}
 
 	[Fact]
-	public async Task The_current_user_is_the_login_subject()
+	public async Task The_current_user_is_the_login_ID()
 	{
 		var token = await factory.LoginAsync(TestUsers.User);
 		var client = await StartAsync(token);
 
 		var userId = await client.GetStringAsync("/me", TestContext.Current.CancellationToken);
 
+#if (entra)
+		// The object ID, not the subject: Entra's subject differs per app.
+		Assert.Equal(new JsonWebToken(token).GetClaim("oid").Value, userId);
+#else
 		Assert.Equal(new JsonWebToken(token).Subject, userId);
+#endif
 	}
 
 	[Fact]
@@ -96,6 +104,10 @@ public class AuthenticationTests(ApiFactory factory) : IAsyncDisposable
 #if (keycloak)
 			builder.Configuration[$"{KeycloakOptions.Section}:Authority"] = factory.KeycloakAuthority;
 			builder.AddKeycloakAuthentication();
+#elif (entra)
+			factory.UseEntraSettings(builder.Configuration);
+			builder.AddEntraAuthentication();
+			factory.TrustTestTokens(builder.Services);
 #endif
 
 			_app = builder.Build();

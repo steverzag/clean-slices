@@ -12,7 +12,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <!--#endif-->
-    <!--#if (keycloak)-->
+    <!--#if (keycloak || entra)-->
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
     <!--#endif-->
   </ItemGroup>

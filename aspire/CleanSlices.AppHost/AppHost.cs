@@ -68,5 +68,13 @@ var keycloak = builder.AddContainer("cleanslices-keycloak", "quay.io/keycloak/ke
 	.WithHttpHealthCheck("/health/ready", endpointName: "management");
 api.WaitFor(keycloak);
 #endif
+#if (entra)
+
+// Entra ID runs in Azure: on the first run the dashboard asks for your app registration's IDs and keeps them in user secrets.
+var entraTenantId = builder.AddParameter("cleanslices-entra-tenant-id");
+var entraClientId = builder.AddParameter("cleanslices-entra-client-id");
+api.WithEnvironment("Authentication__Entra__TenantId", entraTenantId)
+	.WithEnvironment("Authentication__Entra__ClientId", entraClientId);
+#endif
 
 builder.Build().Run();

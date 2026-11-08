@@ -1,3 +1,6 @@
+#if (entra)
+using CleanSlices.Api.Configuration.Authentication.Entra;
+#endif
 #if (keycloak)
 using CleanSlices.Api.Configuration.Authentication.Keycloak;
 #endif
@@ -26,14 +29,26 @@ using CleanSlices.Infrastructure.Outbox;
 #endif
 using CleanSlices.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Hosting;
-#if (integration_events)
+#if (entra)
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+#endif
+#if (integration_events || entra)
 using Microsoft.AspNetCore.TestHost;
 #endif
 using Microsoft.AspNetCore.Mvc.Testing;
 #if (!postgresql)
 using Microsoft.Data.SqlClient;
 #endif
+#if (entra)
+using Microsoft.Extensions.Configuration;
+#endif
 using Microsoft.Extensions.DependencyInjection;
+#if (entra)
+using Microsoft.IdentityModel.JsonWebTokens;
+using Microsoft.IdentityModel.Protocols;
+using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using Microsoft.IdentityModel.Tokens;
+#endif
 #if (integration_events)
 using Microsoft.Extensions.Hosting;
 #endif
@@ -48,6 +63,9 @@ using Testcontainers.Redis;
 #endif
 #if (authentication)
 using System.Net.Http.Headers;
+#endif
+#if (entra)
+using System.Security.Cryptography;
 #endif
 #if (servicebus || keycloak)
 using System.Text.Json;
@@ -93,6 +111,14 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 		.WithRealm(Path.Combine(AppContext.BaseDirectory, "Authentication", "realm.json"))
 		.Build();
 #endif
+#if (entra)
+	private static readonly EntraOptions TestEntra = new()
+	{
+		TenantId = "00000000-0000-0000-0000-00000000aaaa",
+		ClientId = "00000000-0000-0000-0000-00000000bbbb",
+	};
+	private readonly SymmetricSecurityKey _signingKey = new(RandomNumberGenerator.GetBytes(32));
+#endif
 #if (authentication)
 	private string _userToken = "";
 #endif
@@ -122,6 +148,52 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 		base.ConfigureClient(client);
 		client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _userToken);
 	}
+#endif
+#if (entra)
+
+	// The tests can't log in to a tenant: they sign their own tokens, and the API trusts only that key and issuer.
+	// Everything else is the real validation: issuer, audience, roles, and the object ID as the user ID.
+	public void UseEntraSettings(IConfiguration configuration)
+	{
+		configuration[$"{EntraOptions.Section}:TenantId"] = TestEntra.TenantId;
+		configuration[$"{EntraOptions.Section}:ClientId"] = TestEntra.ClientId;
+	}
+
+	public void TrustTestTokens(IServiceCollection services) =>
+		services.PostConfigure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
+		{
+			var configuration = new OpenIdConnectConfiguration { Issuer = TestEntra.Authority };
+			configuration.SigningKeys.Add(_signingKey);
+			options.ConfigurationManager = new StaticConfigurationManager<OpenIdConnectConfiguration>(configuration);
+		});
+
+	public Task<string> LoginAsync(string username)
+	{
+		var claims = new Dictionary<string, object>
+		{
+			["sub"] = $"subject-of-{username}",
+			["oid"] = ObjectId(username),
+			["name"] = username,
+		};
+		if (username == TestUsers.Admin)
+		{
+			claims["roles"] = new[] { TestUsers.AdminRole };
+		}
+
+		var token = new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor
+		{
+			Issuer = TestEntra.Authority,
+			Audience = TestEntra.ClientId,
+			Claims = claims,
+			Expires = DateTime.UtcNow.AddHours(1),
+			SigningCredentials = new SigningCredentials(_signingKey, SecurityAlgorithms.HmacSha256),
+		});
+
+		return Task.FromResult(token);
+	}
+
+	public static string ObjectId(string username) =>
+		new Guid(MD5.HashData(System.Text.Encoding.UTF8.GetBytes(username))).ToString();
 #endif
 #if (keycloak)
 
@@ -191,6 +263,10 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 #endif
 #if (keycloak)
 		builder.UseSetting($"{KeycloakOptions.Section}:Authority", KeycloakAuthority);
+#elif (entra)
+		builder.UseSetting($"{EntraOptions.Section}:TenantId", TestEntra.TenantId);
+		builder.UseSetting($"{EntraOptions.Section}:ClientId", TestEntra.ClientId);
+		builder.ConfigureTestServices(TrustTestTokens);
 #endif
 #if (outbox)
 

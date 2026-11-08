@@ -58,7 +58,10 @@ The options the solution was created with, each with its own documentation:
 <!--#if (keycloak)-->
 - **Keycloak**: every endpoint requires a login; the API validates Keycloak tokens, and the AppHost runs Keycloak with test users. See [docs/authentication.md](docs/authentication.md).
 <!--#endif-->
-<!--#if (!samples && !result && !outbox && !inbox && !postgresql && !validation && !idempotency && !repository && !cqrs && !redis && !fusioncache && !rabbitmq && !servicebus && !keycloak)-->
+<!--#if (entra)-->
+- **Microsoft Entra ID**: every endpoint requires a login; the API validates Entra ID tokens for your app registration. See [docs/authentication.md](docs/authentication.md).
+<!--#endif-->
+<!--#if (!samples && !result && !outbox && !inbox && !postgresql && !validation && !idempotency && !repository && !cqrs && !redis && !fusioncache && !rabbitmq && !servicebus && !keycloak && !entra)-->
 - None: this is the default setup. Options can be added later with the CLI.
 <!--#endif-->
 

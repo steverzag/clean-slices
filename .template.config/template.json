@@ -140,6 +140,12 @@
       "defaultValue": "false",
       "description": "Every endpoint requires a login: the API validates Keycloak tokens; the AppHost runs Keycloak with a realm and test users."
     },
+    "entra": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "Every endpoint requires a login: the API validates Microsoft Entra ID tokens for your app registration."
+    },
     "authentication": {
       "type": "parameter",
       "datatype": "bool",
@@ -352,6 +358,12 @@
           "condition": "(authentication)",
           "exclude": [
             "src/CleanSlices.Infrastructure/CurrentUser/AnonymousCurrentUser.cs"
+          ]
+        },
+        {
+          "condition": "(!entra)",
+          "exclude": [
+            "src/CleanSlices.Api/Configuration/Authentication/Entra/**"
           ]
         },
         {

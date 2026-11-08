@@ -1,5 +1,13 @@
 @CleanSlices.Api_HostAddress = http://localhost:5221
+# #if (entra)
+
+# Every endpoint requires a login. Get a token for the API with the Azure CLI and paste it below
+# (docs/authentication.md says how to let the Azure CLI request it):
+#   az account get-access-token --scope api://<client-id>/access_as_user --query accessToken -o tsv
+@token = paste-the-token-here
+# #endif
 # #if (keycloak)
+@token = {{login.response.body.access_token}}
 
 # Every endpoint requires a login: run this request first. It logs in the test user of the AppHost's Keycloak.
 # @name login
@@ -14,7 +22,7 @@ grant_type=password&client_id=cleanslices-api&username=user&password=user
 # #if (samples)
 GET {{CleanSlices.Api_HostAddress}}/tasks
 # #if (authentication)
-Authorization: Bearer {{login.response.body.access_token}}
+Authorization: Bearer {{token}}
 # #endif
 Accept: application/json
 
@@ -23,7 +31,7 @@ Accept: application/json
 # Lists are paged: page 1 and 10 items by default, at most 50 per page
 GET {{CleanSlices.Api_HostAddress}}/tasks?pageNumber=2&pageSize=5
 # #if (authentication)
-Authorization: Bearer {{login.response.body.access_token}}
+Authorization: Bearer {{token}}
 # #endif
 Accept: application/json
 
@@ -31,7 +39,7 @@ Accept: application/json
 
 GET {{CleanSlices.Api_HostAddress}}/users
 # #if (authentication)
-Authorization: Bearer {{login.response.body.access_token}}
+Authorization: Bearer {{token}}
 # #endif
 Accept: application/json
 
@@ -40,35 +48,35 @@ Accept: application/json
 # Replace the IDs with ones returned by the GET requests above
 DELETE {{CleanSlices.Api_HostAddress}}/tasks/00000000-0000-0000-0000-000000000000
 # #if (authentication)
-Authorization: Bearer {{login.response.body.access_token}}
+Authorization: Bearer {{token}}
 # #endif
 
 ###
 
 DELETE {{CleanSlices.Api_HostAddress}}/users/00000000-0000-0000-0000-000000000000
 # #if (authentication)
-Authorization: Bearer {{login.response.body.access_token}}
+Authorization: Bearer {{token}}
 # #endif
 
 ###
 
 POST {{CleanSlices.Api_HostAddress}}/tasks/00000000-0000-0000-0000-000000000000/users/00000000-0000-0000-0000-000000000000
 # #if (authentication)
-Authorization: Bearer {{login.response.body.access_token}}
+Authorization: Bearer {{token}}
 # #endif
 
 ###
 
 DELETE {{CleanSlices.Api_HostAddress}}/tasks/00000000-0000-0000-0000-000000000000/users/00000000-0000-0000-0000-000000000000
 # #if (authentication)
-Authorization: Bearer {{login.response.body.access_token}}
+Authorization: Bearer {{token}}
 # #endif
 
 ###
 # #else
 GET {{CleanSlices.Api_HostAddress}}/health
 # #if (authentication)
-Authorization: Bearer {{login.response.body.access_token}}
+Authorization: Bearer {{token}}
 # #endif
 
 ###

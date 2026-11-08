@@ -2,6 +2,9 @@ using CleanSlices.Api.Configuration;
 #if (authentication)
 using CleanSlices.Api.Configuration.Authentication;
 #endif
+#if (entra)
+using CleanSlices.Api.Configuration.Authentication.Entra;
+#endif
 #if (keycloak)
 using CleanSlices.Api.Configuration.Authentication.Keycloak;
 #endif
@@ -25,6 +28,8 @@ builder.AddServiceDefaults();
 builder.AddInfrastructure();
 #if (keycloak)
 builder.AddKeycloakAuthentication();
+#elif (entra)
+builder.AddEntraAuthentication();
 #endif
 
 builder.Services.AddExceptionHandler<ExceptionHandler>();
