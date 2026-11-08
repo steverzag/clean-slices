@@ -112,6 +112,15 @@ public class MatrixPlannerTests
         Assert.Equal(["result", "cqrs:dispatcher=mediator"], job.Options.Select(o => o.ToString()));
     }
 
+
+    [Fact]
+    public void A_listed_combination_that_is_also_a_pair_keeps_its_tier()
+    {
+        var plan = MatrixPlanner.Plan(FakeCatalog.World, [new Combination(Tier.Push, "outbox", "result")]);
+
+        Assert.Equal(Tier.Push, plan.Jobs.Single(j => j.Id == "outbox+result").Tier);
+        Assert.DoesNotContain(plan.Jobs, j => j.Id == "result+outbox");
+    }
     [Fact]
     public void Listed_combinations_that_cant_be_resolved_are_skipped_with_the_reason()
     {

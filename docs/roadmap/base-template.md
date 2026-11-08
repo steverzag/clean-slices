@@ -101,7 +101,7 @@ These were planned for `main` and moved out: nothing in the default solution wou
 |---|---|---|
 | `ICurrentUser` | hidden unit [`current-user`](hidden-units.md#current-user) | Without authentication it always answers "anonymous", and only options read it |
 | Model rules hook | hidden unit [`model-rules`](hidden-units.md#model-rules) | Only strategies use it |
-| `HybridCache` | hidden unit [`cache`](hidden-units.md#cache) | Features cache nothing by default; only idempotency keys and Redis need it |
+| `HybridCache` | hidden unit [`hybrid-cache`](hidden-units.md#hybridcache) | Features cache nothing by default; only the caching options (Redis, FusionCache) bring it |
 | Lower-case emails | the [PostgreSQL option](infrastructure.md#database) | SQL Server's default collation already ignores case: a second user with `ana@x.com` after `Ana@X.com` gets a 409 (tested). Only PostgreSQL has the problem |
 | `TimeProvider` | possible option, concept to decide | Built, then reverted: its main benefit is testability, which shouldn't shape the default solution |
 

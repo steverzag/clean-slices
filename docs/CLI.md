@@ -60,6 +60,8 @@ Available options:
 | `idempotency` | Idempotency keys: endpoints with `.WithIdempotency()` replay the stored response for a retry with the same `Idempotency-Key` header. The create endpoints of new features use it. |
 | `sqlserver` | SQL Server, the default database: in a container from the AppHost, or an existing server. |
 | `postgresql` | PostgreSQL instead of SQL Server, with snake_case names and case-insensitive emails. Added to an existing solution, it replaces SQL Server. |
+| `redis` | Redis behind `IDistributedCache` and `HybridCache`, shared by every instance, in a container from the AppHost. Prints its license notice (source-available since 7.4). |
+| `fusioncache` | FusionCache (MIT) runs `HybridCache`: fail-safe, timeouts, eager refresh. With `redis` too, Redis becomes its second level and its backplane (added automatically). |
 
 ## Create a solution
 
@@ -164,7 +166,7 @@ Options can't be removed, and their choices can't be changed after they're appli
 {
   "manifestVersion": 2,
   "name": "Acme.Orders",
-  "cliVersion": "0.7.0",
+  "cliVersion": "0.8.0",
   "samples": false,
   "templateRepo": "https://github.com/steverzag/clean-slices.git",
   "templateCommit": "a63f5be9d2a0…",

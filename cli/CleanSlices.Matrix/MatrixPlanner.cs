@@ -105,15 +105,7 @@ internal static class MatrixPlanner
             Add($"{option.Id}-later", Tier.Push, Flow.AddLater, option.Samples, [OptionRequest.Of(option.Id)]);
         }
 
-        for (var i = 0; i < options.Count; i++)
-        {
-            for (var j = i + 1; j < options.Count; j++)
-            {
-                var (a, b) = (options[i], options[j]);
-                Add($"{a.Id}+{b.Id}", Tier.Full, Flow.New, a.Samples && b.Samples, [OptionRequest.Of(a.Id), OptionRequest.Of(b.Id)]);
-            }
-        }
-
+        // Before the pairs: a listed combination that is also a pair keeps its own tier.
         foreach (var combination in combinations ?? [])
         {
             var parsed = combination.Options.Select(OptionRequest.Parse).ToList();
@@ -126,6 +118,15 @@ internal static class MatrixPlanner
 
             var requests = parsed.Select(p => p.Request!).ToList();
             Add(id, combination.Tier, Flow.New, requests.All(r => catalog.Find(r.Id)?.Samples ?? false), requests);
+        }
+
+        for (var i = 0; i < options.Count; i++)
+        {
+            for (var j = i + 1; j < options.Count; j++)
+            {
+                var (a, b) = (options[i], options[j]);
+                Add($"{a.Id}+{b.Id}", Tier.Full, Flow.New, a.Samples && b.Samples, [OptionRequest.Of(a.Id), OptionRequest.Of(b.Id)]);
+            }
         }
 
         // Everything that fits together: each option in catalog order, kept when the configuration still resolves.

@@ -14,13 +14,26 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <!--#if (redis)-->
+    <PackageReference Include="Aspire.StackExchange.Redis.DistributedCaching" />
+    <!--#endif-->
+    <!--#if (hybrid_cache && !fusioncache)-->
+    <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" />
+    <!--#endif-->
+    <!--#if (fusioncache)-->
+    <PackageReference Include="ZiggyCreatures.FusionCache" />
+    <!--#endif-->
+    <!--#if (fusioncache_redis)-->
+    <PackageReference Include="ZiggyCreatures.FusionCache.Serialization.SystemTextJson" />
+    <PackageReference Include="ZiggyCreatures.FusionCache.Backplane.StackExchangeRedis" />
+    <!--#endif-->
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\CleanSlices.Core\CleanSlices.Core.csproj" />
   </ItemGroup>
 
-  <!--#if (outbox || inbox)-->
+  <!--#if (outbox || inbox || after_commit)-->
   <ItemGroup>
     <InternalsVisibleTo Include="CleanSlices.Api.Tests" />
   </ItemGroup>

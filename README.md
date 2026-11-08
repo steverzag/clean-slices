@@ -43,7 +43,13 @@ The options the solution was created with, each with its own documentation:
 <!--#if (cqrs)-->
 - **CQRS**: endpoints send commands and queries to handlers in the slice; queries read without tracking. See [docs/cqrs.md](docs/cqrs.md).
 <!--#endif-->
-<!--#if (!samples && !result && !outbox && !inbox && !postgresql && !validation && !idempotency && !repository && !cqrs)-->
+<!--#if (redis)-->
+- **Redis** behind the cache, shared by every instance. See [docs/caching.md](docs/caching.md).
+<!--#endif-->
+<!--#if (fusioncache)-->
+- **FusionCache** runs `HybridCache`: fail-safe and timeouts, and with Redis a backplane. See [docs/caching.md](docs/caching.md).
+<!--#endif-->
+<!--#if (!samples && !result && !outbox && !inbox && !postgresql && !validation && !idempotency && !repository && !cqrs && !redis && !fusioncache)-->
 - None: this is the default setup. Options can be added later with the CLI.
 <!--#endif-->
 

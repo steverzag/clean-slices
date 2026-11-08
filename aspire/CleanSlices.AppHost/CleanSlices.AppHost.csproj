@@ -12,6 +12,9 @@
     <!--#else-->
     <PackageReference Include="Aspire.Hosting.SqlServer" />
     <!--#endif-->
+    <!--#if (redis)-->
+    <PackageReference Include="Aspire.Hosting.Redis" />
+    <!--#endif-->
   </ItemGroup>
 
   <ItemGroup>

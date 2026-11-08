@@ -71,6 +71,45 @@ public class UserTests
 	}
 
 	[Fact]
+	public void Updating_the_name_or_the_email_raises_updated()
+	{
+#if (result)
+		var user = User.Create("Ana", "ana@example.com").ShouldSucceedWithValue();
+		user.ClearDomainEvents();
+
+		user.UpdateName("Ana María").ShouldSucceed();
+		user.UpdateEmail("ana.maria@example.com").ShouldSucceed();
+#else
+		var user = User.Create("Ana", "ana@example.com");
+		user.ClearDomainEvents();
+
+		user.UpdateName("Ana María");
+		user.UpdateEmail("ana.maria@example.com");
+#endif
+
+		Assert.All(user.DomainEvents, e => Assert.Equal(user.Id, Assert.IsType<UserUpdatedDomainEvent>(e).Id));
+		Assert.Equal(2, user.DomainEvents.Count);
+	}
+
+	[Fact]
+	public void A_rejected_update_raises_nothing()
+	{
+#if (result)
+		var user = User.Create("Ana", "ana@example.com").ShouldSucceedWithValue();
+		user.ClearDomainEvents();
+
+		user.UpdateName("").ShouldFailValidation();
+#else
+		var user = User.Create("Ana", "ana@example.com");
+		user.ClearDomainEvents();
+
+		Assert.Throws<DomainValidationException>(() => user.UpdateName(""));
+#endif
+
+		Assert.Empty(user.DomainEvents);
+	}
+
+	[Fact]
 	public void Delete_raises_deleted()
 	{
 #if (result)

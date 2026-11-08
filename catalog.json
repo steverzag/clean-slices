@@ -10,7 +10,9 @@
   },
 
   "groups": {
-    "database": { "title": "Database", "required": true, "default": "sqlserver" }
+    "database": { "title": "Database", "required": true, "default": "sqlserver" },
+    "cache": { "title": "Cache", "required": false },
+    "cache-library": { "title": "Cache library", "required": false }
   },
 
   "units": [
@@ -97,6 +99,25 @@
       "requires": ["model-rules"]
     },
     {
+      "id": "redis",
+      "kind": "option",
+      "concept": "infrastructure",
+      "group": "cache",
+      "title": "Redis",
+      "description": "Redis behind IDistributedCache and HybridCache, shared by every instance; in a container from the AppHost.",
+      "requires": ["cache", "hybrid-cache"],
+      "license": { "notice": "Redis 7.4 and later are source-available (RSALv2 / SSPLv1), and Redis 8 adds AGPLv3. The container is fine for development; check the terms before production, or use Valkey (see docs/caching.md)." }
+    },
+    {
+      "id": "fusioncache",
+      "kind": "option",
+      "concept": "infrastructure",
+      "group": "cache-library",
+      "title": "FusionCache",
+      "description": "FusionCache (MIT) runs HybridCache: fail-safe, timeouts, and with Redis a backplane that keeps every instance up to date.",
+      "requires": ["hybrid-cache"]
+    },
+    {
       "id": "integration-events",
       "kind": "hidden"
     },
@@ -111,6 +132,20 @@
     {
       "id": "cache",
       "kind": "hidden"
+    },
+    {
+      "id": "hybrid-cache",
+      "kind": "hidden",
+      "requires": ["after-commit"]
+    },
+    {
+      "id": "after-commit",
+      "kind": "hidden"
+    },
+    {
+      "id": "fusioncache-redis",
+      "kind": "glue",
+      "when": ["fusioncache", "redis"]
     }
   ]
 }

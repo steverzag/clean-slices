@@ -71,19 +71,33 @@ An infrastructure option picks *which product* sits behind a seam. Options are o
 
 ## Cache
 
-**Options.** Redis. The default is in memory.
+**Options.** Two groups, both optional:
+
+| Group | Option | What |
+|---|---|---|
+| `cache` | Redis | The shared store: `IDistributedCache` and `HybridCache`'s second level |
+| `cache-library` | FusionCache | What runs `HybridCache`: FusionCache (MIT) instead of Microsoft's |
+
+Plus the **`fusioncache-redis` glue unit**, added when both are selected: Redis as FusionCache's second level and its backplane. The first glue unit in the catalog.
+
+**Built (phase 7a).** Documented for users in `docs/caching.md`.
 
 **Design.**
 
-- The seam is `HybridCache` plus the in-memory `IDistributedCache`, from the [`cache`](hidden-units.md#cache) hidden unit, which this option requires.
-- The Redis option registers a Redis `IDistributedCache`. `HybridCache` uses it as its second level, and idempotency keys switch to it too, with no glue.
-- Aspire: `AddRedis("cache")`; the client is the Aspire StackExchange.Redis distributed-cache integration.
+- **The seam is `HybridCache`**, from the [`hybrid-cache`](hidden-units.md#hybridcache) hidden unit, which both options require. FusionCache is registered as `HybridCache` (`AsHybridCache()`), so features and samples are the same code with either library. FusionCache was added in phase 7 at the user's request; its extras (fail-safe, timeouts, eager refresh) are reached through `IFusionCache` when wanted.
+- The Redis option replaces the in-memory `IDistributedCache` of the [`cache`](hidden-units.md#cache) unit, so idempotency keys and Microsoft's `HybridCache` pick it up with no glue. FusionCache needs glue: it only uses a second level and a backplane when told to.
+- Removing cached copies goes through the [`after-commit`](hidden-units.md#after-commit) unit, required by `hybrid-cache`.
+- Aspire: `AddRedis("cache")` in the AppHost; the client is the Aspire StackExchange.Redis distributed-cache integration (`AddRedisDistributedCache("cache")`). The FusionCache backplane uses the same connection string.
+- Tests: a Redis container next to the database container (Testcontainers), only with the Redis option.
+- **Redis prints a license notice** when selected (rule 9): source-available since 7.4, AGPLv3 added with Redis 8.
 
-**Feature template.** Caches nothing. Caching is a per-endpoint decision. The docs show reading through `HybridCache` with tags (`widget:{id}`, `widgets`) and invalidating from domain event handlers (`WidgetUpdated`, `WidgetDeleted`), which run in the same request.
+**Feature template.** Caches nothing. Caching is a per-endpoint decision; `docs/caching.md` shows caching a read, keys and tags, and removing from a domain event handler through `IAfterCommit`.
 
-**Samples.** *Proposed:* `GetUserById` and the user list read through `HybridCache` with tags, invalidated from the user domain event handlers.
+**Samples.** `GetUserById` reads through `HybridCache`, removed after updates and deletes. Only that read: the list would double another chain for little more to show (decided in phase 7). Assumes `UserUpdatedDomainEvent`, added to the sample domain for every solution.
 
-**Trade-offs to document.** Redis changed its license in 2024 and added an AGPL option in 2025. The container is fine for development; the production choice is the user's. Valkey and Garnet speak the same protocol, are open source and supported by Aspire; only the AppHost line changes. Cache keys for per-user data must include the user ID.
+**Matrix.** `fusioncache+redis` is a listed combination on every push (the glue). Listed combinations are now planned before pairs, so a listed one that is also a pair keeps its tier.
+
+**Trade-offs documented.** Redis's license; Valkey and Garnet as open-source alternatives (only the AppHost line and its hosting package change). Without the backplane, other instances keep removed values until they expire. Removing after the commit narrows the stale window but can't close it. "Not found" is cached too. Per-user keys must include the user ID.
 
 ## Authentication
 

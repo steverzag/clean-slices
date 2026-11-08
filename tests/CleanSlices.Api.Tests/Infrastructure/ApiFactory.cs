@@ -28,6 +28,9 @@ using Testcontainers.PostgreSql;
 #else
 using Testcontainers.MsSql;
 #endif
+#if (redis)
+using Testcontainers.Redis;
+#endif
 
 [assembly: AssemblyFixture(typeof(ApiFactory))]
 
@@ -44,10 +47,16 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 #else
 	private readonly MsSqlContainer _database = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest").Build();
 #endif
+#if (redis)
+	private readonly RedisContainer _cache = new RedisBuilder("redis:7.4").Build();
+#endif
 
 	public async ValueTask InitializeAsync()
 	{
 		await _database.StartAsync(TestContext.Current.CancellationToken);
+#if (redis)
+		await _cache.StartAsync(TestContext.Current.CancellationToken);
+#endif
 		await CreateSchemaAsync(this);
 	}
 
@@ -66,6 +75,9 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 	protected override void ConfigureWebHost(IWebHostBuilder builder)
 	{
 		UseDatabase(builder, "CleanSlicesTests");
+#if (redis)
+		builder.UseSetting($"ConnectionStrings:{InfrastructureRegistration.CacheConnectionName}", _cache.GetConnectionString());
+#endif
 #if (outbox)
 
 		// Tests process the outbox themselves, so its background loop never races them; retries are immediate.
@@ -112,5 +124,8 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 	{
 		await base.DisposeAsync();
 		await _database.DisposeAsync();
+#if (redis)
+		await _cache.DisposeAsync();
+#endif
 	}
 }

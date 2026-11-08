@@ -104,6 +104,36 @@
       "defaultValue": "false",
       "description": "PostgreSQL instead of SQL Server, with snake_case names."
     },
+    "redis": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "Redis behind IDistributedCache and HybridCache, shared by every instance; in a container from the AppHost."
+    },
+    "fusioncache": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "FusionCache runs HybridCache: fail-safe, timeouts, and with Redis a backplane."
+    },
+    "hybrid_cache": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "HybridCache (added by the CLI when an option needs it): Microsoft's, or FusionCache when selected."
+    },
+    "after_commit": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "After commit (added by the CLI when an option needs it): work queued during a save runs once the data is committed."
+    },
+    "fusioncache_redis": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "FusionCache with Redis (added by the CLI): Redis as FusionCache's second level and its backplane."
+    },
     "model_rules": {
       "type": "parameter",
       "datatype": "bool",
@@ -252,6 +282,21 @@
           "condition": "(!current_user)",
           "exclude": [
             "src/CleanSlices.Infrastructure/CurrentUser/**"
+          ]
+        },
+        {
+          "condition": "(!after_commit)",
+          "exclude": [
+            "src/CleanSlices.Infrastructure/Persistence/AfterCommit/**",
+            "tests/CleanSlices.Api.Tests/Persistence/AfterCommitTests.cs"
+          ]
+        },
+        {
+          "condition": "(!hybrid_cache)",
+          "exclude": [
+            "src/CleanSlices.Infrastructure/EventHandlers/Users/ForgetCachedUserHandler.cs",
+            "tests/CleanSlices.Api.Tests/Caching/**",
+            "docs/caching.md"
           ]
         },
         {

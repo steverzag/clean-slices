@@ -68,6 +68,10 @@ Three domain events are turned into integration events (see [integration-events.
 
 The two creates (`POST /tasks`, `POST /users`) accept an `Idempotency-Key` header (see [idempotency.md](idempotency.md)): a user creation retried with the same key gets the first response instead of a 409 for the email.
 <!--#endif-->
+<!--#if (hybrid_cache)-->
+
+`GET /users/{id}` reads through `HybridCache` (key `user:{id}`). `User` raises `UserUpdatedDomainEvent` when its name or email changes, and `ForgetCachedUserHandler` removes the cached copy after the commit, for updates and deletes (see [caching.md](caching.md)).
+<!--#endif-->
 
 ## Tests
 

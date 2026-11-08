@@ -23,11 +23,15 @@ Changes to `main` that improve the default solution on their own: [base-template
 | Pattern | [Request validation](patterns.md#request-validation) | – | **done** (FluentValidation) |
 | Hidden unit | [Current user](hidden-units.md#current-user) | – | **done** (anonymous) |
 | Hidden unit | [Model rules](hidden-units.md#model-rules) | – | **done** (phase 5, for PostgreSQL) |
-| Hidden unit | [Cache](hidden-units.md#cache) | – | **done** (`IDistributedCache` only; `HybridCache` with Redis, phase 7) |
+| Hidden unit | [Cache](hidden-units.md#cache) | – | **done** (`IDistributedCache`: in memory, or Redis) |
+| Hidden unit | [HybridCache](hidden-units.md#hybridcache) | – | **done** (phase 7: Microsoft's, or FusionCache) |
+| Hidden unit | [After commit](hidden-units.md#after-commit) | – | **done** (phase 7, first used by cache invalidation) |
 | Hidden unit | [Integration events](hidden-units.md#integration-events) | – | **done** (without the after-commit publisher, see its page) |
 | Infrastructure | [SQL Server](infrastructure.md#database), [PostgreSQL](infrastructure.md#database) | group `database` (required) | **done**; SQL Server is the default |
 | Infrastructure | [RabbitMQ, Azure Service Bus](infrastructure.md#queue) | group `queue` | designed |
-| Infrastructure | [Redis](infrastructure.md#cache) | group `cache` | designed |
+| Infrastructure | [Redis](infrastructure.md#cache) | group `cache` | **done** |
+| Infrastructure | [FusionCache](infrastructure.md#cache) | group `cache-library` | **done** (phase 7) |
+| Glue | [FusionCache × Redis](infrastructure.md#cache) | – | **done**: Redis as second level and backplane (the first glue unit) |
 | Infrastructure | [Keycloak, Entra ID, ASP.NET Core Identity](infrastructure.md#authentication) | group `auth` | designed |
 | Infrastructure | [SignalR](infrastructure.md#realtime) | group `realtime` | designed |
 | Strategy | [Soft delete](strategies.md#soft-delete) | – | designed |

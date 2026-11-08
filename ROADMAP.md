@@ -174,7 +174,7 @@ Each phase ends with something usable. The order is a proposal.
 | 4, done | **Outbox, inbox, integration events**: the first hidden unit, `requires` / `provides` between real options (the inbox gets the outbox), `recommended` and `addsTables`, three sample integration events. The CI matrix found a concurrency bug in the outbox's claim before release | Seams with defaults and hidden units |
 | 5, done | **PostgreSQL**: the first infrastructure group (`database`, SQL Server by default), the model-rules hidden unit, snake_case names and a case-insensitive email through model rules | Provider-neutral code |
 | 6, done | **Repository, CQRS, request validation, idempotency keys**: three options meeting in every handler, written as flat `#elif` chains (decided by a prototype); the first choice (`cqrs` dispatcher: own handlers or Mediator); the `current-user` and `cache` hidden units; listed matrix combinations (`result` + repository + CQRS) | Several invasive patterns in one feature template |
-| 7 | **Queue, cache, authentication, realtime** | Zero-glue combinations, and the first glue units |
+| 7 | **Queue, cache, authentication, realtime**. 7a done: Redis and FusionCache (two cache groups), the first glue unit (`fusioncache-redis`), the `hybrid-cache` and `after-commit` hidden units | Zero-glue combinations, and the first glue units |
 | 8 | **Strategies**: soft delete, audit | Options on entities and the save pipeline order |
 | 9 | **Extras**; publish the CLI on NuGet | Ready for other people |
 
@@ -201,4 +201,4 @@ Open questions:
 - **Upgrades.** Can a solution move to a newer template commit, and what happens to its options? Solutions from before the catalog can only get options this way.
 - **Interactive UX.** The prompts are grouped by concept, with follow-up questions for choices and requirements; revisit once the catalog has a few dozen options (search, presets?).
 
-To verify before the docs for users are written: MassTransit's current license terms (the `Mediator` package was checked in phase 6: MIT), and whether `HybridCache` skips the in-memory `IDistributedCache` as its second level.
+To verify before the docs for users are written: MassTransit's current license terms. Already settled: the `Mediator` package is MIT (phase 6), and the phase 6 `HybridCache` question didn't arise (see [hidden-units.md](docs/roadmap/hidden-units.md#cache)).

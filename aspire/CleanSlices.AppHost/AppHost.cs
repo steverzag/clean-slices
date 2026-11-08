@@ -29,5 +29,10 @@ else
 
 	api.WithReference(database).WaitFor(database);
 }
+#if (redis)
+
+var cache = builder.AddRedis("cache");
+api.WithReference(cache).WaitFor(cache);
+#endif
 
 builder.Build().Run();

@@ -16,6 +16,9 @@ using CleanSlices.Infrastructure.Messages;
 using CleanSlices.Infrastructure.Outbox;
 #endif
 using CleanSlices.Infrastructure.Persistence;
+#if (after_commit)
+using CleanSlices.Infrastructure.Persistence.AfterCommit;
+#endif
 #if (repository)
 using CleanSlices.Infrastructure.Persistence.Repositories;
 #endif
@@ -25,12 +28,21 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+#if (fusioncache)
+using ZiggyCreatures.Caching.Fusion;
+#endif
+#if (fusioncache_redis)
+using ZiggyCreatures.Caching.Fusion.Serialization.SystemTextJson;
+#endif
 
 namespace CleanSlices.Infrastructure;
 
 public static class InfrastructureRegistration
 {
 	public const string DatabaseConnectionName = "Database";
+#if (redis)
+	public const string CacheConnectionName = "cache";
+#endif
 
 	extension(IHostApplicationBuilder builder)
 	{
@@ -51,9 +63,28 @@ public static class InfrastructureRegistration
 #if (current_user)
 			services.TryAddSingleton<ICurrentUser, AnonymousCurrentUser>();
 #endif
-#if (cache)
+#if (after_commit)
+			services.TryAddScoped<AfterCommitActions>();
+			services.TryAddScoped<IAfterCommit>(sp => sp.GetRequiredService<AfterCommitActions>());
+#endif
+#if (cache && redis)
+			// Shared by every instance of the app.
+			builder.AddRedisDistributedCache(CacheConnectionName);
+#elif (cache)
 			// In memory, for this instance only; the Redis option registers a shared one.
 			services.AddDistributedMemoryCache();
+#endif
+#if (fusioncache_redis)
+			// Redis is the second level, and its backplane tells the other instances to drop their copies.
+			services.AddFusionCache()
+				.WithRegisteredDistributedCache()
+				.WithSerializer(new FusionCacheSystemTextJsonSerializer())
+				.WithStackExchangeRedisBackplane(options => options.Configuration = builder.Configuration.GetConnectionString(CacheConnectionName))
+				.AsHybridCache();
+#elif (hybrid_cache && fusioncache)
+			services.AddFusionCache().AsHybridCache();
+#elif (hybrid_cache)
+			services.AddHybridCache();
 #endif
 #if (integration_events)
 			services.AddIntegrationEvents();

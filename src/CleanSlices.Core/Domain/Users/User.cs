@@ -47,6 +47,7 @@ public class User : Entity
 		}
 
 		Name = name;
+		Raise(new UserUpdatedDomainEvent(Id));
 		return Result.Success();
 	}
 
@@ -62,6 +63,7 @@ public class User : Entity
 		}
 
 		Email = email;
+		Raise(new UserUpdatedDomainEvent(Id));
 		return Result.Success();
 	}
 #else
@@ -78,12 +80,14 @@ public class User : Entity
 	{
 		DomainValidationException.ThrowIfAny(ValidateName(name));
 		Name = name;
+		Raise(new UserUpdatedDomainEvent(Id));
 	}
 
 	public void UpdateEmail(string email)
 	{
 		DomainValidationException.ThrowIfAny(ValidateEmail(email));
 		Email = email;
+		Raise(new UserUpdatedDomainEvent(Id));
 	}
 #endif
 

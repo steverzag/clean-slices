@@ -116,6 +116,22 @@ public class UserEndpointsTests(ApiFactory factory)
 		var user = await (await _client.Get($"/users/{id}")).Content.ReadAsAsync<GetUserById.GetUserByIdResponse>();
 		Assert.Equal("Ana María", user.Name);
 	}
+#if (hybrid_cache)
+
+	[Fact]
+	public async Task A_cached_user_is_read_again_after_it_changes_or_is_deleted()
+	{
+		var id = await CreateUserAsync();
+		await _client.Get($"/users/{id}");   // now cached
+
+		await _client.Patch($"/users/{id}/name", new UpdateName.UpdateUserNameRequest("Ana María"));
+		var user = await (await _client.Get($"/users/{id}")).Content.ReadAsAsync<GetUserById.GetUserByIdResponse>();
+		Assert.Equal("Ana María", user.Name);
+
+		await _client.Delete($"/users/{id}");
+		Assert.Equal(HttpStatusCode.NotFound, (await _client.Get($"/users/{id}")).StatusCode);
+	}
+#endif
 
 	[Fact]
 	public async Task Delete_removes_the_user()

@@ -6,7 +6,9 @@ A hidden unit is a piece that several options need but nobody picks on its own. 
 |---|---|---|---|---|
 | [`current-user`](#current-user) | `ICurrentUser` | anonymous | idempotency keys, audit, logging, realtime | authentication options |
 | [`model-rules`](#model-rules) | model rules run from `OnModelCreating` | – | PostgreSQL, soft delete, audit | – |
-| [`cache`](#cache) | `HybridCache` + `IDistributedCache` | in memory | idempotency keys, Redis | Redis (shared second level) |
+| [`cache`](#cache) | `IDistributedCache` | in memory | idempotency keys, Redis | Redis |
+| [`hybrid-cache`](#hybridcache) | `HybridCache` | Microsoft's | Redis, FusionCache | FusionCache |
+| [`after-commit`](#after-commit) | `IAfterCommit` | – | HybridCache (invalidation); next the queue and realtime | – |
 | [`integration-events`](#integration-events) | `IIntegrationEventPublisher`, `IMessageDispatcher` | in-process | outbox, queue options | queue options (dispatcher) |
 
 They're built together with the first option that needs them.
@@ -45,17 +47,47 @@ They're built together with the first option that needs them.
 
 ## Cache
 
-**What.** The caching seam, for options that store short-lived data.
+**What.** `IDistributedCache`, for options that store short-lived data shared across instances when there is a shared store.
 
-**Built (phase 6)**, with idempotency keys: one line in `AddInfrastructure`, `AddDistributedMemoryCache()`. No files of its own.
+**Built (phase 6)**, with idempotency keys: one line in `AddInfrastructure`, no files of its own. In memory (`AddDistributedMemoryCache()`), or Redis with the Redis option (`AddRedisDistributedCache("cache")`, the Aspire client): the same line, a two-way conditional.
 
 **Design.**
 
-- The in-memory `IDistributedCache` now; `AddHybridCache()` joins it in phase 7 with Redis, the first option that needs it (rule 10).
-- Idempotency keys store their records in `IDistributedCache`. The Redis option registers a Redis `IDistributedCache`, and `HybridCache` uses it as its second level: both pick Redis up with no glue.
-- Verify in phase 7: `HybridCache` should not use the in-memory `IDistributedCache` as a redundant second level.
+- Idempotency keys store their records in `IDistributedCache`, so they pick Redis up with no glue.
+- Required by idempotency keys and Redis, **not by FusionCache**: FusionCache alone keeps its values in memory and would only get a redundant second level.
+- The phase 6 question (would Microsoft's `HybridCache` use the in-memory `IDistributedCache` as a redundant second level?) doesn't arise: Microsoft's `HybridCache` only exists with Redis, which replaces the in-memory one.
 
-**Feature template.** Caches nothing; see [infrastructure.md](infrastructure.md#cache) for the recommended way to add caching to an endpoint.
+**Feature template.** Caches nothing.
+
+## HybridCache
+
+**What.** `HybridCache`, the seam features cache through (memory first, then the second level).
+
+**Built (phase 7)**, with Redis and FusionCache: `AddInfrastructure`, a three-way conditional.
+
+**Design.**
+
+- **Microsoft's** (`AddHybridCache()`) with Redis alone; it finds the Redis `IDistributedCache` as its second level by itself.
+- **FusionCache** (`AddFusionCache().AsHybridCache()`) with the FusionCache option. Code depends on `HybridCache` only, so features don't change with the implementation (rule 1).
+- **FusionCache with Redis**, from the `fusioncache-redis` glue unit: `WithRegisteredDistributedCache()`, the System.Text.Json serializer, and the Redis backplane (`WithStackExchangeRedisBackplane`, the same connection string).
+- Requires [`after-commit`](#after-commit): removing cached copies correctly needs it, so the caching options bring it.
+- **Verified in phase 7, with two test hosts sharing one Redis container:** Microsoft's `HybridCache` has no backplane. After a removal on one instance, the other kept its copy in memory. With FusionCache + Redis, the other instance dropped it within the polling window. Both behaviors are tests (`Caching/HybridCacheTests.cs`); removing the backplane line makes the FusionCache test fail.
+
+**Feature template.** Caches nothing; `docs/caching.md` shows caching a read and removing it after the commit. **Samples:** `GetUserById` reads through `HybridCache`; `UserUpdatedDomainEvent` (raised by `UpdateName` / `UpdateEmail`, new in the sample domain) and `UserDeletedDomainEvent` remove it through `ForgetCachedUserHandler`. `GetUserById` has 14 members in the template (cache × CQRS / repository / result), one in a generated solution.
+
+## After commit
+
+**What.** Work that must only happen once the data is saved: removing a cached copy, sending a message to a broker, a realtime notification.
+
+**Built (phase 7)**, as a hidden unit, not in the base: the base has nothing that uses it (rule 10). `Infrastructure/Persistence/AfterCommit/`.
+
+**Design.**
+
+- `IAfterCommit.Enqueue(Func<CancellationToken, Task>)`, scoped. A save pipeline step (`AfterCommitStep`, order 1000) runs the queue in `AfterCommitAsync` and clears it in `SaveFailedAsync`; both hooks were already in the pipeline since phase 1.
+- The data is already saved when the actions run: a failing action is logged, and the others still run.
+- "After the commit" relies on each `SaveChangesAsync` being its own transaction. Code that opens an explicit transaction would see the actions run before its commit; documented.
+- Unit tests call the step directly (`Persistence/AfterCommitTests.cs`): order, dropped on failure, failures isolated, run once.
+- Next users: the after-commit publisher (queue without outbox, phase 7b) and realtime (7d), which may add "outside a save, run at once".
 
 ## Integration events
 
@@ -82,7 +114,7 @@ Domain events and integration events:
   - **Serializer**: JSON with web defaults. An unknown name raises `UnknownIntegrationEventException`, so the outbox fails the row without retrying.
   - **`IMessageDispatcher`**, the transport. The default, `InProcessMessageDispatcher`, runs every handler of the event, each in its own scope, with `IIntegrationEventHandlerFilter`s around each call (the inbox is one). All handlers run even when one fails; the failures are thrown together, so the message is retried.
 - A domain event handler publishes the integration event; see the samples' `PublishUserCreatedHandler`.
-- **Not built yet: the after-commit publisher.** Without the outbox, `IIntegrationEventPublisher` would buffer events and send them in the save pipeline's after-commit phase. Only a queue option (phase 7) reaches that case, so it's built then. Until phase 7, the outbox provides the only publisher.
+- **Not built yet: the after-commit publisher.** Without the outbox, `IIntegrationEventPublisher` would queue events with [`IAfterCommit`](#after-commit) (built in phase 7a) and send them once the data is committed. Only a queue option (phase 7b) reaches that case, so it's built then. Until then, the outbox provides the only publisher.
 - Integration events are public contracts: add fields, never rename or remove them.
 
 **Feature template.** Generates none. Integration events are deliberate contracts; the docs show how to add one.
