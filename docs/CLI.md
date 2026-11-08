@@ -63,6 +63,7 @@ Available options:
 | `redis` | Redis behind `IDistributedCache` and `HybridCache`, shared by every instance, in a container from the AppHost. Prints its license notice (source-available since 7.4). |
 | `fusioncache` | FusionCache (MIT) runs `HybridCache`: fail-safe, timeouts, eager refresh. With `redis` too, Redis becomes its second level and its backplane (added automatically). |
 | `rabbitmq` | Integration events go through RabbitMQ (in a container from the AppHost): sent after the commit, or by the outbox; redelivered on failure, then dead-lettered. Makes the inbox available without the outbox. |
+| `servicebus` | Integration events go through an Azure Service Bus topic (the emulator locally, from the AppHost): sent after the commit, or by the outbox; redelivered on failure, then dead-lettered. Prints its license notice (paid service; emulator license). |
 
 ## Create a solution
 
@@ -167,7 +168,7 @@ Options can't be removed, and their choices can't be changed after they're appli
 {
   "manifestVersion": 2,
   "name": "Acme.Orders",
-  "cliVersion": "0.8.0",
+  "cliVersion": "0.9.0",
   "samples": false,
   "templateRepo": "https://github.com/steverzag/clean-slices.git",
   "templateCommit": "a63f5be9d2a0…",

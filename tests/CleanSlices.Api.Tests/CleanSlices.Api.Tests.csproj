@@ -18,6 +18,9 @@
     <!--#if (rabbitmq)-->
     <PackageReference Include="Testcontainers.RabbitMq" />
     <!--#endif-->
+    <!--#if (servicebus)-->
+    <PackageReference Include="Testcontainers.ServiceBus" />
+    <!--#endif-->
     <PackageReference Include="xunit.v3" />
   </ItemGroup>
 

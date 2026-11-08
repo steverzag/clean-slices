@@ -6,8 +6,14 @@ using CleanSlices.Infrastructure;
 #if (inbox)
 using CleanSlices.Infrastructure.Inbox;
 #endif
+#if (servicebus)
+using CleanSlices.Infrastructure.IntegrationEvents.Broker;
+#endif
 #if (rabbitmq)
 using CleanSlices.Infrastructure.IntegrationEvents.RabbitMq;
+#endif
+#if (servicebus)
+using CleanSlices.Infrastructure.IntegrationEvents.ServiceBus;
 #endif
 #if (outbox)
 using CleanSlices.Infrastructure.Outbox;
@@ -34,8 +40,14 @@ using Testcontainers.MsSql;
 #if (redis)
 using Testcontainers.Redis;
 #endif
+#if (servicebus)
+using System.Text.Json;
+#endif
 #if (rabbitmq)
 using Testcontainers.RabbitMq;
+#endif
+#if (servicebus)
+using Testcontainers.ServiceBus;
 #endif
 
 [assembly: AssemblyFixture(typeof(ApiFactory))]
@@ -58,6 +70,11 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 #endif
 #if (rabbitmq)
 	private readonly RabbitMqContainer _messaging = new RabbitMqBuilder("rabbitmq:4.1-management").Build();
+#elif (servicebus)
+	private readonly ServiceBusContainer _messaging = new ServiceBusBuilder("mcr.microsoft.com/azure-messaging/servicebus-emulator:2.0.1")
+		.WithAcceptLicenseAgreement(true)
+		.WithConfig(EmulatorConfig())
+		.Build();
 #endif
 
 	public async ValueTask InitializeAsync()
@@ -66,7 +83,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 #if (redis)
 		await _cache.StartAsync(TestContext.Current.CancellationToken);
 #endif
-#if (rabbitmq)
+#if (message_broker)
 		await _messaging.StartAsync(TestContext.Current.CancellationToken);
 #endif
 		await CreateSchemaAsync(this);
@@ -79,7 +96,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 	public async Task<WebApplicationFactory<Program>> WithEmptyDatabaseAsync()
 	{
 		var databaseName = $"CleanSlicesTests_{Guid.NewGuid():N}";
-#if (rabbitmq)
+#if (message_broker)
 		var factory = WithWebHostBuilder(builder =>
 		{
 			UseDatabase(builder, databaseName);
@@ -95,7 +112,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
 	// A second instance of the API on the same database and cache, as behind a load balancer.
 	public WebApplicationFactory<Program> AnotherInstance() =>
-#if (rabbitmq)
+#if (message_broker)
 		WithWebHostBuilder(WithoutConsumer);
 #else
 		WithWebHostBuilder(_ => { });
@@ -108,7 +125,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 #if (redis)
 		builder.UseSetting($"ConnectionStrings:{InfrastructureRegistration.CacheConnectionName}", _cache.GetConnectionString());
 #endif
-#if (rabbitmq)
+#if (message_broker)
 		builder.UseSetting($"ConnectionStrings:{InfrastructureRegistration.MessagingConnectionName}", _messaging.GetConnectionString());
 #endif
 #if (outbox)
@@ -129,13 +146,60 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 		});
 #endif
 	}
-#if (rabbitmq)
+#if (message_broker)
 
 	// Extra hosts don't consume: a message they took could be lost to the tests watching the main host,
 	// or delivered again when they stop.
+#if (rabbitmq)
 	private static void WithoutConsumer(IWebHostBuilder builder) =>
 		builder.ConfigureTestServices(services =>
 			services.Remove(services.Single(d => d.ServiceType == typeof(IHostedService) && d.ImplementationType == typeof(RabbitMqConsumer))));
+#else
+	private static void WithoutConsumer(IWebHostBuilder builder) =>
+		builder.ConfigureTestServices(services =>
+			services.Remove(services.Single(d => d.ServiceType == typeof(IHostedService) && d.ImplementationType == typeof(ServiceBusConsumer))));
+#endif
+#endif
+#if (servicebus)
+
+	// The emulator only knows the entities in its config: the app's topic and subscription, with the app's names.
+	private static string EmulatorConfig()
+	{
+		var settings = new BrokerOptions();
+		var subscription = new
+		{
+			Name = settings.Subscription,
+			Properties = new
+			{
+				DeadLetteringOnMessageExpiration = false,
+				DefaultMessageTimeToLive = "PT1H",
+				LockDuration = "PT1M",
+				MaxDeliveryCount = settings.MaxDeliveries,
+				ForwardDeadLetteredMessagesTo = "",
+				ForwardTo = "",
+				RequiresSession = false,
+			},
+			Rules = Array.Empty<object>(),
+		};
+		var topic = new
+		{
+			Name = settings.Topic,
+			Properties = new { DefaultMessageTimeToLive = "PT1H", DuplicateDetectionHistoryTimeWindow = "PT20S", RequiresDuplicateDetection = false },
+			Subscriptions = new[] { subscription },
+		};
+		var config = new
+		{
+			UserConfig = new
+			{
+				Namespaces = new[] { new { Name = "sbemulatorns", Queues = Array.Empty<object>(), Topics = new[] { topic } } },
+				Logging = new { Type = "File" },
+			},
+		};
+
+		var path = Path.Combine(Path.GetTempPath(), $"servicebus-emulator-{Guid.NewGuid():N}.json");
+		File.WriteAllText(path, JsonSerializer.Serialize(config));
+		return path;
+	}
 #endif
 
 	private void UseDatabase(IWebHostBuilder builder, string databaseName)
@@ -172,7 +236,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 #if (redis)
 		await _cache.DisposeAsync();
 #endif
-#if (rabbitmq)
+#if (message_broker)
 		await _messaging.DisposeAsync();
 #endif
 	}

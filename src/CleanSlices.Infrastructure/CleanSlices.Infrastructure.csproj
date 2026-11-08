@@ -20,6 +20,9 @@
     <!--#if (rabbitmq)-->
     <PackageReference Include="Aspire.RabbitMQ.Client" />
     <!--#endif-->
+    <!--#if (servicebus)-->
+    <PackageReference Include="Aspire.Azure.Messaging.ServiceBus" />
+    <!--#endif-->
     <!--#if (hybrid_cache && !fusioncache)-->
     <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" />
     <!--#endif-->

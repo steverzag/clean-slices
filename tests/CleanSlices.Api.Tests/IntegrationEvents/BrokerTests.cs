@@ -1,21 +1,31 @@
-#if (rabbitmq)
+#if (message_broker)
 using System.Collections.Concurrent;
+#if (rabbitmq)
 using System.Text;
+#endif
 using CleanSlices.Api.Tests.Infrastructure;
+#if (servicebus)
+using Azure.Messaging.ServiceBus;
+#endif
 using CleanSlices.Infrastructure.IntegrationEvents;
 using CleanSlices.Infrastructure.IntegrationEvents.Broker;
+#if (rabbitmq)
 using CleanSlices.Infrastructure.IntegrationEvents.RabbitMq;
+#endif
 #if (!outbox)
 using CleanSlices.Infrastructure.Persistence;
 #endif
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+#if (rabbitmq)
 using RabbitMQ.Client;
+#endif
 
 namespace CleanSlices.Api.Tests.IntegrationEvents;
 
-// Against a real RabbitMQ container; the test host's consumer runs the handlers, so tests wait for them.
-public class RabbitMqTests(ApiFactory factory)
+// Against the real broker (a container, or the Service Bus emulator); the test host's consumer runs the handlers,
+// so tests wait for them.
+public class BrokerTests(ApiFactory factory)
 {
 	private static readonly ConcurrentDictionary<string, bool> DeadLettered = [];
 	private static readonly SemaphoreSlim DeadLetterReader = new(1, 1);
@@ -71,14 +81,8 @@ public class RabbitMqTests(ApiFactory factory)
 	public async Task A_message_that_cant_be_read_goes_to_the_dead_letter_queue_at_once()
 	{
 		var messageId = Guid.NewGuid().ToString();
-		var connection = factory.Services.GetRequiredService<IConnection>();
-		await factory.Services.GetRequiredService<RabbitMqTopology>().EnsureAsync(Ct);
 
-		await using (var channel = await connection.CreateChannelAsync(cancellationToken: Ct))
-		{
-			var properties = new BasicProperties { MessageId = messageId, Type = "NoSuchEvent", Persistent = true };
-			await channel.BasicPublishAsync(Options.Topic, routingKey: nameof(TestEvent), mandatory: false, properties, Encoding.UTF8.GetBytes("{}"), Ct);
-		}
+		await SendUnreadableAsync(messageId);
 
 		Assert.True(await IsDeadLetteredAsync(messageId), "The message never reached the dead-letter queue.");
 	}
@@ -93,17 +97,15 @@ public class RabbitMqTests(ApiFactory factory)
 	// Tests share the dead-letter queue: whoever reads it records every message id it finds.
 	private async Task<bool> IsDeadLetteredAsync(string messageId)
 	{
-		var connection = factory.Services.GetRequiredService<IConnection>();
 		var deadline = DateTime.UtcNow.AddSeconds(30);
 		while (!DeadLettered.ContainsKey(messageId) && DateTime.UtcNow < deadline)
 		{
 			await DeadLetterReader.WaitAsync(Ct);
 			try
 			{
-				await using var channel = await connection.CreateChannelAsync(cancellationToken: Ct);
-				while (await channel.BasicGetAsync($"{Options.Subscription}.dead-letter", autoAck: true, Ct) is { } dead)
+				foreach (var id in await ReadDeadLettersAsync())
 				{
-					DeadLettered[dead.BasicProperties.MessageId ?? string.Empty] = true;
+					DeadLettered[id] = true;
 				}
 			}
 			finally
@@ -116,5 +118,43 @@ public class RabbitMqTests(ApiFactory factory)
 
 		return DeadLettered.ContainsKey(messageId);
 	}
+#if (rabbitmq)
+
+	// An event name nobody knows, routed like a real event.
+	private async Task SendUnreadableAsync(string messageId)
+	{
+		await factory.Services.GetRequiredService<RabbitMqTopology>().EnsureAsync(Ct);
+		await using var channel = await factory.Services.GetRequiredService<IConnection>().CreateChannelAsync(cancellationToken: Ct);
+		var properties = new BasicProperties { MessageId = messageId, Type = "NoSuchEvent", Persistent = true };
+		await channel.BasicPublishAsync(Options.Topic, routingKey: nameof(TestEvent), mandatory: false, properties, Encoding.UTF8.GetBytes("{}"), Ct);
+	}
+
+	private async Task<List<string>> ReadDeadLettersAsync()
+	{
+		var ids = new List<string>();
+		await using var channel = await factory.Services.GetRequiredService<IConnection>().CreateChannelAsync(cancellationToken: Ct);
+		while (await channel.BasicGetAsync($"{Options.Subscription}.dead-letter", autoAck: true, Ct) is { } dead)
+		{
+			ids.Add(dead.BasicProperties.MessageId ?? string.Empty);
+		}
+
+		return ids;
+	}
+#elif (servicebus)
+
+	private async Task SendUnreadableAsync(string messageId)
+	{
+		await using var sender = factory.Services.GetRequiredService<ServiceBusClient>().CreateSender(Options.Topic);
+		await sender.SendMessageAsync(new ServiceBusMessage("{}") { MessageId = messageId, Subject = "NoSuchEvent" }, Ct);
+	}
+
+	private async Task<List<string>> ReadDeadLettersAsync()
+	{
+		await using var receiver = factory.Services.GetRequiredService<ServiceBusClient>().CreateReceiver(Options.Topic, Options.Subscription,
+			new ServiceBusReceiverOptions { SubQueue = SubQueue.DeadLetter, ReceiveMode = ServiceBusReceiveMode.ReceiveAndDelete });
+		var dead = await receiver.ReceiveMessagesAsync(maxMessages: 100, maxWaitTime: TimeSpan.FromSeconds(1), Ct);
+		return [.. dead.Select(m => m.MessageId)];
+	}
+#endif
 }
 #endif

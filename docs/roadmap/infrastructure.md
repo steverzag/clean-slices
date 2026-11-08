@@ -45,7 +45,15 @@ An infrastructure option picks *which product* sits behind a seam. Options are o
 
 **Options.** RabbitMQ and Azure Service Bus. The default is in-process.
 
-**Built (phase 7b): RabbitMQ.** Service Bus is next. Documented for users in `docs/messaging.md`.
+**Built (phase 7b): RabbitMQ and Azure Service Bus.** Documented for users in `docs/messaging.md`.
+
+**As built (Service Bus).**
+
+- Official client (`Azure.Messaging.ServiceBus` 7.20, MIT) through Aspire (`AddAzureServiceBusClient("messaging")`). `ServiceBusDispatcher` sends to the topic with one sender; `ServiceBusConsumer` is a `ServiceBusProcessor` (no auto-complete): complete after the handlers, abandon on failure, dead-letter at once when unreadable. The event name is the message `Subject`; `traceparent` an application property.
+- **The app creates no entities.** The emulator can't create them at run time, so the AppHost declares the topic and the subscription (`AddServiceBusTopic`, `AddServiceBusSubscription(..., subscriptionName)`, `MaxDeliveryCount = 5`); in Azure they come with the namespace. Their names follow the `Messaging` defaults through the template's name replacement; keeping them in step is documented. `MaxDeliveries` is RabbitMQ-only; Service Bus uses the subscription's `MaxDeliveryCount`.
+- Aspire's emulator accepts Microsoft's emulator license by itself (`ACCEPT_EULA`, checked in its assembly); the tests accept it too (`WithAcceptLicenseAgreement`). The option prints a license notice: a paid service, an emulator for development only.
+- **Tests**: Testcontainers' Service Bus emulator (2.0.1, with its SQL Server), configured by a JSON file `ApiFactory` writes from `BrokerOptions`' defaults. The broker tests became `BrokerTests` for both brokers, with a send-unreadable and a read-dead-letters helper per broker; all passed on the first run with the emulator.
+- Not run: the AppHost with the emulator (Aspire's `RunAsEmulator`) was built, not started; the client side is covered by the tests against Testcontainers' emulator.
 
 **As built (RabbitMQ).**
 

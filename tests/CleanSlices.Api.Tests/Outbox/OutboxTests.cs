@@ -58,7 +58,7 @@ public class OutboxTests(ApiFactory factory)
 
 #if (!message_broker)
 	// In process only: through a broker, the outbox sees the broker accept the message, not the handlers fail.
-	// The broker's own redeliveries are tested in IntegrationEvents/RabbitMqTests.cs.
+	// The broker's own redeliveries are tested in IntegrationEvents/BrokerTests.cs.
 	[Fact]
 	public async Task A_failing_handler_is_retried_then_marked_failed()
 	{

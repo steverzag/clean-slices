@@ -17,6 +17,9 @@ using CleanSlices.Infrastructure.IntegrationEvents;
 #if (rabbitmq)
 using CleanSlices.Infrastructure.IntegrationEvents.RabbitMq;
 #endif
+#if (servicebus)
+using CleanSlices.Infrastructure.IntegrationEvents.ServiceBus;
+#endif
 using CleanSlices.Infrastructure.Messages;
 #if (outbox)
 using CleanSlices.Infrastructure.Outbox;
@@ -100,6 +103,9 @@ public static class InfrastructureRegistration
 #endif
 #if (rabbitmq)
 			builder.AddRabbitMq(MessagingConnectionName);
+#endif
+#if (servicebus)
+			builder.AddServiceBus(MessagingConnectionName);
 #endif
 #if (message_broker && !outbox)
 			services.TryAddScoped<IIntegrationEventPublisher, AfterCommitPublisher>();

@@ -28,20 +28,53 @@ The app declares it the first time it publishes or receives:
 - Look at the dead-letter queue in the management UI (the RabbitMQ resource in the Aspire dashboard). To retry messages from it, move them back to the queue with a shovel (the `rabbitmq_shovel_management` plugin adds *Move messages* to the UI) or your own tool.
 
 <!--#endif-->
+<!--#if (servicebus)-->
+## Azure Service Bus
+
+The AppHost runs the Service Bus **emulator** (`AddAzureServiceBus("messaging").RunAsEmulator()`) and declares the topic and the subscription there: the emulator can't create them at run time. The API gets its connection string as `ConnectionStrings:messaging`. The code is in `Infrastructure/IntegrationEvents/ServiceBus/`, with the official client (`Azure.Messaging.ServiceBus`, MIT) through its Aspire integration.
+
+### Topology
+
+| What | Name (setting) | Kind |
+|---|---|---|
+| Where the app publishes | `cleanslices-events` (`Messaging:Topic`) | topic |
+| Where the app receives | `cleanslices-api` (`Messaging:Subscription`) | subscription of the topic, receiving every message |
+| Where failed messages end up | the subscription's dead-letter queue | built into Service Bus |
+
+The app doesn't create them: in the AppHost for the emulator, and in Azure with the namespace (Aspire's provisioning, or your own infrastructure). **Keep the names and `MaxDeliveryCount` in the AppHost in step with the `Messaging` settings.**
+
+### Sending and receiving
+
+- **Sending**: when `SendMessageAsync` returns, Service Bus has the message.
+- **Receiving**: a background service (`ServiceBusConsumer`, a `ServiceBusProcessor`) runs the event's handlers and completes the message once they all succeed.
+- **When a handler fails**, the message is abandoned and delivered again. After the subscription's `MaxDeliveryCount` (5, set in the AppHost) Service Bus moves it to the dead-letter queue.
+- **A message that can't be read** (an event name the app doesn't know, a payload that isn't valid JSON) goes to the dead-letter queue at once.
+- In Azure, look at the dead-letter queue with the portal's Service Bus Explorer. The emulator has no UI: read it with the SDK (`ServiceBusReceiverOptions.SubQueue = SubQueue.DeadLetter`), as the tests do.
+- **License**: Service Bus is a paid Azure service. The emulator runs under Microsoft's emulator license, which the AppHost and the tests accept for you; it's for development only.
+
+<!--#endif-->
 ## The message
 
 | Part | Value |
 |---|---|
 | Body | The event as JSON (camelCase) |
-| Type | The event's name: the class name, or `[IntegrationEventName("...")]` |
+<!--#if (servicebus)-->
+| Subject | The event's name: the class name, or `[IntegrationEventName("...")]` |
+<!--#else-->
+| Type | The event's name: the class name, or `[IntegrationEventName("...")]`; also the routing key |
+<!--#endif-->
 <!--#if (outbox)-->
 | Message ID | The outbox row's ID, the same on every redelivery |
 <!--#else-->
 | Message ID | A new ID per event, the same on every redelivery |
 <!--#endif-->
-| `traceparent` header | The trace of the request that published it, so the dashboard shows the handling in the same trace |
+| `traceparent` (header, or application property) | The trace of the request that published it, so the dashboard shows the handling in the same trace |
 
+<!--#if (servicebus)-->
+A service that only wants some events adds its own subscription to this app's topic, with a filter on `Subject`.
+<!--#else-->
 A service that only wants some events binds its own queue to this app's exchange with their names.
+<!--#endif-->
 
 <!--#if (outbox)-->
 ## With the outbox
@@ -61,8 +94,12 @@ All optional, in the `Messaging` section of `appsettings.json`; the defaults are
 |---|---|
 | `Topic` | `cleanslices-events` |
 | `Subscription` | `cleanslices-api` |
+<!--#if (servicebus)-->
+| `MaxDeliveries` | 5; not used by Service Bus, where it's the subscription's `MaxDeliveryCount`, set in the AppHost |
+<!--#else-->
 | `MaxDeliveries` | 5 |
-| `Prefetch` | 10 messages handled at a time |
+<!--#endif-->
+| `Prefetch` | 10 messages fetched ahead; they're handled one at a time |
 
 ## Trade-offs
 

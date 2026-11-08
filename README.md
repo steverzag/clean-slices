@@ -52,7 +52,10 @@ The options the solution was created with, each with its own documentation:
 <!--#if (rabbitmq)-->
 - **RabbitMQ**: integration events go through a broker, retried and dead-lettered. See [docs/messaging.md](docs/messaging.md).
 <!--#endif-->
-<!--#if (!samples && !result && !outbox && !inbox && !postgresql && !validation && !idempotency && !repository && !cqrs && !redis && !fusioncache && !rabbitmq)-->
+<!--#if (servicebus)-->
+- **Azure Service Bus**: integration events go through a topic (the emulator locally), retried and dead-lettered. See [docs/messaging.md](docs/messaging.md).
+<!--#endif-->
+<!--#if (!samples && !result && !outbox && !inbox && !postgresql && !validation && !idempotency && !repository && !cqrs && !redis && !fusioncache && !rabbitmq && !servicebus)-->
 - None: this is the default setup. Options can be added later with the CLI.
 <!--#endif-->
 

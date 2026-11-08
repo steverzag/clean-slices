@@ -44,6 +44,10 @@
     <PackageVersion Include="Aspire.Hosting.RabbitMQ" Version="13.6.1" />
     <PackageVersion Include="Aspire.RabbitMQ.Client" Version="13.6.1" />
     <!--#endif-->
+    <!--#if (servicebus)-->
+    <PackageVersion Include="Aspire.Hosting.Azure.ServiceBus" Version="13.6.1" />
+    <PackageVersion Include="Aspire.Azure.Messaging.ServiceBus" Version="13.6.1" />
+    <!--#endif-->
   </ItemGroup>
 
   <ItemGroup Label="Caching">
@@ -84,6 +88,9 @@
     <!--#endif-->
     <!--#if (rabbitmq)-->
     <PackageVersion Include="Testcontainers.RabbitMq" Version="4.16.0" />
+    <!--#endif-->
+    <!--#if (servicebus)-->
+    <PackageVersion Include="Testcontainers.ServiceBus" Version="4.16.0" />
     <!--#endif-->
     <PackageVersion Include="xunit.v3" Version="4.0.2" />
   </ItemGroup>

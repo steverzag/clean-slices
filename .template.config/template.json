@@ -122,6 +122,12 @@
       "defaultValue": "false",
       "description": "Integration events go through RabbitMQ: sent after the commit (or by the outbox), retried, then dead-lettered."
     },
+    "servicebus": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "Integration events go through an Azure Service Bus topic (the emulator locally): sent after the commit (or by the outbox), retried, then dead-lettered."
+    },
     "message_broker": {
       "type": "parameter",
       "datatype": "bool",
@@ -300,6 +306,7 @@
           "condition": "(!message_broker)",
           "exclude": [
             "src/CleanSlices.Infrastructure/IntegrationEvents/Broker/**",
+            "tests/CleanSlices.Api.Tests/IntegrationEvents/BrokerTests.cs",
             "docs/messaging.md"
           ]
         },
@@ -312,8 +319,13 @@
         {
           "condition": "(!rabbitmq)",
           "exclude": [
-            "src/CleanSlices.Infrastructure/IntegrationEvents/RabbitMq/**",
-            "tests/CleanSlices.Api.Tests/IntegrationEvents/RabbitMqTests.cs"
+            "src/CleanSlices.Infrastructure/IntegrationEvents/RabbitMq/**"
+          ]
+        },
+        {
+          "condition": "(!servicebus)",
+          "exclude": [
+            "src/CleanSlices.Infrastructure/IntegrationEvents/ServiceBus/**"
           ]
         },
         {

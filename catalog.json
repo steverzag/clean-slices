@@ -129,6 +129,17 @@
       "provides": ["at-least-once-delivery"]
     },
     {
+      "id": "servicebus",
+      "kind": "option",
+      "concept": "infrastructure",
+      "group": "queue",
+      "title": "Azure Service Bus",
+      "description": "Integration events go through an Azure Service Bus topic: sent after the commit (or by the outbox), retried, then dead-lettered; the emulator runs locally from the AppHost.",
+      "requires": ["message-broker"],
+      "provides": ["at-least-once-delivery"],
+      "license": { "notice": "Azure Service Bus is a paid Azure service. The local emulator (AppHost and tests) runs under Microsoft's emulator license terms, accepted for you by the AppHost and the tests; it is for development only." }
+    },
+    {
       "id": "integration-events",
       "kind": "hidden"
     },

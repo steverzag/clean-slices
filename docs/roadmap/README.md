@@ -29,7 +29,7 @@ Changes to `main` that improve the default solution on their own: [base-template
 | Hidden unit | [Integration events](hidden-units.md#integration-events) | – | **done** (without the after-commit publisher, see its page) |
 | Infrastructure | [SQL Server](infrastructure.md#database), [PostgreSQL](infrastructure.md#database) | group `database` (required) | **done**; SQL Server is the default |
 | Infrastructure | [RabbitMQ](infrastructure.md#queue) | group `queue` | **done** (phase 7b) |
-| Infrastructure | [Azure Service Bus](infrastructure.md#queue) | group `queue` | designed (next in 7b) |
+| Infrastructure | [Azure Service Bus](infrastructure.md#queue) | group `queue` | **done** (phase 7b; emulator locally) |
 | Hidden unit | [Message broker](hidden-units.md#message-broker) | – | **done** (phase 7b: shared by the queue options) |
 | Infrastructure | [Redis](infrastructure.md#cache) | group `cache` | **done** |
 | Infrastructure | [FusionCache](infrastructure.md#cache) | group `cache-library` | **done** (phase 7) |

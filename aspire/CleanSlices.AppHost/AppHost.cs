@@ -39,5 +39,15 @@ api.WithReference(cache).WaitFor(cache);
 var messaging = builder.AddRabbitMQ("messaging").WithManagementPlugin();
 api.WithReference(messaging).WaitFor(messaging);
 #endif
+#if (servicebus)
+
+// The emulator can't create entities at run time, so the topic and subscription are declared here.
+// Their names and MaxDeliveryCount match the API's Messaging settings (Topic, Subscription, MaxDeliveries).
+var messaging = builder.AddAzureServiceBus("messaging").RunAsEmulator();
+messaging.AddServiceBusTopic("cleanslices-events")
+	.AddServiceBusSubscription("cleanslices-api-subscription", subscriptionName: "cleanslices-api")
+	.WithProperties(subscription => subscription.MaxDeliveryCount = 5);
+api.WithReference(messaging).WaitFor(messaging);
+#endif
 
 builder.Build().Run();
