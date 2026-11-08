@@ -14,6 +14,7 @@ using CleanSlices.Infrastructure.IntegrationEvents.RabbitMq;
 #endif
 #if (!outbox)
 using CleanSlices.Infrastructure.Persistence;
+using CleanSlices.Infrastructure.Persistence.AfterCommit;
 #endif
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -46,16 +47,29 @@ public class BrokerTests(ApiFactory factory)
 #if (!outbox)
 
 	[Fact]
-	public async Task A_published_event_is_sent_once_the_save_commits()
+	public async Task An_event_published_during_a_save_is_sent_once_the_save_commits()
 	{
 		var testId = Guid.NewGuid();
 		await using var scope = factory.Services.CreateAsyncScope();
 
+		// As inside a save, from a domain event handler: the save pipeline's first step marks it.
+		scope.ServiceProvider.GetRequiredService<AfterCommitActions>().IsSaving = true;
 		await scope.ServiceProvider.GetRequiredService<IIntegrationEventPublisher>().Publish(new TestEvent(testId), Ct);
 		await Task.Delay(500, Ct);
 		Assert.Equal(0, RecordingHandler.DeliveriesOf(testId));
 
 		await scope.ServiceProvider.GetRequiredService<AppDbContext>().SaveChangesAsync(Ct);
+
+		Assert.Equal(1, await RecordingHandler.WaitForDeliveriesAsync(testId, 1, Ct));
+	}
+
+	[Fact]
+	public async Task An_event_published_outside_a_save_is_sent_at_once()
+	{
+		var testId = Guid.NewGuid();
+		await using var scope = factory.Services.CreateAsyncScope();
+
+		await scope.ServiceProvider.GetRequiredService<IIntegrationEventPublisher>().Publish(new TestEvent(testId), Ct);
 
 		Assert.Equal(1, await RecordingHandler.WaitForDeliveriesAsync(testId, 1, Ct));
 	}

@@ -14,7 +14,7 @@ Everything lives in `src/CleanSlices.Infrastructure/IntegrationEvents/`.
 <!--#if (message_broker && outbox)-->
 **Delivery:** the outbox stores each event with the data and sends it to the broker; the broker delivers it to the handlers. See [outbox.md](outbox.md) and [messaging.md](messaging.md).
 <!--#elseif (message_broker)-->
-**Delivery:** each event is sent to the broker once the save commits, and the broker delivers it to the handlers. See [messaging.md](messaging.md).
+**Delivery:** each event is sent to the broker once the save that published it commits (at once when it was published outside a save), and the broker delivers it to the handlers. See [messaging.md](messaging.md).
 <!--#else-->
 **Delivery:** the outbox stores each event with the data, and its processor runs the handlers in the background. See [outbox.md](outbox.md).
 <!--#endif-->

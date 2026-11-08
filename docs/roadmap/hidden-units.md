@@ -90,7 +90,7 @@ They're built together with the first option that needs them.
 - "After the commit" relies on each `SaveChangesAsync` being its own transaction. Code that opens an explicit transaction would see the actions run before its commit; documented.
 - Unit tests call the step directly (`Persistence/AfterCommitTests.cs`): order, dropped on failure, failures isolated, run once.
 - **`IsSaving` (added in phase 7d, for SignalR):** `SaveInProgressStep` (order `int.MinValue`, so domain event handlers already see it) sets it before the save and clears it after the commit or the failure. The notifier queues during a save and sends at once outside one; without it, a message sent outside a save would wait for a save that may never come. Unit-tested on the step.
-- **Later:** the after-commit publisher has the same gap: an integration event published outside a save waits for the next one. It could check `IsSaving` the same way.
+- The after-commit publisher checks `IsSaving` the same way (fixed in phase 7d): before, an integration event published outside a save waited for a save that might never come. Broker tests cover both paths.
 
 ## Integration events
 

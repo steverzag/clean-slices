@@ -83,7 +83,7 @@ The outbox sends each stored event to the broker and marks it processed once the
 <!--#else-->
 ## Without the outbox
 
-An event is sent once the save that published it commits (`AfterCommitPublisher`, through `IAfterCommit`), and never for a save that failed. **If the broker can't be reached at that moment, or the app stops right after the commit, the event is lost** (the failure is logged). Add the outbox when every event must arrive.
+An event published during a save (from a domain event handler) is sent once that save commits (`AfterCommitPublisher`, through `IAfterCommit`), and never for a save that failed. An event published outside a save (in an endpoint or a background job, with no data to wait for) is sent at once, and a failure reaches the caller. **If the broker can't be reached when a committed save's event is sent, or the app stops right after the commit, the event is lost** (the failure is logged). Add the outbox when every event must arrive.
 <!--#endif-->
 
 ## Settings
