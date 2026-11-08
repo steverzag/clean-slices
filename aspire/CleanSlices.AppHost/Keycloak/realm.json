@@ -2,6 +2,8 @@
   "realm": "cleanslices-realm",
   "enabled": true,
   "accessTokenLifespan": 3600,
+  "registrationAllowed": true,
+  "registrationEmailAsUsername": true,
   "roles": {
     "realm": [
       { "name": "admin", "description": "Administrators of the API" }

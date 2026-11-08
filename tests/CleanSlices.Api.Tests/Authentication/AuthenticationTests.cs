@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Http.Headers;
 #if (identity)
 using System.Net.Http.Json;
+using System.Text.Json;
 #endif
 #if (entra)
 using CleanSlices.Api.Configuration.Authentication.Entra;
@@ -71,6 +72,25 @@ public class AuthenticationTests(ApiFactory factory) : IAsyncDisposable
 		Assert.Equal(HttpStatusCode.OK, register.StatusCode);
 		Assert.Equal(HttpStatusCode.Unauthorized, infoWithoutLogin.StatusCode);
 		Assert.Equal(HttpStatusCode.OK, infoWithLogin.StatusCode);
+	}
+
+	[Fact]
+	public async Task A_refresh_token_gets_a_new_access_token()
+	{
+		var anonymous = Anonymous(factory.CreateClient());
+		var account = new { email = $"{Guid.NewGuid():N}@example.com", password = "Account-Passw0rd!" };
+		await anonymous.PostAsJsonAsync($"{IdentityAuthentication.RoutePrefix}/register", account, TestContext.Current.CancellationToken);
+		var login = await anonymous.PostAsJsonAsync($"{IdentityAuthentication.RoutePrefix}/login", account, TestContext.Current.CancellationToken);
+		var refreshToken = (await login.Content.ReadFromJsonAsync<JsonElement>(TestContext.Current.CancellationToken)).GetProperty("refreshToken").GetString();
+
+		var refreshed = await anonymous.PostAsJsonAsync($"{IdentityAuthentication.RoutePrefix}/refresh", new { refreshToken }, TestContext.Current.CancellationToken);
+		var accessToken = (await refreshed.Content.ReadFromJsonAsync<JsonElement>(TestContext.Current.CancellationToken)).GetProperty("accessToken").GetString();
+		var client = factory.CreateClient();
+		client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+		var info = await client.GetFromJsonAsync<JsonElement>($"{IdentityAuthentication.RoutePrefix}/manage/info", TestContext.Current.CancellationToken);
+
+		Assert.Equal(HttpStatusCode.OK, refreshed.StatusCode);
+		Assert.Equal(account.email, info.GetProperty("email").GetString());
 	}
 #endif
 

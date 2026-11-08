@@ -47,6 +47,27 @@ app.MapDelete("/users/{id:guid}", Handler).RequireAuthorization("Admins");
 
 Checks about a specific record ("only the task's owner can edit it") belong in the handler: load the record, compare its owner with `ICurrentUser.UserId`, and return 403 (or 404, to hide that it exists).
 
+## Several ways to sign in
+
+Signing up with an email, a Google account or a Microsoft account in the same app is the identity provider's job, not the API's: the provider offers the sign-in methods (federation) and always issues the same kind of token, so the API keeps trusting one issuer and doesn't change.
+
+<!--#if (keycloak)-->
+Keycloak does this: registration with an email is on in the realm, and Google, Microsoft and other providers are added to the realm. See *Registration and social logins* below.
+<!--#elseif (entra)-->
+This option works with a workforce tenant: your organization's accounts. For customers who sign up with an email, Google or Microsoft, Microsoft's product is **Entra External ID** (a customer tenant). Its tokens work the same way, but it has its own login domain (`ciamlogin.com`) and issuer, which this option doesn't set up yet.
+<!--#elseif (identity)-->
+With ASP.NET Core Identity, accounts are email and password only. Identity supports external logins (`AddGoogle`, `AddMicrosoftAccount`) only through cookies and redirects, for server-rendered apps; the token endpoints of `MapIdentityApi` don't. For email, Google and Microsoft together, use Keycloak or a hosted provider instead (see *Switching providers*).
+<!--#endif-->
+
+## Switching providers
+
+The providers are alternatives: a solution has one. Adding another with the CLI (`add keycloak`, `add entra`, `add identity`) replaces the current one in the code, and leaves the rest to you:
+
+- **User IDs change.** `ICurrentUser.UserId` is the new provider's ID for the user, so anything stored under the old ID (a `LoginId` on your own records) no longer matches.
+- **Accounts don't move.** Users stay in the old provider; moving them is a migration of its own (Keycloak and Entra ID can import users).
+- **Settings stay behind**, such as the Entra tenant and client IDs in the AppHost's user secrets. They are harmless; remove them if you like.
+- **Identity's tables.** Moving away from Identity, `AppDbContext` stops inheriting `IdentityDbContext`, so the next `dotnet ef migrations add` drops the `AspNetUsers` tables and the accounts in them: read that migration before applying it. Moving to Identity, create the migration the CLI prints.
+
 <!--#if (keycloak)-->
 ## Keycloak
 
@@ -62,6 +83,7 @@ The AppHost runs Keycloak in a container (`quay.io/keycloak/keycloak`) at **`htt
 | Client | `cleanslices-api`: public, authorization code with PKCE, and the password grant for tests and the `.http` file |
 | Role | `admin` |
 | Test users | `user` / `user`, and `admin` / `admin` with the `admin` role |
+| Registration | open, with the email as username; Google and Microsoft can be added (see below) |
 | Access tokens | valid for one hour |
 
 Nothing else is kept: users and changes made in the admin console are gone after a restart. Change the realm file instead, or export the realm from the admin console and replace the file.
@@ -84,6 +106,34 @@ curl -s -d "grant_type=password&client_id=cleanslices-api&username=user&password
 ```
 
 The OpenAPI document describes the login (OAuth2, authorization code), so API reference pages can sign in through Keycloak.
+
+### Registration and social logins
+
+**Registration** is open: Keycloak's login page has a *Register* link, and the email is the username. The page is part of the browser login (authorization code), so the password grant of the tests and the `.http` file never shows it. The realm sends no email until you set up SMTP (*Realm settings › Email*), so email verification and *Forgot password* stay off; turn them on under *Realm settings › Login* once it does.
+
+**Google, Microsoft and others** are identity providers of the realm. Each needs an app registered with that provider:
+
+1. **Google**: in the Google Cloud console (*APIs & Services › Credentials*), create an OAuth client ID of type *Web application*, with the redirect URI `http://localhost:18080/realms/cleanslices-realm/broker/google/endpoint`.
+2. **Microsoft**: in the Entra admin center, register an application for *accounts in any organizational directory and personal Microsoft accounts*, with the redirect URI `http://localhost:18080/realms/cleanslices-realm/broker/microsoft/endpoint`, and create a client secret.
+3. In the admin console, *Identity providers › Google* (or *Microsoft*): paste the client ID and secret.
+
+The login page then shows a button for each. The first sign-in creates a Keycloak user, or offers to link it to an existing one with the same email, so one person stays one user. The API sees an ordinary Keycloak token: the same `sub` for that user every time, and the realm's roles.
+
+The realm is imported again on every start and nothing else is kept, so a provider added in the admin console is gone after a restart. Add it to `realm.json` instead, without committing its secret: Keycloak reads `${vault.<key>}` from a vault.
+
+```json
+"identityProviders": [
+  {
+    "alias": "google",
+    "providerId": "google",
+    "enabled": true,
+    "trustEmail": true,
+    "config": { "clientId": "<client-id>", "clientSecret": "${vault.google-secret}" }
+  }
+]
+```
+
+With a file vault, the container gets `KC_VAULT=file` and `KC_VAULT_DIR` (a bind mount in the AppHost, like the realm's), and each secret is a file named `<realm>_<key>` (here `cleanslices-realm_google-secret`), kept out of git.
 
 ### Settings
 
