@@ -54,6 +54,15 @@ Every strategy follows the same three steps, so strategies never touch each othe
 
 **What.** Every change to an audited entity is recorded in an `AuditEntries` table, with full snapshots of the entity before and after. Entities get no extra fields.
 
+**Built (phase 8).** Documented for users in `docs/audit.md`.
+
+**As built.**
+
+- `IAuditable` and `[NotAudited]` in `Core/Domain`; `AuditEntry`, its type configuration and `AuditStep` (order 300) in `Infrastructure/Persistence/Audit/`. Requires `current-user` only: the table is a type configuration found by the usual scan, so no model rule (changed from the shared "how strategies plug in" steps).
+- `EntityId` is a string (the key values joined), so any key works; `Action` stored as a string. Snapshots: mapped properties from EF's entries, enums as strings, keys as the property names.
+- Tests (samples, `Features/Tasks/AuditTests`): a task's history (added, renamed, completed, with before and after, the trace and the user: the test user's ID with an authentication option, `null` without); a delete (`Modified` with `DeletedAt` under soft delete, `Deleted` otherwise); `User.Email` is `[NotAudited]` in the samples and absent from the snapshot. Sabotage-proved: audit ordered before soft delete records a `Deleted`; ignoring the attribute shows the email.
+- No sample endpoint for the history (it would be 8 handler variants); `docs/audit.md` shows the query.
+
 **Design.**
 
 - `IAuditable` is an empty marker.

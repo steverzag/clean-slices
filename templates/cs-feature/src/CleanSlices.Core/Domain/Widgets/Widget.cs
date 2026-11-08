@@ -2,8 +2,12 @@ using CleanSlices.Core.Shared;
 
 namespace CleanSlices.Core.Domain.Widgets;
 
-#if (soft_delete)
+#if (soft_delete && audit)
+public class Widget : Entity, ISoftDeletable, IAuditable
+#elif (soft_delete)
 public class Widget : Entity, ISoftDeletable
+#elif (audit)
+public class Widget : Entity, IAuditable
 #else
 public class Widget : Entity
 #endif

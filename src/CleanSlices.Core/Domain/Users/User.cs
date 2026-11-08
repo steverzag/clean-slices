@@ -2,8 +2,12 @@
 
 namespace CleanSlices.Core.Domain.Users;
 
-#if (soft_delete)
+#if (soft_delete && audit)
+public class User : Entity, ISoftDeletable, IAuditable
+#elif (soft_delete)
 public class User : Entity, ISoftDeletable
+#elif (audit)
+public class User : Entity, IAuditable
 #else
 public class User : Entity
 #endif
@@ -12,6 +16,10 @@ public class User : Entity
 	public const int EmailMaxLength = 256;
 
 	public string Name { get; private set; } = null!;
+#if (audit)
+	// Personal data: kept out of the audit snapshots (see docs/audit.md).
+	[NotAudited]
+#endif
 	public string Email { get; private set; } = null!;
 #if (soft_delete)
 	public DateTimeOffset? DeletedAt { get; private set; }

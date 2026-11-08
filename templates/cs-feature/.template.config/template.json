@@ -47,6 +47,12 @@
       "defaultValue": "false",
       "description": "Soft delete: the entity implements ISoftDeletable."
     },
+    "audit": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "Audit: the entity implements IAuditable."
+    },
     "authentication": {
       "type": "parameter",
       "datatype": "bool",

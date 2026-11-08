@@ -9,8 +9,12 @@ public enum TaskItemStatus
 	Completed
 }
 
-#if (soft_delete)
+#if (soft_delete && audit)
+public class TaskItem : Entity, ISoftDeletable, IAuditable
+#elif (soft_delete)
 public class TaskItem : Entity, ISoftDeletable
+#elif (audit)
+public class TaskItem : Entity, IAuditable
 #else
 public class TaskItem : Entity
 #endif

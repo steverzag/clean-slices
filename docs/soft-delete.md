@@ -87,6 +87,10 @@ await context.Set<User>()
 	.ExecuteDeleteAsync(cancellationToken);
 ```
 
+<!--#if (audit)-->
+Audit entries copy the data too: purge the person's `AuditEntries` as well (see [audit.md](audit.md)).
+
+<!--#endif-->
 Bulk operations (`ExecuteDelete`, `ExecuteUpdate`) always skip the save pipeline: an `ExecuteDelete` without `IgnoreQueryFilters` only reaches rows that aren't deleted, and deletes them for good.
 
 ## Large tables

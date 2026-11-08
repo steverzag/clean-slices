@@ -76,6 +76,10 @@ The two creates (`POST /tasks`, `POST /users`) accept an `Idempotency-Key` heade
 
 Users and tasks are soft-deletable: deleting one keeps its row with `DeletedAt`, hidden from the API (see [soft-delete.md](soft-delete.md)). A deleted task keeps its assignments.
 <!--#endif-->
+<!--#if (audit)-->
+
+Users and tasks are audited (see [audit.md](audit.md)); `User.Email` is `[NotAudited]`, so the snapshots don't copy it.
+<!--#endif-->
 <!--#if (signalr)-->
 
 Clients watch a task through the hub's `WatchTask(taskId)`; `NotifyTaskWatchersHandler` sends them `TaskChanged` once the task is completed or deleted (see [realtime.md](realtime.md)).

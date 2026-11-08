@@ -170,6 +170,12 @@
       "defaultValue": "false",
       "description": "Soft delete: deleting an entity sets DeletedAt instead of removing the row, and deleted rows are hidden."
     },
+    "audit": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "Audit: every change to an auditable entity is recorded in AuditEntries, with snapshots before and after."
+    },
     "authentication": {
       "type": "parameter",
       "datatype": "bool",
@@ -414,6 +420,15 @@
             "src/CleanSlices.Infrastructure/Persistence/SoftDelete/**",
             "tests/CleanSlices.Api.Tests/Features/Users/SoftDeleteTests.cs",
             "docs/soft-delete.md"
+          ]
+        },
+        {
+          "condition": "(!audit)",
+          "exclude": [
+            "src/CleanSlices.Core/Domain/IAuditable.cs",
+            "src/CleanSlices.Infrastructure/Persistence/Audit/**",
+            "tests/CleanSlices.Api.Tests/Features/Tasks/AuditTests.cs",
+            "docs/audit.md"
           ]
         },
         {

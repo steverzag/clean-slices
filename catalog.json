@@ -193,6 +193,16 @@
       "addNote": "existing entities aren't converted: add ISoftDeletable and a DeletedAt property to the ones that need it, then create the migration (see docs/soft-delete.md)."
     },
     {
+      "id": "audit",
+      "kind": "option",
+      "concept": "strategy",
+      "title": "Audit",
+      "description": "Every change to an auditable entity is recorded in AuditEntries, in the same transaction: who, when, the trace, and the entity before and after.",
+      "requires": ["current-user"],
+      "addsTables": true,
+      "addNote": "existing entities aren't audited: add IAuditable to the ones that need it (see docs/audit.md)."
+    },
+    {
       "id": "integration-events",
       "kind": "hidden"
     },

@@ -40,7 +40,7 @@ Changes to `main` that improve the default solution on their own: [base-template
 | Infrastructure | [SignalR](infrastructure.md#realtime) | group `realtime` | **done** (phase 7d) |
 | Glue | [SignalR × Redis](infrastructure.md#realtime) | – | **done**: the Redis backplane |
 | Strategy | [Soft delete](strategies.md#soft-delete) | – | **done** (phase 8) |
-| Strategy | [Audit](strategies.md#audit) | – | designed |
+| Strategy | [Audit](strategies.md#audit) | – | **done** (phase 8) |
 | Strategy | [Optimistic concurrency](strategies.md#parked-optimistic-concurrency) | – | **parked** |
 | Extra | [Logging (Serilog)](extras.md#logging-serilog) | `seq`: off (default), on | designed |
 | Extra | [API reference (Scalar)](extras.md#api-reference-scalar) | – | designed |

@@ -5,7 +5,7 @@ A hidden unit is a piece that several options need but nobody picks on its own. 
 | Unit | Seam | Default | Required by | Replaced by |
 |---|---|---|---|---|
 | [`current-user`](#current-user) | `ICurrentUser` | anonymous | idempotency keys, audit, logging, realtime | authentication options |
-| [`model-rules`](#model-rules) | model rules run from `OnModelCreating` | – | PostgreSQL, soft delete, audit | – |
+| [`model-rules`](#model-rules) | model rules run from `OnModelCreating` | – | PostgreSQL, soft delete | – |
 | [`cache`](#cache) | `IDistributedCache` | in memory | idempotency keys, Redis | Redis |
 | [`hybrid-cache`](#hybridcache) | `HybridCache` | Microsoft's | Redis, FusionCache | FusionCache |
 | [`after-commit`](#after-commit) | `IAfterCommit` | – | HybridCache (invalidation), the after-commit publisher, SignalR | – |
@@ -43,7 +43,7 @@ They're built together with the first option that needs them.
 - `OnModelCreating` runs every rule class found by scanning, after the type configurations, in order of full type name. That's one conditional line in `AppDbContext`, present only when the unit is.
 - Rules are created with `Activator`, with no dependency injection: `OnModelCreating` runs once per model, before any scope exists.
 - A rule applies what its option needs: a collation, table names, a query filter, extra columns, a table.
-- Used by: PostgreSQL (`CaseInsensitiveCollation`, `SnakeCaseTableNames`, the sample `UserEmailCollationRule`), soft delete (`SoftDeleteRule`). Next: audit.
+- Used by: PostgreSQL (`CaseInsensitiveCollation`, `SnakeCaseTableNames`, the sample `UserEmailCollationRule`), soft delete (`SoftDeleteRule`). Audit didn't need one: its table is a type configuration, found by the usual scan.
 
 **Feature template.** No change.
 
