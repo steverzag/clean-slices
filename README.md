@@ -70,10 +70,16 @@ The options the solution was created with, each with its own documentation:
 <!--#if (audit)-->
 - **Audit**: every change to an auditable entity is recorded in `AuditEntries`, with who, when, and the entity before and after. See [docs/audit.md](docs/audit.md).
 <!--#endif-->
+<!--#if (serilog)-->
+- **Logging (Serilog)**: readable logs in Development, JSON elsewhere, to the Aspire dashboard, with one line per request. See [docs/logging.md](docs/logging.md).
+<!--#endif-->
+<!--#if (scalar)-->
+- **API reference (Scalar)**: an interactive page at `/scalar` (Development) for trying the API. See [docs/api-reference.md](docs/api-reference.md).
+<!--#endif-->
 <!--#if (identity)-->
 - **ASP.NET Core Identity**: every endpoint requires a login; the API keeps its own accounts, with register and login endpoints under `/account`. See [docs/authentication.md](docs/authentication.md).
 <!--#endif-->
-<!--#if (!samples && !result && !outbox && !inbox && !postgresql && !validation && !idempotency && !repository && !cqrs && !redis && !fusioncache && !rabbitmq && !servicebus && !keycloak && !entra && !identity && !signalr && !soft_delete && !audit)-->
+<!--#if (!samples && !result && !outbox && !inbox && !postgresql && !validation && !idempotency && !repository && !cqrs && !redis && !fusioncache && !rabbitmq && !servicebus && !keycloak && !entra && !identity && !signalr && !soft_delete && !audit && !serilog && !scalar)-->
 - None: this is the default setup. Options can be added later with the CLI.
 <!--#endif-->
 

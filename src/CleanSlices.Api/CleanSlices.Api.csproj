@@ -12,6 +12,16 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <!--#endif-->
+    <!--#if (scalar)-->
+    <PackageReference Include="Scalar.AspNetCore" />
+    <!--#endif-->
+    <!--#if (serilog)-->
+    <PackageReference Include="Serilog.AspNetCore" />
+    <PackageReference Include="Serilog.Sinks.OpenTelemetry" />
+    <!--#endif-->
+    <!--#if (serilog && seq)-->
+    <PackageReference Include="Serilog.Sinks.Seq" />
+    <!--#endif-->
     <!--#if (signalr_redis)-->
     <PackageReference Include="Microsoft.AspNetCore.SignalR.StackExchangeRedis" />
     <!--#endif-->

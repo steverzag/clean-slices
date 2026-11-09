@@ -13,6 +13,9 @@ const int KeycloakPort = 18080;
 #endif
 
 var api = builder.AddProject<Projects.CleanSlices_Api>("cleanslices-api");
+#if (scalar)
+api.WithUrlForEndpoint("https", _ => new() { Url = "/scalar", DisplayText = "API reference" });
+#endif
 
 if (builder.Configuration.GetConnectionString(DatabaseConnectionName) is not null)
 {
@@ -51,6 +54,12 @@ messaging.AddServiceBusTopic("cleanslices-events")
 	.AddServiceBusSubscription("cleanslices-api-subscription", subscriptionName: "cleanslices-api")
 	.WithProperties(subscription => subscription.MaxDeliveryCount = 5);
 api.WithReference(messaging).WaitFor(messaging);
+#endif
+#if (serilog && seq)
+
+// Seq keeps the logs and searches them, at the address the dashboard shows; the API writes to it through the "seq" connection string.
+var seq = builder.AddSeq("seq").WithDataVolume();
+api.WithReference(seq).WaitFor(seq);
 #endif
 #if (keycloak)
 

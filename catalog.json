@@ -203,6 +203,34 @@
       "addNote": "existing entities aren't audited: add IAuditable to the ones that need it (see docs/audit.md)."
     },
     {
+      "id": "serilog",
+      "kind": "option",
+      "concept": "extra",
+      "title": "Logging (Serilog)",
+      "description": "Serilog writes the logs: readable in Development, JSON elsewhere, to the Aspire dashboard over OTLP, with one line per request (with the user).",
+      "requires": ["current-user"],
+      "choices": {
+        "store": {
+          "default": "dashboard",
+          "values": {
+            "dashboard": { "title": "Console and dashboard", "description": "Logs go to the console and the Aspire dashboard." },
+            "seq": {
+              "title": "Seq too",
+              "description": "Also to Seq, which keeps and searches them; the AppHost runs it.",
+              "license": { "notice": "Seq is free for individuals and for development, and paid for teams in production. The AppHost accepts its license for you; check the terms before you run it in production." }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "scalar",
+      "kind": "option",
+      "concept": "extra",
+      "title": "API reference (Scalar)",
+      "description": "An interactive page at /scalar (Development) for browsing and trying the API, signing in with the login the solution uses; linked from the Aspire dashboard."
+    },
+    {
       "id": "integration-events",
       "kind": "hidden"
     },

@@ -18,6 +18,9 @@
     <!--#if (rabbitmq)-->
     <PackageReference Include="Aspire.Hosting.RabbitMQ" />
     <!--#endif-->
+    <!--#if (serilog && seq)-->
+    <PackageReference Include="Aspire.Hosting.Seq" />
+    <!--#endif-->
     <!--#if (servicebus)-->
     <PackageReference Include="Aspire.Hosting.Azure.ServiceBus" />
     <!--#endif-->

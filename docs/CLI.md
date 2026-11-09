@@ -70,6 +70,8 @@ Available options:
 | `signalr` | Messages pushed to connected clients through one SignalR hub (`/hubs/notifications`): to a user, a group or everyone, sent after the commit and dropped if the save fails. With an authentication option the hub requires a login; with Redis, the `signalr-redis` glue adds the backplane. |
 | `soft-delete` | Deleting an entity sets `DeletedAt` instead of removing the row; deleted rows are hidden from every query, and unique indexes ignore them, so the API answers as after a real delete. New features get it; after `add`, the CLI reminds you that existing entities aren't converted. Changes the database: the CLI prints the migration to create. |
 | `audit` | Every change to an auditable entity is recorded in `AuditEntries` in the same transaction, with the user, the time, the trace and JSON snapshots before and after. New features get it; after `add`, the CLI reminds you that existing entities aren't audited. Changes the database. |
+| `serilog` | Serilog writes the logs: readable in Development, JSON elsewhere, to the Aspire dashboard over OTLP, with one line per request and the user. Choice `store`: `dashboard` (default) or `seq` (Seq too, run by the AppHost; prints its license notice): `--with serilog:store=seq`. |
+| `scalar` | An interactive API reference at `/scalar` (Development), linked from the Aspire dashboard; it signs in with the solution's authentication option. |
 
 ## Create a solution
 

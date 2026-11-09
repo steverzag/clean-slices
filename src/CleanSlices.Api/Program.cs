@@ -18,6 +18,9 @@ using CleanSlices.Api.Configuration.Cqrs;
 #if (idempotency)
 using CleanSlices.Api.Configuration.Idempotency;
 #endif
+#if (serilog)
+using CleanSlices.Api.Configuration.Logging;
+#endif
 #if (signalr)
 using CleanSlices.Api.Configuration.Realtime;
 #endif
@@ -26,11 +29,17 @@ using CleanSlices.Api.Configuration.Validation;
 #endif
 using CleanSlices.Api.Handlers;
 using CleanSlices.Infrastructure;
+#if (scalar)
+using Scalar.AspNetCore;
+#endif
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
+#if (serilog)
+builder.AddSerilogLogging();
+#endif
 builder.AddInfrastructure();
 #if (keycloak)
 builder.AddKeycloakAuthentication();
@@ -65,6 +74,9 @@ var app = builder.Build();
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();
+#if (serilog)
+app.UseRequestLogging();
+#endif
 
 app.MapDefaultEndpoints();
 
@@ -75,6 +87,12 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi().AllowAnonymous();
 #else
     app.MapOpenApi();
+#endif
+#if (scalar && authentication)
+    // The page can sign in with the login the OpenAPI document describes.
+    app.MapScalarApiReference().AllowAnonymous();
+#elif (scalar)
+    app.MapScalarApiReference();
 #endif
 }
 

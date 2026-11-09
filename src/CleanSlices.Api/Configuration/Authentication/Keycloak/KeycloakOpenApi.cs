@@ -1,6 +1,7 @@
 #if (keycloak)
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.OpenApi;
+using System.Text.Json.Nodes;
 
 namespace CleanSlices.Api.Configuration.Authentication.Keycloak;
 
@@ -23,7 +24,13 @@ internal sealed class KeycloakOpenApi(KeycloakOptions keycloak) : IOpenApiDocume
 				{
 					AuthorizationUrl = new Uri($"{keycloak.Authority}/protocol/openid-connect/auth"),
 					TokenUrl = new Uri($"{keycloak.Authority}/protocol/openid-connect/token"),
-					Scopes = new Dictionary<string, string> { ["openid"] = "OpenID Connect" }
+					Scopes = new Dictionary<string, string> { ["openid"] = "OpenID Connect" },
+					// Read by API reference pages such as Scalar, which can then sign in with this client.
+					Extensions = new Dictionary<string, IOpenApiExtension>
+					{
+						["x-scalar-client-id"] = new JsonNodeExtension(JsonValue.Create(keycloak.Audience)),
+						["x-usePkce"] = new JsonNodeExtension(JsonValue.Create("SHA-256")),
+					}
 				}
 			}
 		};

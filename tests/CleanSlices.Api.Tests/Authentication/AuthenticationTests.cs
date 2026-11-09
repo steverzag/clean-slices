@@ -43,6 +43,19 @@ public class AuthenticationTests(ApiFactory factory) : IAsyncDisposable
 		Assert.Equal(HttpStatusCode.OK, document.StatusCode);
 		Assert.Contains("securitySchemes", await document.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
 	}
+#if (keycloak || entra)
+
+	[Fact]
+	public async Task The_OpenAPI_login_names_the_client_for_API_reference_pages()
+	{
+		var client = Anonymous(factory.CreateClient());
+
+		var document = await client.GetStringAsync("/openapi/v1.json", TestContext.Current.CancellationToken);
+
+		Assert.Contains("\"x-scalar-client-id\"", document);
+		Assert.Contains("\"x-usePkce\": \"SHA-256\"", document);
+	}
+#endif
 	//#if (samples)
 
 	[Fact]

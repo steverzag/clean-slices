@@ -1,6 +1,7 @@
 #if (entra)
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.OpenApi;
+using System.Text.Json.Nodes;
 
 namespace CleanSlices.Api.Configuration.Authentication.Entra;
 
@@ -25,7 +26,13 @@ internal sealed class EntraOpenApi(EntraOptions entra) : IOpenApiDocumentTransfo
 				{
 					AuthorizationUrl = new Uri($"{endpoints}/authorize"),
 					TokenUrl = new Uri($"{endpoints}/token"),
-					Scopes = new Dictionary<string, string> { [$"api://{entra.ClientId}/{entra.Scope}"] = "Call the API as the signed-in user" }
+					Scopes = new Dictionary<string, string> { [$"api://{entra.ClientId}/{entra.Scope}"] = "Call the API as the signed-in user" },
+					// Read by API reference pages such as Scalar, which can then sign in with this client.
+					Extensions = new Dictionary<string, IOpenApiExtension>
+					{
+						["x-scalar-client-id"] = new JsonNodeExtension(JsonValue.Create(entra.ClientId)),
+						["x-usePkce"] = new JsonNodeExtension(JsonValue.Create("SHA-256")),
+					}
 				}
 			}
 		};

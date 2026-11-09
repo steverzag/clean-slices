@@ -176,6 +176,36 @@
       "defaultValue": "false",
       "description": "Audit: every change to an auditable entity is recorded in AuditEntries, with snapshots before and after."
     },
+    "serilog": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "Serilog writes the logs: to the console and the Aspire dashboard, with one line per request."
+    },
+    "serilog_store": {
+      "type": "parameter",
+      "datatype": "choice",
+      "defaultValue": "dashboard",
+      "choices": [
+        { "choice": "dashboard", "description": "Logs go to the console and the Aspire dashboard." },
+        { "choice": "seq", "description": "Also to Seq, which the AppHost runs." }
+      ],
+      "description": "Where Serilog keeps the logs (only with serilog)."
+    },
+    "dashboard": {
+      "type": "computed",
+      "value": "(serilog_store == \"dashboard\")"
+    },
+    "seq": {
+      "type": "computed",
+      "value": "(serilog_store == \"seq\")"
+    },
+    "scalar": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "API reference: an interactive page at /scalar (Development) for browsing and trying the API."
+    },
     "authentication": {
       "type": "parameter",
       "datatype": "bool",
@@ -429,6 +459,21 @@
             "src/CleanSlices.Infrastructure/Persistence/Audit/**",
             "tests/CleanSlices.Api.Tests/Features/Tasks/AuditTests.cs",
             "docs/audit.md"
+          ]
+        },
+        {
+          "condition": "(!serilog)",
+          "exclude": [
+            "src/CleanSlices.Api/Configuration/Logging/**",
+            "tests/CleanSlices.Api.Tests/Configuration/RequestLoggingTests.cs",
+            "docs/logging.md"
+          ]
+        },
+        {
+          "condition": "(!scalar)",
+          "exclude": [
+            "tests/CleanSlices.Api.Tests/Configuration/ApiReferenceTests.cs",
+            "docs/api-reference.md"
           ]
         },
         {

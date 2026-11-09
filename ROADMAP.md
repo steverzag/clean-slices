@@ -176,7 +176,7 @@ Each phase ends with something usable. The order is a proposal.
 | 6, done | **Repository, CQRS, request validation, idempotency keys**: three options meeting in every handler, written as flat `#elif` chains (decided by a prototype); the first choice (`cqrs` dispatcher: own handlers or Mediator); the `current-user` and `cache` hidden units; listed matrix combinations (`result` + repository + CQRS) | Several invasive patterns in one feature template |
 | 7 | **Queue, cache, authentication, realtime**. 7a done: Redis and FusionCache (two cache groups), the first glue unit (`fusioncache-redis`), the `hybrid-cache` and `after-commit` hidden units. 7b done: RabbitMQ and Azure Service Bus (the `message-broker` hidden unit, the inbox without the outbox). 7c done: Keycloak, Entra ID and ASP.NET Core Identity (the `authentication` hidden unit, the `login` capability, provider roles as role claims). 7d done: SignalR (`IRealtimeNotifier` sent after the commit through `IAfterCommit.IsSaving`, the `signalr-redis` glue unit; the token-in-query glue designed away) | Zero-glue combinations, and the first glue units |
 | 8, done | **Strategies**: soft delete (filtered unique indexes, the `addNote` catalog field) and audit (snapshots from change tracking, after soft delete in the pipeline) | Options on entities and the save pipeline order |
-| 9 | **Extras**; publish the CLI on NuGet | Ready for other people |
+| 9 | **Extras**; publish the CLI on NuGet. Extras done: Serilog (`store` choice: dashboard, seq) and Scalar. Publishing set aside for now (license, version, metadata, landing README, workflow: see [extras.md](docs/roadmap/extras.md#publishing-set-aside)) | Ready for other people |
 
 ## Parked and open
 
