@@ -8,13 +8,6 @@ namespace CleanSlices.Infrastructure.Persistence.SoftDelete;
 
 internal sealed class SoftDeleteRule : IModelRule
 {
-	// The column as each provider names it: snake_case on PostgreSQL.
-#if (postgresql)
-	private const string NotDeleted = "\"deleted_at\" IS NULL";
-#else
-	private const string NotDeleted = "[DeletedAt] IS NULL";
-#endif
-
 	public void Apply(ModelBuilder modelBuilder)
 	{
 		var softDeletable = modelBuilder.Model.GetEntityTypes()
@@ -30,16 +23,17 @@ internal sealed class SoftDeleteRule : IModelRule
 			modelBuilder.Entity(entityType.ClrType).HasQueryFilter(SoftDeleteFilter.Name, hideDeleted);
 
 			// A deleted row's value must not block a new one: the API answers as after a real delete.
+			var column = entityType.FindProperty(nameof(ISoftDeletable.DeletedAt))!.GetColumnName();
 			foreach (var index in entityType.GetIndexes().Where(i => i.IsUnique))
 			{
 #if (postgresql)
-				var conditions = new[] { NotDeleted };
+				var conditions = new[] { $"\"{column}\" IS NULL" };
 #else
 				// SQL Server treats NULLs as equal in a unique index. EF leaves them out by itself, but only when the
 				// index has no filter of its own, so this filter has to do it.
 				var conditions = index.Properties.Where(p => p.IsNullable)
 					.Select(p => $"[{p.GetColumnName()}] IS NOT NULL")
-					.Append(NotDeleted);
+					.Append($"[{column}] IS NULL");
 #endif
 				var filter = string.Join(" AND ", conditions);
 				index.SetFilter(index.GetFilter() is { } existing ? $"({existing}) AND {filter}" : filter);

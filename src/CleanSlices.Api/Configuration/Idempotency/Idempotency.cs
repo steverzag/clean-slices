@@ -25,7 +25,9 @@ public static class Idempotency
 	{
 		public IServiceCollection AddIdempotency()
 		{
-			services.AddOptions<IdempotencyOptions>().BindConfiguration(IdempotencyOptions.Section);
+			services.AddOptions<IdempotencyOptions>().BindConfiguration(IdempotencyOptions.Section)
+				.Validate(o => o.Retention > TimeSpan.Zero, "Idempotency: Retention must be positive.")
+				.ValidateOnStart();
 			services.TryAddSingleton<KeysInProgress>();
 
 			return services;
@@ -71,8 +73,8 @@ public static class Idempotency
 				$"The {Header} header must be a single value of at most {MaxKeyLength} characters.");
 		}
 
-		// Keys belong to a user: two users can't see each other's responses.
-		var cacheKey = $"idempotency:{services.GetRequiredService<ICurrentUser>().UserId}:{key}";
+		// Keys belong to a user: two users can't see each other's responses. The length keeps the two parts apart.
+		var cacheKey = $"idempotency:{key.Length}:{key}:{services.GetRequiredService<ICurrentUser>().UserId}";
 		var inProgress = services.GetRequiredService<KeysInProgress>();
 		if (!inProgress.TryStart(cacheKey))
 		{
@@ -97,11 +99,12 @@ public static class Idempotency
 			var response = await CaptureAsync(httpContext, await next(invocation), fingerprint);
 
 			// Only successes are kept: after a failure, a retry with the same key runs again.
+			// The action already ran, so the response is stored even when the client has gone.
 			if (response.StatusCode is >= 200 and < 300)
 			{
 				await cache.SetAsync(cacheKey, JsonSerializer.SerializeToUtf8Bytes(response),
 					new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = options.Retention },
-					httpContext.RequestAborted);
+					CancellationToken.None);
 			}
 
 			return response;

@@ -15,6 +15,9 @@ using CleanSlices.Infrastructure.Persistence.ModelRules;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 #endif
 using Microsoft.EntityFrameworkCore;
+#if (soft_delete)
+using Microsoft.EntityFrameworkCore.ChangeTracking;
+#endif
 
 namespace CleanSlices.Infrastructure.Persistence;
 
@@ -48,6 +51,10 @@ public class AppDbContext : DbContext
 	//#endif
 	public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
 	{
+#if (soft_delete)
+		// A soft delete must not cascade to tracked dependents: cascade at save time, after it became an update.
+		ChangeTracker.CascadeDeleteTiming = CascadeTiming.OnSaveChanges;
+#endif
 	}
 
 	protected override void OnModelCreating(ModelBuilder modelBuilder)

@@ -6,7 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace CleanSlices.Infrastructure.Inbox;
 
-// The record joins the handler's own save, so the handler's changes and "this handler is done" commit together.
+// One transaction around the handler: its saves and "this handler is done" commit together, or not at all.
 internal sealed class InboxFilter : IIntegrationEventHandlerFilter
 {
 	public async Task Invoke(HandlerInvocation invocation, Func<Task> next, CancellationToken ct)
@@ -19,12 +19,18 @@ internal sealed class InboxFilter : IIntegrationEventHandlerFilter
 			return;
 		}
 
-		context.Set<ProcessedMessage>().Add(new ProcessedMessage { MessageId = messageId, Handler = handler });
-		await next();
-
 		try
 		{
-			await context.SaveChangesAsync(ct);
+			// The retrying execution strategy only accepts a transaction it can run again as a whole.
+			await context.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
+			{
+				context.ChangeTracker.Clear();
+				await using var transaction = await context.Database.BeginTransactionAsync(ct);
+				context.Set<ProcessedMessage>().Add(new ProcessedMessage { MessageId = messageId, Handler = handler });
+				await next();
+				await context.SaveChangesAsync(ct);
+				await transaction.CommitAsync(ct);
+			});
 		}
 		catch (DbUpdateException)
 		{

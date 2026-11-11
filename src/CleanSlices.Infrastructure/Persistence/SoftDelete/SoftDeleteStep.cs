@@ -14,7 +14,7 @@ internal sealed class SoftDeleteStep : ISaveChangesStep
 	{
 		foreach (var entry in context.ChangeTracker.Entries<ISoftDeletable>().Where(e => e.State == EntityState.Deleted))
 		{
-			entry.State = EntityState.Modified;
+			entry.State = EntityState.Unchanged;
 			entry.Property(nameof(ISoftDeletable.DeletedAt)).CurrentValue = DateTimeOffset.UtcNow;
 		}
 

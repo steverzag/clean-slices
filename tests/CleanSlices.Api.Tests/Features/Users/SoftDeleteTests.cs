@@ -54,5 +54,26 @@ public class SoftDeleteTests(ApiFactory factory)
 		Assert.True(await context.Set<TaskItemUserAssignment>()
 			.AnyAsync(a => a.TaskItemId == taskId, TestContext.Current.CancellationToken));
 	}
+
+	// EF cascades a delete to the dependents it tracks before the save: they must not be really deleted.
+	[Fact]
+	public async Task A_task_deleted_with_its_assignments_loaded_keeps_them()
+	{
+		var task = await _client.Post("/tasks", new CreateTaskItem.CreateTaskItemRequest("Soft", "Deleted with its assignments loaded"));
+		var taskId = (await task.Content.ReadAsAsync<CreateTaskItem.CreateTaskItemResponse>()).Id;
+		var user = await _client.Post("/users", new CreateUser.CreateUserRequest("Ana", $"{Guid.NewGuid():N}@example.com"));
+		var userId = (await user.Content.ReadAsAsync<CreateUser.CreateUserResponse>()).Id;
+		await _client.Post($"/tasks/{taskId}/users/{userId}");
+
+		await using var scope = factory.Services.CreateAsyncScope();
+		var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		var loaded = await context.Set<TaskItem>().Include(t => t.UserAssignments)
+			.SingleAsync(t => t.Id == taskId, TestContext.Current.CancellationToken);
+		context.Remove(loaded);
+		await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+		Assert.True(await context.Set<TaskItemUserAssignment>()
+			.AnyAsync(a => a.TaskItemId == taskId, TestContext.Current.CancellationToken));
+	}
 }
 #endif

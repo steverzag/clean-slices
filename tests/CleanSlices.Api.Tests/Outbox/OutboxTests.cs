@@ -136,6 +136,22 @@ public class OutboxTests(ApiFactory factory)
 	}
 
 	[Fact]
+	public async Task An_event_that_cant_be_read_is_marked_failed_without_retrying()
+	{
+		var testId = Guid.NewGuid();
+		await using (var scope = factory.Services.CreateAsyncScope())
+		{
+			var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+			context.Set<OutboxMessage>().Add(new OutboxMessage { Name = nameof(UnreadableEvent), Payload = $$"""{"testId":"{{testId}}"}""" });
+			await context.SaveChangesAsync(Ct);
+		}
+
+		var message = await ProcessUntilAsync(testId, m => m.FailedAt is not null);
+
+		Assert.Equal(1, message.Attempts);
+	}
+
+	[Fact]
 	public async Task Processed_rows_are_deleted_after_the_retention()
 	{
 		var testId = Guid.NewGuid();

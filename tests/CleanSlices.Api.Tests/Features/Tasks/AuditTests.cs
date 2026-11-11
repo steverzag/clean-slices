@@ -6,6 +6,7 @@ using CleanSlices.Api.Features.Users;
 using CleanSlices.Api.Tests.Authentication;
 #endif
 using CleanSlices.Api.Tests.Infrastructure;
+using CleanSlices.Core.Domain.Tasks;
 using CleanSlices.Infrastructure.Persistence;
 using CleanSlices.Infrastructure.Persistence.Audit;
 using Microsoft.EntityFrameworkCore;
@@ -72,6 +73,28 @@ public class AuditTests(ApiFactory factory)
 		using var snapshot = JsonDocument.Parse(created.After!);
 		Assert.Equal("Ana", snapshot.RootElement.GetProperty("Name").GetString());
 		Assert.False(snapshot.RootElement.TryGetProperty("Email", out _));
+	}
+
+	[Fact]
+	public async Task A_save_tried_again_after_a_failure_is_recorded_once()
+	{
+		var id = await CreateTaskAsync("Retried");
+		await using (var scope = factory.Services.CreateAsyncScope())
+		{
+			var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+			var task = await context.Set<TaskItem>().SingleAsync(t => t.Id == id, TestContext.Current.CancellationToken);
+			var title = context.Entry(task).Property(t => t.Title);
+
+			title.CurrentValue = new string('x', TaskItem.TitleMaxLength + 1);
+			await Assert.ThrowsAsync<DbUpdateException>(() => context.SaveChangesAsync(TestContext.Current.CancellationToken));
+			title.CurrentValue = "Retried again";
+			await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+		}
+
+		var history = await HistoryAsync("TaskItem", id);
+
+		Assert.Equal([AuditAction.Added, AuditAction.Modified], history.Select(e => e.Action));
+		Assert.Equal("Retried again", Value(history[1].After, "Title"));
 	}
 
 	private async Task<Guid> CreateTaskAsync(string title)

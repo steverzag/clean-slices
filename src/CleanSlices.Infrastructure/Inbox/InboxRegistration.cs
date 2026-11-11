@@ -11,7 +11,9 @@ internal static class InboxRegistration
 		// InboxFilter itself is found by AddIntegrationEvents, like every handler filter.
 		public IServiceCollection AddInbox()
 		{
-			services.AddOptions<InboxOptions>().BindConfiguration(InboxOptions.Section);
+			services.AddOptions<InboxOptions>().BindConfiguration(InboxOptions.Section)
+				.Validate(o => o.Retention > TimeSpan.Zero, "Inbox: Retention must be positive.")
+				.ValidateOnStart();
 			services.TryAddSingleton<InboxCleanup>();
 			services.AddHostedService<InboxCleanupWorker>();
 

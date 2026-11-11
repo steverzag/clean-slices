@@ -1,6 +1,7 @@
 #if (integration_events)
 using System.Collections.Concurrent;
 using CleanSlices.Infrastructure.IntegrationEvents;
+using CleanSlices.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CleanSlices.Api.Tests.IntegrationEvents;
@@ -41,12 +42,65 @@ public sealed class FailingHandler : IIntegrationEventHandler<TestEvent>
 			: Task.CompletedTask;
 }
 
+public sealed record SavingEvent(Guid TestId, bool FailAfterSaving = false) : IIntegrationEvent;
+
+// Saves by itself, the way a handler with an external call after its save does.
+public sealed class SavingHandler(AppDbContext context) : IIntegrationEventHandler<SavingEvent>
+{
+	private static readonly ConcurrentDictionary<Guid, int> Runs = [];
+	private static readonly ConcurrentDictionary<Guid, TaskCompletionSource> Gates = [];
+
+	public static int RunsOf(Guid testId) => Runs.GetValueOrDefault(testId);
+
+	public static TaskCompletionSource HoldBeforeSaving(Guid testId) =>
+		Gates.GetOrAdd(testId, _ => new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously));
+
+	public static async Task WaitForRunsAsync(Guid testId, int expected, CancellationToken ct)
+	{
+		var deadline = DateTime.UtcNow.AddSeconds(30);
+		while (RunsOf(testId) < expected && DateTime.UtcNow < deadline)
+		{
+			await Task.Delay(50, ct);
+		}
+	}
+
+	public async Task Handle(SavingEvent integrationEvent, CancellationToken ct)
+	{
+		Runs.AddOrUpdate(integrationEvent.TestId, 1, (_, count) => count + 1);
+		if (Gates.TryGetValue(integrationEvent.TestId, out var gate))
+		{
+			await gate.Task.WaitAsync(ct);
+		}
+
+		await context.SaveChangesAsync(ct);
+		if (integrationEvent.FailAfterSaving)
+		{
+			throw new InvalidOperationException($"Failing on purpose for {integrationEvent.TestId}.");
+		}
+	}
+}
+
+// System.Text.Json can't create it: no constructor it may use.
+public sealed class UnreadableEvent : IIntegrationEvent
+{
+	private UnreadableEvent()
+	{
+	}
+}
+
+public sealed class UnreadableHandler : IIntegrationEventHandler<UnreadableEvent>
+{
+	public Task Handle(UnreadableEvent integrationEvent, CancellationToken ct) => Task.CompletedTask;
+}
+
 public static class TestEventHandlers
 {
 	public static void Add(IServiceCollection services)
 	{
 		services.AddScoped<IIntegrationEventHandler<TestEvent>, RecordingHandler>();
 		services.AddScoped<IIntegrationEventHandler<TestEvent>, FailingHandler>();
+		services.AddScoped<IIntegrationEventHandler<SavingEvent>, SavingHandler>();
+		services.AddScoped<IIntegrationEventHandler<UnreadableEvent>, UnreadableHandler>();
 	}
 }
 #endif

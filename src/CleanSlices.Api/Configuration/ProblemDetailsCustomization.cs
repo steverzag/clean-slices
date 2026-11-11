@@ -32,7 +32,7 @@ public static class ProblemDetailsCustomization
 		}
 
 		validation.Errors = validation.Errors
-			.GroupBy(error => namingPolicy.ConvertName(error.Key))
+			.GroupBy(error => string.Join('.', error.Key.Split('.').Select(namingPolicy.ConvertName)))
 			.ToDictionary(group => group.Key, group => group.SelectMany(error => error.Value).ToArray());
 	}
 }

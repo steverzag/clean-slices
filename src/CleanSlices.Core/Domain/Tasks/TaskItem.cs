@@ -50,7 +50,7 @@ public class TaskItem : Entity
 
 		if (errors.TryGetValidationError(out var validationError))
 		{
-			return Result.Failure<TaskItem>(validationError!);
+			return Result.Failure<TaskItem>(validationError);
 		}
 
 		var task = new TaskItem(title, description);
@@ -66,7 +66,7 @@ public class TaskItem : Entity
 
 		if (errors.TryGetValidationError(out var validationError))
 		{
-			return Result.Failure(validationError!);
+			return Result.Failure(validationError);
 		}
 		Title = title;
 		return Result.Success();
@@ -80,7 +80,7 @@ public class TaskItem : Entity
 
 		if (errors.TryGetValidationError(out var validationError))
 		{
-			return Result.Failure(validationError!);
+			return Result.Failure(validationError);
 		}
 		Description = description;
 		return Result.Success();

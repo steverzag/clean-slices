@@ -20,6 +20,12 @@ internal sealed class AuditStep(ICurrentUser currentUser) : ISaveChangesStep
 
 	public ValueTask BeforeSaveAsync(DbContext context, CancellationToken cancellationToken)
 	{
+		// Left over from a save that failed on this context: saving again would record the change twice.
+		foreach (var stale in context.ChangeTracker.Entries<AuditEntry>().Where(e => e.State == EntityState.Added).ToList())
+		{
+			stale.State = EntityState.Detached;
+		}
+
 		var timestamp = DateTimeOffset.UtcNow;
 		var traceId = Activity.Current?.TraceId.ToString();
 

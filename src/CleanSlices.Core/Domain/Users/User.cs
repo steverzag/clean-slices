@@ -42,7 +42,7 @@ public class User : Entity
 
 		if (errors.TryGetValidationError(out var validationError))
 		{
-			return Result.Failure<User>(validationError!);
+			return Result.Failure<User>(validationError);
 		}
 
 		var user = new User(name, email);
@@ -58,7 +58,7 @@ public class User : Entity
 
 		if (errors.TryGetValidationError(out var validationError))
 		{
-			return Result.Failure(validationError!);
+			return Result.Failure(validationError);
 		}
 
 		Name = name;
@@ -74,7 +74,7 @@ public class User : Entity
 
 		if (errors.TryGetValidationError(out var validationError))
 		{
-			return Result.Failure(validationError!);
+			return Result.Failure(validationError);
 		}
 
 		Email = email;

@@ -32,7 +32,7 @@ public class TaskItemUserAssignment
 
 		if(errors.TryGetValidationError(out var validationError))
 		{
-			return Result.Failure<TaskItemUserAssignment>(validationError!);
+			return Result.Failure<TaskItemUserAssignment>(validationError);
 		}
 
 		var assignment = new TaskItemUserAssignment(taskItemId, userId);

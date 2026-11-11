@@ -22,7 +22,14 @@ public static class CqrsRegistration
 				.Where(t => t is { IsAbstract: false, IsInterface: false, IsGenericTypeDefinition: false })
 				.SelectMany(t => t.GetInterfaces()
 					.Where(i => i.IsGenericType && handlerInterfaces.Contains(i.GetGenericTypeDefinition()))
-					.Select(i => ServiceDescriptor.Scoped(i, t)));
+					.Select(i => ServiceDescriptor.Scoped(i, t)))
+				.ToList();
+
+			if (registrations.GroupBy(d => d.ServiceType).FirstOrDefault(g => g.Count() > 1) is { } duplicate)
+			{
+				throw new InvalidOperationException(
+					$"{duplicate.Key} has more than one handler: {string.Join(", ", duplicate.Select(d => d.ImplementationType!.FullName))}.");
+			}
 
 			services.TryAdd(registrations);
 			services.TryAddScoped<ISender, Sender>();

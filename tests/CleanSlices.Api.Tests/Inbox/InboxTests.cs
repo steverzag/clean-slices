@@ -52,6 +52,35 @@ public class InboxTests(ApiFactory factory)
 	}
 
 	[Fact]
+	public async Task A_handler_that_fails_after_its_own_save_runs_again_on_redelivery()
+	{
+		var testId = Guid.NewGuid();
+		var message = new IntegrationEventMessage(Guid.NewGuid(), new SavingEvent(testId, FailAfterSaving: true));
+
+		await Assert.ThrowsAsync<AggregateException>(() => Handlers.RunAsync(message, Ct));
+		await Assert.ThrowsAsync<AggregateException>(() => Handlers.RunAsync(message, Ct));
+
+		Assert.Equal(2, SavingHandler.RunsOf(testId));
+		Assert.Empty(await HandlersRecordedForAsync(message.Id));
+	}
+
+	[Fact]
+	public async Task Two_deliveries_inside_a_saving_handler_at_once_are_recorded_once_without_failing()
+	{
+		var testId = Guid.NewGuid();
+		var message = new IntegrationEventMessage(Guid.NewGuid(), new SavingEvent(testId));
+		var gate = SavingHandler.HoldBeforeSaving(testId);
+
+		var deliveries = Task.WhenAll(Handlers.RunAsync(message, Ct), Handlers.RunAsync(message, Ct));
+		await SavingHandler.WaitForRunsAsync(testId, 2, Ct);
+		gate.SetResult();
+		await deliveries;
+
+		Assert.Equal(2, SavingHandler.RunsOf(testId));
+		Assert.Single(await HandlersRecordedForAsync(message.Id));
+	}
+
+	[Fact]
 	public async Task Old_records_are_deleted_after_the_retention()
 	{
 		var message = new IntegrationEventMessage(Guid.NewGuid(), new TestEvent(Guid.NewGuid()));

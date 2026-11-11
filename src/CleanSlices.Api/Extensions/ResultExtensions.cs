@@ -74,13 +74,22 @@ public static class ResultExtensions
 						statusCode: StatusCodes.Status400BadRequest,
 						type: ProblemDetailsDefaults.RFC400Type
 					)
-				: Results.Problem
-					(
-						title: error.Code ?? ProblemDetailsDefaults.RFC500Title,
-						detail: error.Description ?? ProblemDetailsDefaults.RFC500Details,
-						statusCode: GetStatusCode(error),
-						type: GetType(error)
-					);
+				: GetStatusCode(error) == StatusCodes.Status500InternalServerError
+					// An error this mapping doesn't know is a bug: its text stays out of the response.
+					? Results.Problem
+						(
+							title: ProblemDetailsDefaults.RFC500Title,
+							detail: ProblemDetailsDefaults.RFC500Details,
+							statusCode: StatusCodes.Status500InternalServerError,
+							type: ProblemDetailsDefaults.RFC500Type
+						)
+					: Results.Problem
+						(
+							title: error.Code,
+							detail: error.Description,
+							statusCode: GetStatusCode(error),
+							type: GetType(error)
+						);
 	}
 
 	private static string GetType(Error error)

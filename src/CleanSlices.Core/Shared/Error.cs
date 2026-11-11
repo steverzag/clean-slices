@@ -1,4 +1,6 @@
 ﻿#if (result)
+using System.Diagnostics.CodeAnalysis;
+
 namespace CleanSlices.Core.Shared;
 
 public record Error(string Code, string Description);
@@ -12,7 +14,7 @@ public static class ErrorExtensions
 {
 	extension(List<FieldError> errors)
 	{
-		public bool TryGetValidationError(out ValidationError? validationError, string code = "Validation failed", string description = "One or more validation errors occurred.")
+		public bool TryGetValidationError([NotNullWhen(true)] out ValidationError? validationError, string code = "Validation failed", string description = "One or more validation errors occurred.")
 		{
 			if (errors is [_, ..])
 			{

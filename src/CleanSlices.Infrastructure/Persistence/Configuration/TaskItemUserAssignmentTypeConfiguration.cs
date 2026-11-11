@@ -1,4 +1,5 @@
 using CleanSlices.Core.Domain.Tasks;
+using CleanSlices.Core.Domain.Users;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -12,5 +13,6 @@ internal class TaskItemUserAssignmentTypeConfiguration : IEntityTypeConfiguratio
 
 		builder.HasKey(a => new { a.TaskItemId, a.UserId });
 		builder.HasIndex(a => a.UserId);
+		builder.HasOne<User>().WithMany().HasForeignKey(a => a.UserId).OnDelete(DeleteBehavior.Cascade);
 	}
 }

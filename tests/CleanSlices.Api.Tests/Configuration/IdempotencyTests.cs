@@ -8,7 +8,10 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace CleanSlices.Api.Tests.Configuration;
 
@@ -129,13 +132,43 @@ public sealed class IdempotencyTests : IAsyncDisposable
 		Assert.Equal(2, _runs);
 	}
 
+	[Fact]
+	public async Task A_colon_in_a_key_or_a_user_doesnt_mix_two_users_up()
+	{
+		var client = await StartAsync();
+
+		await PostAsync(client, new Probe("Ana"), "b:c", user: "a");
+		var other = await PostAsync(client, new Probe("Ana"), "c", user: "a:b");
+
+		Assert.False(other.Headers.Contains(Idempotency.ReplayedHeader));
+		Assert.Equal(2, _runs);
+	}
+
+	[Fact]
+	public async Task The_response_is_stored_even_when_the_client_has_gone()
+	{
+		var client = await StartAsync();
+		var key = NewKey();
+
+		await Assert.ThrowsAnyAsync<Exception>(() => PostAsync(client, new Probe("gone"), key));
+		HttpResponseMessage retry;
+		do
+		{
+			retry = await PostAsync(client, new Probe("gone"), key);
+		}
+		while (retry.StatusCode == HttpStatusCode.Conflict);
+
+		Assert.Equal(1, _runs);
+		Assert.Equal(["true"], retry.Headers.GetValues(Idempotency.ReplayedHeader));
+	}
+
 	private async Task<HttpClient> StartAsync(bool required = false)
 	{
 		var builder = WebApplication.CreateSlimBuilder();
 		builder.WebHost.UseTestServer();
 		builder.Configuration["Idempotency:Required"] = required.ToString();
 		builder.Services.AddProblemDetails();
-		builder.Services.AddDistributedMemoryCache();
+		builder.Services.AddSingleton<IDistributedCache>(new TokenAwareCache());
 		builder.Services.AddHttpContextAccessor();
 		builder.Services.AddScoped<ICurrentUser>(services =>
 			new TestUser(services.GetRequiredService<IHttpContextAccessor>().HttpContext!.Request.Headers[UserHeader].ToString()));
@@ -148,9 +181,14 @@ public sealed class IdempotencyTests : IAsyncDisposable
 		return _app.GetTestClient();
 	}
 
-	private async Task<IResult> Handler(int id, Probe probe)
+	private async Task<IResult> Handler(int id, Probe probe, HttpContext httpContext)
 	{
 		var run = Interlocked.Increment(ref _runs);
+		if (probe.Name == "gone")
+		{
+			httpContext.Abort();
+		}
+
 		if (probe.Name == "slow")
 		{
 			_slowRequestStarted.SetResult();
@@ -182,6 +220,32 @@ public sealed class IdempotencyTests : IAsyncDisposable
 	private sealed record TestUser(string? UserId) : ICurrentUser
 	{
 		public bool IsAuthenticated => UserId is not null;
+	}
+
+	// Like Redis, and unlike the in-memory cache: it stops when the token is cancelled.
+	private sealed class TokenAwareCache : IDistributedCache
+	{
+		private readonly MemoryDistributedCache _inner = new(Options.Create(new MemoryDistributedCacheOptions()));
+
+		public byte[]? Get(string key) => _inner.Get(key);
+
+		public Task<byte[]?> GetAsync(string key, CancellationToken token = default) => _inner.GetAsync(key, token);
+
+		public void Set(string key, byte[] value, DistributedCacheEntryOptions options) => _inner.Set(key, value, options);
+
+		public Task SetAsync(string key, byte[] value, DistributedCacheEntryOptions options, CancellationToken token = default)
+		{
+			token.ThrowIfCancellationRequested();
+			return _inner.SetAsync(key, value, options, token);
+		}
+
+		public void Refresh(string key) => _inner.Refresh(key);
+
+		public Task RefreshAsync(string key, CancellationToken token = default) => _inner.RefreshAsync(key, token);
+
+		public void Remove(string key) => _inner.Remove(key);
+
+		public Task RemoveAsync(string key, CancellationToken token = default) => _inner.RemoveAsync(key, token);
 	}
 
 	public async ValueTask DisposeAsync()

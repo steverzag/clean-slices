@@ -90,9 +90,9 @@ internal sealed class OutboxProcessor(
 		{
 			integrationEvent = serializer.Deserialize(message.Name, message.Payload);
 		}
-		catch (Exception ex) when (ex is UnknownIntegrationEventException or JsonException)
+		catch (Exception ex)
 		{
-			// Retrying can't fix a name nobody knows or a payload that can't be read.
+			// Retrying can't fix a name nobody knows, or a payload or event class that can't be read.
 			Fail(message, ex, activity);
 			return;
 		}

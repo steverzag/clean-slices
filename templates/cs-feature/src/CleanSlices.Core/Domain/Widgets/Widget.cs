@@ -35,7 +35,7 @@ public class Widget : Entity
 
 		if (errors.TryGetValidationError(out var validationError))
 		{
-			return Result.Failure<Widget>(validationError!);
+			return Result.Failure<Widget>(validationError);
 		}
 
 		var entity = new Widget(name);
@@ -51,7 +51,7 @@ public class Widget : Entity
 
 		if (errors.TryGetValidationError(out var validationError))
 		{
-			return Result.Failure(validationError!);
+			return Result.Failure(validationError);
 		}
 
 		Name = name;
